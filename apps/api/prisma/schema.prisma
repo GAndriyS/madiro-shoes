@@ -54,6 +54,8 @@ model User {
   passwordHash String
   role         Role      @default(SELLER)
   createdAt    DateTime  @default(now())
+  /// Updated on every successful login; shown as seller activity in the dashboard.
+  lastActiveAt DateTime?
   deletedAt    DateTime?
 
   pairsCreated Pair[]      @relation("PairCreatedBy")
