@@ -85,7 +85,13 @@ export function PeriodSwitcher({ value, onChange }: Props) {
           <input
             type="date"
             value={value.to ?? ''}
-            onChange={(e) => onChange({ period: 'custom', from: value.from, to: e.target.value })}
+            onChange={(e) => {
+              onChange({ period: 'custom', from: value.from, to: e.target.value });
+              // Діапазон повний — закриваємо пікер
+              if (value.from && e.target.value) {
+                setRangeOpen(false);
+              }
+            }}
             className="rounded-lg border border-border-input px-2 py-1.5"
           />
         </div>

@@ -39,7 +39,15 @@ export function RevenueChart({ series, period }: { series: Series; period: Overv
   return (
     <div className="hidden flex-col gap-3.5 rounded-[14px] border border-border bg-surface px-[22px] py-5 md:flex">
       <div className="flex items-baseline justify-between">
-        <span className="text-[13px] font-extrabold text-ink">{t(TITLE_KEY[period])}</span>
+        <span className="text-[13px] font-extrabold text-ink">
+          {t(TITLE_KEY[period])}
+          {period === 'custom' && first && last && (
+            <span className="font-semibold text-text-muted">
+              {' '}
+              ({pointLabel(first.date, granularity)} — {pointLabel(last.date, granularity)})
+            </span>
+          )}
+        </span>
         <span className="text-[11.5px] text-text-muted">
           {t('overview.chartTotal', { sum: money(total) })}
         </span>
