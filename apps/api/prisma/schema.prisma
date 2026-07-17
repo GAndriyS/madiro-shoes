@@ -1,0 +1,130 @@
+// Доменна модель Madiro — див. docs/requirements-analysis.md, розділ 3.
+// Одиниця обліку — конкретна пара; варіант = Style · Color (+ Material, Season вручну).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  SELLER
+}
+
+enum Material {
+  LEATHER
+  SUEDE
+}
+
+// Внутрішня назва — season; у інтерфейсах лейбл «Утеплення» (без / байка / овчина).
+enum Season {
+  NONE
+  BAIKA
+  SHEEPSKIN
+}
+
+enum PairStatus {
+  IN_STOCK
+  SOLD
+  WRITTEN_OFF
+}
+
+enum OperationType {
+  INTAKE
+  SALE
+  RETURN
+  WRITEOFF
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+}
+
+// Продавця «видаляють» через deletedAt: акаунт зникає зі списку і не може
+// увійти, але його операції лишаються у звітах (FR-D-18).
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  login        String    @unique
+  passwordHash String
+  role         Role      @default(SELLER)
+  createdAt    DateTime  @default(now())
+  deletedAt    DateTime?
+
+  pairsCreated Pair[]      @relation("PairCreatedBy")
+  operations   Operation[]
+
+  @@map("users")
+}
+
+// Ціна закупки — одна на варіант (усі розміри); може бути відсутня
+// («без ціни — старий товар»). Історичні ціни фіксуються в Operation.
+model Variant {
+  id            String    @id @default(cuid())
+  style         String
+  color         String
+  material      Material?
+  season        Season?
+  purchasePrice Decimal?  @db.Decimal(10, 2)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  pairs Pair[]
+
+  // Postgres трактує NULL як різні значення, тому унікальність комбінацій
+  // з відсутнім material/season додатково контролюється сервісним шаром.
+  @@unique([style, color, material, season])
+  @@index([style])
+  @@map("variants")
+}
+
+// awaitingPrice — чернетка продавця в черзі «Очікують ціни»: пара вже на
+// складі й доступна для продажу; адмін пізніше вказує ціну або лишає без неї.
+model Pair {
+  id            String     @id @default(cuid())
+  variantId     String
+  variant       Variant    @relation(fields: [variantId], references: [id])
+  size          Int
+  status        PairStatus @default(IN_STOCK)
+  awaitingPrice Boolean    @default(false)
+  intakeDate    DateTime   @default(now())
+  createdById   String?
+  createdBy     User?      @relation("PairCreatedBy", fields: [createdById], references: [id])
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  operations Operation[]
+
+  // Пошук пари при продажу: збіг усіх 5 полів + найстаріша (FIFO).
+  @@index([variantId, size, status])
+  @@index([status, awaitingPrice])
+  @@map("pairs")
+}
+
+// Історія руху. purchasePriceAtTime фіксується на момент операції —
+// пізніша зміна ціни варіанта історію не переписує (розділ 3.3, п. 1).
+// Скасування операції адміном (розділ 7, п. 2) — через cancelledAt.
+model Operation {
+  id                  String         @id @default(cuid())
+  type                OperationType
+  pairId              String
+  pair                Pair           @relation(fields: [pairId], references: [id])
+  userId              String
+  user                User           @relation(fields: [userId], references: [id])
+  purchasePriceAtTime Decimal?       @db.Decimal(10, 2)
+  salePrice           Decimal?       @db.Decimal(10, 2)
+  paymentMethod       PaymentMethod?
+  comment             String?
+  cancelledAt         DateTime?
+  createdAt           DateTime       @default(now())
+
+  @@index([pairId])
+  @@index([type, createdAt])
+  @@index([userId, createdAt])
+  @@map("operations")
+}
