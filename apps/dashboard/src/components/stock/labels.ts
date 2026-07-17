@@ -1,6 +1,17 @@
 import type { Material, Season } from '@madiro/shared';
 import type { TFunction } from 'i18next';
 
+import { money } from '../../lib/format';
+
+/**
+ * Purchase price display for a non-null value: 0 = deliberate «Без ціни» (old
+ * stock), a positive value = the amount. `null` (not yet priced) is handled by
+ * callers, since it renders as a «вказати» action in the stock table.
+ */
+export function pricedPurchaseLabel(t: TFunction, value: number): string {
+  return value === 0 ? t('stock.noPriceLabel') : money(value);
+}
+
 export function materialLabel(t: TFunction, material: Material | null): string | null {
   if (material == null) {
     return null;

@@ -3,10 +3,9 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Trans, useTranslation } from 'react-i18next';
 
 import { api } from '../../lib/api';
-import { money } from '../../lib/format';
 import { TrashIcon } from '../layout/icons';
 import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
-import { materialSeason } from './labels';
+import { materialSeason, pricedPurchaseLabel } from './labels';
 
 export interface DeleteTarget {
   variant: Pick<VariantDetail, 'style' | 'color' | 'material' | 'season' | 'purchasePrice'>;
@@ -63,7 +62,7 @@ export function DeletePairModal({ target, onClose }: Props) {
             {materialSeason(t, variant.material, variant.season)} ·{' '}
             {t('stock.inStockSince', { date: since })}
             {variant.purchasePrice != null &&
-              ` · ${t('stock.colPurchase').toLowerCase()} ${money(variant.purchasePrice)}`}
+              ` · ${t('stock.colPurchase').toLowerCase()} ${pricedPurchaseLabel(t, variant.purchasePrice)}`}
           </span>
         </div>
         <div className="flex gap-2.5">

@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   queryIntakeHistory,
   queryIntakeQueue,
+  queryStock,
   setVariantNoPrice,
   setVariantPrice,
 } from '../src/mocks/stock-data';
@@ -26,16 +27,21 @@ describe('intake mock dataset', () => {
     expect(item?.lastPurchasePrice).toBe(1800);
   });
 
-  it('«без ціни» прибирає варіант із черги, лишаючи його в історії без ціни', () => {
+  it('«без ціни» прибирає варіант із черги й лишає в історії з ціною 0', () => {
     const before = queryIntakeQueue().items.find((it) => it.style === '6310' && it.color === '22');
     expect(before).toBeDefined();
 
     expect(setVariantNoPrice(before!.variantId)).toBe(true);
 
     expect(queryIntakeQueue().items.some((it) => it.variantId === before!.variantId)).toBe(false);
-    const inHistory = queryIntakeHistory(1);
-    const all = Array.from({ length: inHistory.total }, (_, i) => i);
-    expect(all.length).toBeGreaterThan(0);
+    // No price is recorded as 0 (deliberate old stock), not null (unpriced draft)
+    const entry = queryIntakeHistory(1).items.find((e) => e.style === '6310' && e.color === '22');
+    expect(entry?.purchasePrice).toBe(0);
+    // The stock row shows the same deliberate zero price
+    const row = queryStock({ sort: 'style-asc', page: 1, search: '6310' }).items.find(
+      (r) => r.color === '22',
+    );
+    expect(row?.purchasePrice).toBe(0);
   });
 
   it('вказання ціни прибирає варіант із черги й додає в історію з ціною', () => {

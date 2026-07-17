@@ -18,7 +18,7 @@ export function NoPriceModal({ item, onClose }: Props) {
   const queryClient = useQueryClient();
 
   const mutation = useMutation({
-    mutationFn: async () => api.post(`/intake/variants/${item?.variantId}/no-price`, {}),
+    mutationFn: async () => api.post(`/stock/variants/${item?.variantId}/no-price`, {}),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['intake'] });
       void queryClient.invalidateQueries({ queryKey: ['stock'] });

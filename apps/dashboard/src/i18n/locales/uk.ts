@@ -101,6 +101,8 @@ export const uk = {
     colPurchase: 'ЗАКУПКА',
     colLastSale: 'ОСТ. ПРОДАЖ',
     setPrice: 'вказати',
+    noPriceLabel: 'Без ціни',
+    noPriceOldStock: 'Без ціни — старий товар',
     awaitingChip_one: '{{count}} очік. ціни',
     awaitingChip_few: '{{count}} очік. ціни',
     awaitingChip_many: '{{count}} очік. ціни',

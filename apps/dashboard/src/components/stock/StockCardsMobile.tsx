@@ -1,8 +1,7 @@
 import type { StockVariantRow } from '@madiro/shared';
 import { useTranslation } from 'react-i18next';
 
-import { money } from '../../lib/format';
-import { materialSeason } from './labels';
+import { materialSeason, pricedPurchaseLabel } from './labels';
 
 interface Props {
   rows: StockVariantRow[];
@@ -32,7 +31,9 @@ export function StockCardsMobile({ rows, onRowClick }: Props) {
                   {t('stock.colPurchase').toLowerCase()}: {t('stock.setPrice')}
                 </span>
               ) : (
-                <span className="font-normal text-text-muted">{money(row.purchasePrice)}</span>
+                <span className="font-normal text-text-muted">
+                  {pricedPurchaseLabel(t, row.purchasePrice)}
+                </span>
               )}
             </span>
           </div>

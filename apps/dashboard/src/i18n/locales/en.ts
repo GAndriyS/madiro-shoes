@@ -97,6 +97,8 @@ export const en: Messages = {
     colPurchase: 'PURCHASE',
     colLastSale: 'LAST SALE',
     setPrice: 'set',
+    noPriceLabel: 'No price',
+    noPriceOldStock: 'No price — old stock',
     awaitingChip_one: '{{count}} awaiting',
     awaitingChip_other: '{{count}} awaiting',
     shown: 'Showing {{shown}} of {{total}}',

@@ -38,19 +38,27 @@ export function PriceModal({ target, onClose }: Props) {
   });
 
   useEffect(() => {
-    setValue(data?.purchasePrice != null ? String(data.purchasePrice) : '');
+    // Prefill only a real price; 0 ("no price") and null start empty.
+    setValue(data?.purchasePrice ? String(data.purchasePrice) : '');
   }, [data?.purchasePrice, target?.variantId]);
+
+  const invalidate = () => {
+    void queryClient.invalidateQueries({ queryKey: ['stock'] });
+    void queryClient.invalidateQueries({ queryKey: ['intake'] });
+    onClose();
+  };
 
   const mutation = useMutation({
     mutationFn: async (purchasePrice: number) => {
       const body = setVariantPriceSchema.parse({ purchasePrice });
       return api.patch(`/stock/variants/${target?.variantId}/price`, body);
     },
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['stock'] });
-      void queryClient.invalidateQueries({ queryKey: ['intake'] });
-      onClose();
-    },
+    onSuccess: invalidate,
+  });
+
+  const noPriceMutation = useMutation({
+    mutationFn: async () => api.post(`/stock/variants/${target?.variantId}/no-price`, {}),
+    onSuccess: invalidate,
   });
 
   if (target == null) {
@@ -145,20 +153,33 @@ export function PriceModal({ target, onClose }: Props) {
           </span>
         </div>
 
-        <div className="flex gap-2.5">
-          <button
-            type="button"
-            disabled={!valid || mutation.isPending}
-            onClick={() => mutation.mutate(parsedValue)}
-            className={`flex-1 rounded-xl p-3.5 text-center text-[14.5px] font-bold disabled:opacity-60 ${
-              queueMode ? 'bg-accent text-white' : 'bg-ink text-page'
-            }`}
-          >
-            {queueMode ? t('stock.saveAndStock') : t('stock.saveChanges')}
-          </button>
-          <DialogClose className="rounded-xl border-[1.5px] border-border-input px-5 py-3.5 text-center text-[14.5px] font-semibold text-text-secondary">
-            {t('stock.cancel')}
-          </DialogClose>
+        <div className="flex flex-col gap-2.5">
+          <div className="flex gap-2.5">
+            <button
+              type="button"
+              disabled={!valid || mutation.isPending}
+              onClick={() => mutation.mutate(parsedValue)}
+              className={`flex-1 rounded-xl p-3.5 text-center text-[14.5px] font-bold disabled:opacity-60 ${
+                queueMode ? 'bg-accent text-white' : 'bg-ink text-page'
+              }`}
+            >
+              {queueMode ? t('stock.saveAndStock') : t('stock.saveChanges')}
+            </button>
+            <DialogClose className="rounded-xl border-[1.5px] border-border-input px-5 py-3.5 text-center text-[14.5px] font-semibold text-text-secondary">
+              {t('stock.cancel')}
+            </DialogClose>
+          </div>
+          {/* Alternative to a value: mark the variant as old stock (price 0). */}
+          {!queueMode && (
+            <button
+              type="button"
+              disabled={noPriceMutation.isPending || data?.purchasePrice === 0}
+              onClick={() => noPriceMutation.mutate()}
+              className="rounded-xl border-[1.5px] border-border-input py-3 text-center text-[13.5px] font-semibold text-text-secondary disabled:opacity-50"
+            >
+              {t('stock.noPriceOldStock')}
+            </button>
+          )}
         </div>
       </DialogContent>
     </Dialog>

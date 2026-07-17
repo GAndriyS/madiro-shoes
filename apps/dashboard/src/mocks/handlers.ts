@@ -279,7 +279,8 @@ export const handlers = [
     return HttpResponse.json(queryIntakeHistory(page));
   }),
 
-  http.post('/api/intake/variants/:id/no-price', ({ params }) =>
+  // Inventory-level action reused by both Stock (price edit) and Intake ("Без ціни")
+  http.post('/api/stock/variants/:id/no-price', ({ params }) =>
     setVariantNoPrice(String(params['id']))
       ? HttpResponse.json({ ok: true })
       : HttpResponse.json({ message: 'Not found' }, { status: 404 }),

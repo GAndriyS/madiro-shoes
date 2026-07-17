@@ -556,18 +556,23 @@ export function setVariantPrice(id: string, purchasePrice: number): boolean {
   return true;
 }
 
-/** Leaves the variant without a purchase price ("old stock") but clears the queue (FR-D-11/14). */
+/**
+ * Marks the variant as "old stock" with a deliberate zero price (FR-D-11/14).
+ * purchasePrice 0 = intentionally no price (shown as «Без ціни»);
+ * null = a draft the admin has not priced yet (shown as «вказати»).
+ */
 export function setVariantNoPrice(id: string): boolean {
   const v = variants.find((x) => x.id === id);
   if (!v) {
     return false;
   }
+  v.purchasePrice = 0;
   for (const p of pairs) {
     if (p.variantId === id) {
       p.awaitingPrice = false;
     }
   }
-  confirmDraftIntake(v, null);
+  confirmDraftIntake(v, 0);
   return true;
 }
 

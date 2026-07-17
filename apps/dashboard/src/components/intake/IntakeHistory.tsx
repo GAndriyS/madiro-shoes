@@ -42,10 +42,10 @@ export function IntakeHistory({ data, onPage }: Props) {
             </div>
             <span
               className={`text-[13px] font-bold ${
-                e.purchasePrice == null ? 'text-amber-text' : 'text-text'
+                e.purchasePrice ? 'text-text' : 'text-amber-text'
               }`}
             >
-              {e.purchasePrice == null ? t('intake.historyNoPrice') : money(e.purchasePrice)}
+              {e.purchasePrice ? money(e.purchasePrice) : t('intake.historyNoPrice')}
             </span>
           </div>
         ))}

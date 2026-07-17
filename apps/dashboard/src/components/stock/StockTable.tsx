@@ -113,6 +113,8 @@ export function StockTable({ rows, sort, onSortToggle, onRowClick, onSetPrice }:
             >
               {t('stock.setPrice')}
             </button>
+          ) : info.getValue() === 0 ? (
+            <span className="block text-right text-text-muted">{t('stock.noPriceLabel')}</span>
           ) : (
             <span className="block text-right">{money(info.getValue()!)}</span>
           ),
