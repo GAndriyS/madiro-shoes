@@ -1,0 +1,51 @@
+@import 'tailwindcss';
+
+/* Дизайн-токени з docs/requirements-analysis.md, NFR-06 (high-fidelity). */
+@theme {
+  /* Брейкпоінти дизайну: ≥1100 повний сайдбар · 768–1100 іконковий · <768 нижня навігація */
+  --breakpoint-md: 768px;
+  --breakpoint-lg: 1100px;
+
+  --color-page: #f5f1ea;
+  --color-surface: #fdfbf7;
+  --color-ink: #2b2620;
+  --color-text: #443c33;
+  --color-text-secondary: #6b6155;
+  --color-text-muted: #8a7d6b;
+  --color-text-faint: #a89a86;
+  --color-sidebar-muted: #b0a794;
+
+  --color-accent: #8a6d4b;
+  --color-accent-hover: #6d5236;
+  --color-logo: #c9b591;
+
+  --color-queue-badge: #e8c87a;
+  --color-amber-bg: #f0e5cc;
+  --color-amber-text: #8a6d2b;
+  --color-amber-border: #c9a53f;
+
+  --color-danger: #a05c3b;
+  --color-danger-bg: #f3e3da;
+  --color-success: #4a7040;
+  --color-success-bg: #e8efe0;
+
+  --color-border: #e6dccc;
+  --color-border-row: #efe7d9;
+  --color-border-input: #d9cbb4;
+  --color-chart-bar: #e3d9c8;
+  --color-segment: #e9e0d0;
+  --color-row-selected: #f3ede2;
+
+  --font-display: 'Cormorant Garamond', serif;
+  --font-sans: 'Manrope', sans-serif;
+
+  --shadow-modal: 0 30px 80px rgba(43, 38, 32, 0.35);
+  --shadow-drawer: -24px 0 60px rgba(43, 38, 32, 0.25);
+  --shadow-login: 0 20px 50px rgba(43, 38, 32, 0.08);
+}
+
+body {
+  background-color: var(--color-page);
+  color: var(--color-text);
+  font-family: var(--font-sans);
+}
