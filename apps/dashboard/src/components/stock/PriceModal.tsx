@@ -48,6 +48,7 @@ export function PriceModal({ target, onClose }: Props) {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: ['stock'] });
+      void queryClient.invalidateQueries({ queryKey: ['intake'] });
       onClose();
     },
   });

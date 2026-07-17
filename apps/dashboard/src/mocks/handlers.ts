@@ -1,7 +1,15 @@
 import { setVariantPriceSchema, stockListQuerySchema, type OverviewResponse } from '@madiro/shared';
 import { HttpResponse, http } from 'msw';
 
-import { deletePair, getVariantDetail, queryStock, setVariantPrice } from './stock-data';
+import {
+  deletePair,
+  getVariantDetail,
+  queryIntakeHistory,
+  queryIntakeQueue,
+  queryStock,
+  setVariantNoPrice,
+  setVariantPrice,
+} from './stock-data';
 
 /**
  * Mocked data for dashboard development (the dashboard is built on mocks;
@@ -259,6 +267,20 @@ export const handlers = [
 
   http.delete('/api/stock/pairs/:id', ({ params }) =>
     deletePair(String(params['id']))
+      ? HttpResponse.json({ ok: true })
+      : HttpResponse.json({ message: 'Not found' }, { status: 404 }),
+  ),
+
+  http.get('/api/intake/queue', () => HttpResponse.json(queryIntakeQueue())),
+
+  http.get('/api/intake/history', ({ request }) => {
+    const url = new URL(request.url);
+    const page = Math.max(1, Number(url.searchParams.get('page') ?? '1'));
+    return HttpResponse.json(queryIntakeHistory(page));
+  }),
+
+  http.post('/api/intake/variants/:id/no-price', ({ params }) =>
+    setVariantNoPrice(String(params['id']))
       ? HttpResponse.json({ ok: true })
       : HttpResponse.json({ message: 'Not found' }, { status: 404 }),
   ),
