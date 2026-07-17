@@ -4,7 +4,7 @@ import { AuthGuard } from '@nestjs/passport';
 
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator';
 
-/** Глобальний guard: усі ендпоінти захищені, крім позначених @Public(). */
+/** Global guard: every endpoint is protected unless marked @Public(). */
 @Injectable()
 export class JwtAuthGuard extends AuthGuard('jwt') {
   constructor(private readonly reflector: Reflector) {

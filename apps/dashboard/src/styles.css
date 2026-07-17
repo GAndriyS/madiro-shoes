@@ -1,8 +1,8 @@
 @import 'tailwindcss';
 
-/* Дизайн-токени з docs/requirements-analysis.md, NFR-06 (high-fidelity). */
+/* Design tokens from docs/requirements-analysis.md, NFR-06 (high-fidelity). */
 @theme {
-  /* Брейкпоінти дизайну: ≥1100 повний сайдбар · 768–1100 іконковий · <768 нижня навігація */
+  /* Design breakpoints: >=1100 full sidebar · 768-1100 icon sidebar · <768 bottom nav */
   --breakpoint-md: 768px;
   --breakpoint-lg: 1100px;
 

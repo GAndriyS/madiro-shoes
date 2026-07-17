@@ -5,8 +5,8 @@ export const MATERIALS = ['LEATHER', 'SUEDE'] as const;
 export type Material = (typeof MATERIALS)[number];
 
 /**
- * Внутрішня назва поля — season; у всіх інтерфейсах лейбл «Утеплення»
- * (без / байка / овчина) — див. requirements-analysis, розділ 3.1.
+ * Internal field name is "season"; every UI labels it «Утеплення»
+ * (none / fleece / sheepskin) — see requirements-analysis, section 3.1.
  */
 export const SEASONS = ['NONE', 'BAIKA', 'SHEEPSKIN'] as const;
 export type Season = (typeof SEASONS)[number];

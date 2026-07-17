@@ -1,4 +1,4 @@
-// Іконки з дизайну: інлайн SVG, stroke 1.8, стиль Feather/Lucide (NFR-06).
+// Icons from the design: inline SVG, stroke 1.8, Feather/Lucide style (NFR-06).
 import type { SVGProps } from 'react';
 
 interface IconProps extends SVGProps<SVGSVGElement> {
@@ -64,6 +64,15 @@ export function LogoutIcon(props: IconProps) {
     <Svg {...props}>
       <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
       <path d="M16 17l5-5-5-5M21 12H9" />
+    </Svg>
+  );
+}
+
+export function CalendarIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3" y="4" width="18" height="18" rx="2" />
+      <path d="M16 2v4M8 2v4M3 10h18" />
     </Svg>
   );
 }

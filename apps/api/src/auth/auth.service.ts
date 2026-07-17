@@ -24,7 +24,7 @@ export class AuthService {
     private readonly config: ConfigService,
   ) {}
 
-  // Той самий акаунт для сканера й дашборда; видалені продавці не входять.
+  // The same account serves the scanner and the dashboard; deleted sellers cannot log in.
   async login(login: string, password: string): Promise<AuthResponse> {
     const user = await this.prisma.user.findFirst({
       where: { login, deletedAt: null },

@@ -2,10 +2,10 @@ import { z } from 'zod';
 
 import { SIZE_MAX, SIZE_MIN } from '../constants.js';
 
-/** Розмір взуття: ціле число в допустимому діапазоні. */
+/** Shoe size: an integer within the allowed range. */
 export const sizeSchema = z.number().int().min(SIZE_MIN).max(SIZE_MAX);
 
-/** Коди з бірки (style, color) — рукописні числові коди, зберігаються як текст. */
+/** Tag codes (style, color) — handwritten numeric codes stored as text. */
 export const tagCodeSchema = z
   .string()
   .trim()
@@ -13,5 +13,5 @@ export const tagCodeSchema = z
   .max(10)
   .regex(/^\d+$/, 'Очікується числовий код з бірки');
 
-/** Грошове значення у гривнях: додатне, до двох знаків після коми. */
+/** Money amount in hryvnias: positive, up to two decimal places. */
 export const moneySchema = z.number().positive().max(1_000_000).multipleOf(0.01);

@@ -2,6 +2,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import type { ComponentType } from 'react';
 
+import { initials } from '../../lib/format';
 import { useAuthStore } from '../../stores/auth';
 import { BoxIcon, GridIcon, LogoutIcon, PlusIcon, UsersIcon } from './icons';
 
@@ -10,7 +11,7 @@ interface NavItem {
   labelKey: string;
   shortLabelKey: string;
   Icon: ComponentType<{ size?: number }>;
-  /** Бейдж черги = кількість варіантів (розділ 3.3, п. 11); поки з моків. */
+  /** Queue badge = number of variants (section 3.3, item 11); mocked for now. */
   badge?: number;
 }
 
@@ -40,10 +41,11 @@ function QueueBadge({ count }: { count: number }) {
   );
 }
 
-/** Повний сайдбар 216px (≥1100) та іконковий 64px (768–1100). */
+/** Full 216px sidebar (>=1100) and 64px icon sidebar (768-1100). */
 export function Sidebar({ queueVariants }: { queueVariants: number }) {
   const { t } = useTranslation();
   const items = useNavItems(queueVariants);
+  const user = useAuthStore((s) => s.user);
   const clearSession = useAuthStore((s) => s.clearSession);
   const navigate = useNavigate();
 
@@ -53,7 +55,7 @@ export function Sidebar({ queueVariants }: { queueVariants: number }) {
   };
 
   return (
-    <aside className="hidden h-screen flex-none flex-col bg-ink pt-[26px] pb-5 md:flex md:w-16 lg:w-[216px]">
+    <aside className="sticky top-0 hidden h-screen flex-none flex-col bg-ink pt-[26px] pb-5 md:flex md:w-16 lg:w-[216px]">
       <div className="px-0 pb-[26px] text-center font-display text-[19px] tracking-[5px] text-logo lg:px-[26px] lg:text-left">
         <span className="lg:hidden">M</span>
         <span className="hidden lg:inline">MADIRO</span>
@@ -81,19 +83,51 @@ export function Sidebar({ queueVariants }: { queueVariants: number }) {
           </Link>
         ))}
       </nav>
-      <button
-        type="button"
-        onClick={logout}
-        className="mt-auto flex items-center justify-center gap-[11px] px-[26px] py-[11px] text-[13.5px] text-sidebar-muted hover:text-page lg:justify-start"
-      >
-        <LogoutIcon size={16} />
-        <span className="hidden lg:inline">{t('common.logout')}</span>
-      </button>
+      <div className="mt-auto flex flex-col gap-4 px-3 lg:px-[26px]">
+        {/* Admin profile block (design 1a) */}
+        <div className="flex items-center justify-center gap-2.5 lg:justify-start">
+          <div className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-logo text-[11px] font-extrabold text-ink">
+            {user ? initials(user.name) : ''}
+          </div>
+          <div className="hidden flex-col lg:flex">
+            <span className="text-[12.5px] font-bold text-page">{user?.name}</span>
+            <span className="text-[10.5px] text-text-muted">{t('common.adminRole')}</span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={logout}
+          className="flex items-center justify-center gap-[9px] py-1 text-xs text-sidebar-muted hover:text-page lg:justify-start"
+        >
+          <LogoutIcon size={14} />
+          <span className="hidden lg:inline">{t('common.logout')}</span>
+        </button>
+      </div>
     </aside>
   );
 }
 
-/** Нижня навігація 4 пункти (<768): Огляд / Склад / Черга / Люди. */
+/** Mobile header (design 1c): logo + avatar. */
+export function MobileHeader() {
+  const { t } = useTranslation();
+  const user = useAuthStore((s) => s.user);
+
+  return (
+    <header className="flex items-center justify-between px-5 pt-4 md:hidden">
+      <div className="font-display text-[17px] tracking-[3px] text-accent">
+        MADIRO{' '}
+        <span className="font-sans text-[10px] font-bold tracking-[1px] text-text-faint">
+          {t('common.adminShort')}
+        </span>
+      </div>
+      <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-chart-bar text-xs font-bold text-accent-hover">
+        {user ? initials(user.name) : ''}
+      </div>
+    </header>
+  );
+}
+
+/** Bottom navigation, 4 items (<768): Overview / Stock / Queue / People. */
 export function BottomNav({ queueVariants }: { queueVariants: number }) {
   const { t } = useTranslation();
   const items = useNavItems(queueVariants);

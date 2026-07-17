@@ -4,8 +4,8 @@ import { MATERIALS, PAYMENT_METHODS, SEASONS } from '../enums.js';
 import { moneySchema, sizeSchema, tagCodeSchema } from './common.js';
 
 /**
- * Поступлення пари (FR-S-11/12): три поля з бірки + опційні матеріал
- * і утеплення. Ціну закупки вказує лише адмін; продавець створює чернетку.
+ * Pair intake (FR-S-11/12): three tag fields plus optional material and
+ * insulation. Only the admin sets the purchase price; a seller creates a draft.
  */
 export const intakeSchema = z.object({
   size: sizeSchema,
@@ -13,12 +13,12 @@ export const intakeSchema = z.object({
   style: tagCodeSchema,
   material: z.enum(MATERIALS).optional(),
   season: z.enum(SEASONS).optional(),
-  /** Лише для адміна; null явно означає «без ціни — старий товар». */
+  /** Admin only; explicit null means "no price — old stock". */
   purchasePrice: moneySchema.nullable().optional(),
 });
 export type IntakeInput = z.infer<typeof intakeSchema>;
 
-/** Пошук пари за 5 полями ідентичності (розділ 3.2). */
+/** Pair lookup by the 5 identity fields (section 3.2). */
 export const pairLookupSchema = z.object({
   size: sizeSchema,
   color: tagCodeSchema,
@@ -28,7 +28,7 @@ export const pairLookupSchema = z.object({
 });
 export type PairLookupInput = z.infer<typeof pairLookupSchema>;
 
-/** Продаж (FR-S-07): кінцева ціна вводиться при кожному продажі. */
+/** Sale (FR-S-07): the final price is entered on every sale. */
 export const saleSchema = z.object({
   pairId: z.string().min(1),
   salePrice: moneySchema,
@@ -36,14 +36,14 @@ export const saleSchema = z.object({
 });
 export type SaleInput = z.infer<typeof saleSchema>;
 
-/** Списання (FR-S-08): без ціни, опційний коментар-причина. */
+/** Write-off (FR-S-08): no price, optional reason comment. */
 export const writeoffSchema = z.object({
   pairId: z.string().min(1),
   comment: z.string().trim().max(500).optional(),
 });
 export type WriteoffInput = z.infer<typeof writeoffSchema>;
 
-/** Вказання ціни закупки варіанта з черги (FR-D-08); null — «без ціни — старий товар». */
+/** Setting a variant's purchase price from the queue (FR-D-08); null = "no price — old stock". */
 export const setPurchasePriceSchema = z.object({
   variantId: z.string().min(1),
   purchasePrice: moneySchema.nullable(),
