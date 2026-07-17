@@ -10,6 +10,7 @@ import { AuthService } from './auth.service';
 describe('AuthService', () => {
   let service: AuthService;
   const findFirst = jest.fn();
+  const update = jest.fn().mockResolvedValue({});
 
   const config = {
     getOrThrow: (key: string) => `${key}-secret-0123456789`,
@@ -21,7 +22,7 @@ describe('AuthService', () => {
     const moduleRef = await Test.createTestingModule({
       providers: [
         AuthService,
-        { provide: PrismaService, useValue: { user: { findFirst } } },
+        { provide: PrismaService, useValue: { user: { findFirst, update } } },
         {
           provide: JwtService,
           useValue: new JwtService({ secret: 'test-secret-0123456789' }),

@@ -24,3 +24,19 @@ export const updateUserSchema = z.object({
   password: passwordSchema.optional(),
 });
 export type UpdateUserInput = z.infer<typeof updateUserSchema>;
+
+/**
+ * Seller list item (FR-D-15). Activity counters are 0 until real operations
+ * exist; lastActiveAt is set by the API on every successful login.
+ */
+export const sellerSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  login: z.string(),
+  lastActiveAt: z.string().nullable(),
+  salesThisMonth: z.number().int(),
+  draftsInQueue: z.number().int(),
+});
+export type Seller = z.infer<typeof sellerSchema>;
+
+export const sellersResponseSchema = z.array(sellerSchema);

@@ -32,6 +32,10 @@ export class AuthService {
     if (!user || !(await argon2.verify(user.passwordHash, password))) {
       throw new UnauthorizedException('Невірний логін або пароль');
     }
+    // Fire-and-forget: activity timestamp must not delay or fail the login
+    void this.prisma.user
+      .update({ where: { id: user.id }, data: { lastActiveAt: new Date() } })
+      .catch(() => undefined);
     return this.buildAuthResponse({
       id: user.id,
       name: user.name,
