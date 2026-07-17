@@ -42,6 +42,13 @@ export function dayLabel(isoDate: string): string {
   return `${dm} ${time}`;
 }
 
+/** Коротка дата: «8 лип» (для підписів чартів і діапазонів періоду). */
+export function shortDay(isoDate: string): string {
+  return new Date(isoDate)
+    .toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' })
+    .replace('.', '');
+}
+
 /** Заголовок сторінки: «вівторок, 14 липня» (повний) або «14 липня» (короткий). */
 export function titleDate(lang: string, withWeekday: boolean): string {
   const locale = lang === 'en' ? 'en-GB' : 'uk-UA';

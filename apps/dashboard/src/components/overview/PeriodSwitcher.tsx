@@ -2,6 +2,7 @@ import type { OverviewPeriod } from '@madiro/shared';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { shortDay } from '../../lib/format';
 import { CalendarIcon } from '../layout/icons';
 
 export interface PeriodValue {
@@ -68,7 +69,9 @@ export function PeriodSwitcher({ value, onChange }: Props) {
           }`}
         >
           <CalendarIcon size={13} />
-          {t('overview.periodCustom')}
+          {value.period === 'custom' && (value.from || value.to)
+            ? `${value.from ? shortDay(value.from) : '…'} — ${value.to ? shortDay(value.to) : '…'}`
+            : t('overview.periodCustom')}
         </button>
       </div>
 

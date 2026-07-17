@@ -2,7 +2,7 @@ import type { OverviewPeriod, OverviewResponse } from '@madiro/shared';
 import { useTranslation } from 'react-i18next';
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
-import { money } from '../../lib/format';
+import { money, shortDay } from '../../lib/format';
 
 type Series = OverviewResponse['revenueSeries'];
 
@@ -14,11 +14,10 @@ const TITLE_KEY: Record<OverviewPeriod, string> = {
 };
 
 function pointLabel(iso: string, granularity: Series['granularity']): string {
-  const d = new Date(iso);
   if (granularity === 'hour') {
-    return d.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+    return new Date(iso).toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
   }
-  return d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' }).replace('.', '');
+  return shortDay(iso);
 }
 
 function isToday(iso: string): boolean {
