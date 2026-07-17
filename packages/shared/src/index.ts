@@ -6,3 +6,4 @@ export * from './schemas/tag.js';
 export * from './schemas/user.js';
 export * from './schemas/inventory.js';
 export * from './schemas/stats.js';
+export * from './schemas/stock.js';

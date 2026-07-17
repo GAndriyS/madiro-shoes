@@ -1,5 +1,7 @@
-import type { OverviewResponse } from '@madiro/shared';
+import { setVariantPriceSchema, stockListQuerySchema, type OverviewResponse } from '@madiro/shared';
 import { HttpResponse, http } from 'msw';
+
+import { deletePair, getVariantDetail, queryStock, setVariantPrice } from './stock-data';
 
 /**
  * Mocked data for dashboard development (the dashboard is built on mocks;
@@ -228,4 +230,36 @@ export const handlers = [
       ),
     );
   }),
+
+  http.get('/api/stock/variants', ({ request }) => {
+    const url = new URL(request.url);
+    const parsed = stockListQuerySchema.safeParse(Object.fromEntries(url.searchParams));
+    if (!parsed.success) {
+      return HttpResponse.json(parsed.error.issues, { status: 400 });
+    }
+    return HttpResponse.json(queryStock(parsed.data));
+  }),
+
+  http.get('/api/stock/variants/:id', ({ params }) => {
+    const detail = getVariantDetail(String(params['id']));
+    return detail
+      ? HttpResponse.json(detail)
+      : HttpResponse.json({ message: 'Not found' }, { status: 404 });
+  }),
+
+  http.patch('/api/stock/variants/:id/price', async ({ params, request }) => {
+    const parsed = setVariantPriceSchema.safeParse(await request.json());
+    if (!parsed.success) {
+      return HttpResponse.json(parsed.error.issues, { status: 400 });
+    }
+    return setVariantPrice(String(params['id']), parsed.data.purchasePrice)
+      ? HttpResponse.json({ ok: true })
+      : HttpResponse.json({ message: 'Not found' }, { status: 404 });
+  }),
+
+  http.delete('/api/stock/pairs/:id', ({ params }) =>
+    deletePair(String(params['id']))
+      ? HttpResponse.json({ ok: true })
+      : HttpResponse.json({ message: 'Not found' }, { status: 404 }),
+  ),
 ];
