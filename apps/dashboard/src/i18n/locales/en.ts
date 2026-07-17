@@ -1,8 +1,15 @@
 import type { uk } from './uk';
 
-export const en: typeof uk = {
+type Messages = { [K in keyof typeof uk]: Record<string, string> };
+
+export const en: Messages = {
   common: {
     logout: 'Log out',
+    adminRole: 'Administrator',
+    adminShort: 'ADMIN',
+    today: 'today',
+    yesterday: 'yesterday',
+    noPrice: 'no price',
   },
   login: {
     subtitle: 'Admin panel',
@@ -25,6 +32,45 @@ export const en: typeof uk = {
   },
   overview: {
     title: 'Overview',
+    periodToday: 'Today',
+    periodWeek: 'Week',
+    periodMonth: 'Month',
+    periodCustom: 'Range',
+    from: 'from',
+    to: 'to',
+    kpiRevenue: 'REVENUE',
+    kpiRevenueDelta: '+{{pct}}% vs yesterday',
+    kpiSold: 'SOLD',
+    sales_one: '{{count}} sale',
+    sales_other: '{{count}} sales',
+    returns_one: '{{count}} return',
+    returns_other: '{{count}} returns',
+    netPairs: 'net {{count}} pairs',
+    kpiMargin: 'MARGIN',
+    kpiMarginShort: 'MARGIN',
+    kpiMarginPct: '{{pct}}% of revenue',
+    kpiAwaiting: 'AWAITING PRICE',
+    kpiAwaitingShort: 'AWAITING',
+    pairs_one: '{{count}} pair',
+    pairs_other: '{{count}} pairs',
+    fromSellers_one: 'from {{count}} seller →',
+    fromSellers_other: 'from {{count}} sellers →',
+    chartTitle: 'Revenue, 14 days',
+    chartTotal: 'total {{sum}}',
+    queueTitle: '“Awaiting price” queue',
+    queueAll: 'All →',
+    queuePrice: 'Price',
+    queueSold: 'sold',
+    queueSoldToday: 'sold today',
+    feedTitle: 'Recent operations',
+    opSale: 'sale',
+    opReturn: 'return',
+    opIntake: 'intake',
+    opWriteoff: 'write-off',
+    payCash: 'cash',
+    payCard: 'card',
+    draft: 'draft',
+    margin: 'margin {{value}}',
   },
   stock: {
     title: 'Stock',

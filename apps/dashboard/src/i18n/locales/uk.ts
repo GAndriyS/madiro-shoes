@@ -1,33 +1,11 @@
-interface Messages {
-  common: { logout: string };
-  login: {
-    subtitle: string;
-    loginLabel: string;
-    passwordLabel: string;
-    submit: string;
-    invalidCredentials: string;
-    adminOnly: string;
-    genericError: string;
-    showPassword: string;
-    hidePassword: string;
-  };
-  nav: {
-    overview: string;
-    stock: string;
-    intake: string;
-    intakeShort: string;
-    users: string;
-    usersShort: string;
-  };
-  overview: { title: string };
-  stock: { title: string };
-  intake: { title: string };
-  users: { title: string };
-}
-
-export const uk: Messages = {
+export const uk = {
   common: {
-    logout: 'Вийти з акаунта',
+    logout: 'Вийти',
+    adminRole: 'Адміністратор',
+    adminShort: 'АДМІН',
+    today: 'сьогодні',
+    yesterday: 'вчора',
+    noPrice: 'без ціни',
   },
   login: {
     subtitle: 'Панель адміністратора',
@@ -50,6 +28,53 @@ export const uk: Messages = {
   },
   overview: {
     title: 'Огляд',
+    periodToday: 'Сьогодні',
+    periodWeek: 'Тиждень',
+    periodMonth: 'Місяць',
+    periodCustom: 'Період',
+    from: 'з',
+    to: 'по',
+    kpiRevenue: 'ВИРУЧКА',
+    kpiRevenueDelta: '+{{pct}}% до вчора',
+    kpiSold: 'ПРОДАНО',
+    sales_one: '{{count}} продаж',
+    sales_few: '{{count}} продажі',
+    sales_many: '{{count}} продажів',
+    sales_other: '{{count}} продажу',
+    returns_one: '{{count}} повернення',
+    returns_few: '{{count}} повернення',
+    returns_many: '{{count}} повернень',
+    returns_other: '{{count}} повернення',
+    netPairs: 'нетто {{count}} пар',
+    kpiMargin: 'МАРЖА ДНЯ',
+    kpiMarginShort: 'МАРЖА',
+    kpiMarginPct: '{{pct}}% від виручки',
+    kpiAwaiting: 'ОЧІКУЮТЬ ЦІНИ',
+    kpiAwaitingShort: 'ОЧІК. ЦІНИ',
+    pairs_one: '{{count}} пара',
+    pairs_few: '{{count}} пари',
+    pairs_many: '{{count}} пар',
+    pairs_other: '{{count}} пари',
+    fromSellers_one: 'від {{count}} продавця →',
+    fromSellers_few: 'від {{count}} продавців →',
+    fromSellers_many: 'від {{count}} продавців →',
+    fromSellers_other: 'від {{count}} продавців →',
+    chartTitle: 'Виручка за 14 днів',
+    chartTotal: 'разом {{sum}}',
+    queueTitle: 'Черга «Очікують ціни»',
+    queueAll: 'Усі →',
+    queuePrice: 'Ціна',
+    queueSold: 'продана',
+    queueSoldToday: 'продано сьогодні',
+    feedTitle: 'Останні операції',
+    opSale: 'продаж',
+    opReturn: 'повернення',
+    opIntake: 'поступлення',
+    opWriteoff: 'списання',
+    payCash: 'готівка',
+    payCard: 'картка',
+    draft: 'чернетка',
+    margin: 'маржа {{value}}',
   },
   stock: {
     title: 'Склад',

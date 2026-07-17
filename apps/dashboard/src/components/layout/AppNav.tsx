@@ -2,6 +2,7 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import type { ComponentType } from 'react';
 
+import { initials } from '../../lib/format';
 import { useAuthStore } from '../../stores/auth';
 import { BoxIcon, GridIcon, LogoutIcon, PlusIcon, UsersIcon } from './icons';
 
@@ -44,6 +45,7 @@ function QueueBadge({ count }: { count: number }) {
 export function Sidebar({ queueVariants }: { queueVariants: number }) {
   const { t } = useTranslation();
   const items = useNavItems(queueVariants);
+  const user = useAuthStore((s) => s.user);
   const clearSession = useAuthStore((s) => s.clearSession);
   const navigate = useNavigate();
 
@@ -81,15 +83,47 @@ export function Sidebar({ queueVariants }: { queueVariants: number }) {
           </Link>
         ))}
       </nav>
-      <button
-        type="button"
-        onClick={logout}
-        className="mt-auto flex items-center justify-center gap-[11px] px-[26px] py-[11px] text-[13.5px] text-sidebar-muted hover:text-page lg:justify-start"
-      >
-        <LogoutIcon size={16} />
-        <span className="hidden lg:inline">{t('common.logout')}</span>
-      </button>
+      <div className="mt-auto flex flex-col gap-4 px-3 lg:px-[26px]">
+        {/* Профіль адміна (дизайн 1a) */}
+        <div className="flex items-center justify-center gap-2.5 lg:justify-start">
+          <div className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-logo text-[11px] font-extrabold text-ink">
+            {user ? initials(user.name) : ''}
+          </div>
+          <div className="hidden flex-col lg:flex">
+            <span className="text-[12.5px] font-bold text-page">{user?.name}</span>
+            <span className="text-[10.5px] text-text-muted">{t('common.adminRole')}</span>
+          </div>
+        </div>
+        <button
+          type="button"
+          onClick={logout}
+          className="flex items-center justify-center gap-[9px] py-1 text-xs text-sidebar-muted hover:text-page lg:justify-start"
+        >
+          <LogoutIcon size={14} />
+          <span className="hidden lg:inline">{t('common.logout')}</span>
+        </button>
+      </div>
     </aside>
+  );
+}
+
+/** Мобільний хедер (дизайн 1c): лого + аватар. */
+export function MobileHeader() {
+  const { t } = useTranslation();
+  const user = useAuthStore((s) => s.user);
+
+  return (
+    <header className="flex items-center justify-between px-5 pt-4 md:hidden">
+      <div className="font-display text-[17px] tracking-[3px] text-accent">
+        MADIRO{' '}
+        <span className="font-sans text-[10px] font-bold tracking-[1px] text-text-faint">
+          {t('common.adminShort')}
+        </span>
+      </div>
+      <div className="flex h-[34px] w-[34px] items-center justify-center rounded-full bg-chart-bar text-xs font-bold text-accent-hover">
+        {user ? initials(user.name) : ''}
+      </div>
+    </header>
   );
 }
 

@@ -21,12 +21,14 @@ describe('i18n', () => {
   });
 
   it('EN покриває всі ключі УКР (жодних непекладених дірок)', () => {
+    // Суфікси множини (_one/_few/_many/_other) у мов різні — порівнюємо базові ключі.
     const flatten = (obj: object, prefix = ''): string[] =>
       Object.entries(obj).flatMap(([key, value]) =>
         typeof value === 'object' && value !== null
           ? flatten(value, `${prefix}${key}.`)
-          : [`${prefix}${key}`],
+          : [`${prefix}${key}`.replace(/_(one|few|many|other)$/, '')],
       );
-    expect(flatten(en).sort()).toEqual(flatten(uk).sort());
+    const unique = (keys: string[]) => [...new Set(keys)].sort();
+    expect(unique(flatten(en))).toEqual(unique(flatten(uk)));
   });
 });
