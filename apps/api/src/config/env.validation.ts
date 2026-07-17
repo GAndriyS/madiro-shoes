@@ -8,6 +8,8 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(16),
   JWT_ACCESS_TTL: z.string().default('15m'),
   JWT_REFRESH_TTL: z.string().default('30d'),
+  /** Comma-separated allowlist of browser origins for CORS. */
+  CORS_ORIGINS: z.string().default('http://localhost:5173'),
 });
 
 export type Env = z.infer<typeof envSchema>;
