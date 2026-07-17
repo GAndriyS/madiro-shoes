@@ -1,9 +1,4 @@
-import {
-  setVariantPriceSchema,
-  variantDetailSchema,
-  type VariantDetail,
-  type VariantPair,
-} from '@madiro/shared';
+import { setVariantPriceSchema, variantDetailSchema, type VariantDetail } from '@madiro/shared';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -16,8 +11,6 @@ import { materialSeason } from './labels';
 
 export interface PriceModalTarget {
   variantId: string;
-  /** Set when opened from a pair's edit action (design 2e); otherwise queue mode (2f). */
-  pair?: VariantPair;
 }
 
 interface Props {
@@ -25,11 +18,11 @@ interface Props {
   onClose: () => void;
 }
 
-function shortDM(iso: string): string {
-  return new Date(iso).toLocaleDateString('uk-UA', { day: '2-digit', month: '2-digit' });
-}
-
-/** Purchase-price modal — one price for the whole variant (designs 2e and 2f). */
+/**
+ * Purchase-price modal — one price for the whole variant (5 identity fields).
+ * With queued drafts it follows design 2f («Зберегти — додати на склад»);
+ * otherwise it is a plain variant price edit.
+ */
 export function PriceModal({ target, onClose }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
@@ -63,8 +56,8 @@ export function PriceModal({ target, onClose }: Props) {
     return null;
   }
 
-  const isEditPair = target.pair != null;
   const queued = data?.pairs.filter((p) => p.awaitingPrice) ?? [];
+  const queueMode = queued.length > 0;
   const draftIntake = data?.history.find((h) => h.type === 'INTAKE' && h.amount == null);
   const parsedValue = Number(value);
   const valid = Number.isFinite(parsedValue) && parsedValue > 0;
@@ -75,18 +68,18 @@ export function PriceModal({ target, onClose }: Props) {
         <div className="flex items-start justify-between">
           <div className="flex flex-col gap-1">
             <DialogTitle className="font-display text-[26px] font-semibold text-ink">
-              {isEditPair ? t('stock.editPairTitle') : t('stock.priceTitle')}
+              {t('stock.priceTitle')}
             </DialogTitle>
             <DialogDescription className="text-[13px] text-text-muted">
-              {isEditPair && data
-                ? t('stock.editPairSubtitle', {
-                    pair: `${data.style} · ${data.color} · р. ${target.pair?.size}`,
-                    date: target.pair ? shortDM(target.pair.intakeDate) : '',
+              {queueMode && draftIntake
+                ? t('stock.priceDraftFrom', {
+                    name: draftIntake.actorName,
+                    date: dayLabel(draftIntake.date),
                   })
-                : draftIntake
-                  ? t('stock.priceDraftFrom', {
-                      name: draftIntake.actorName,
-                      date: dayLabel(draftIntake.date),
+                : data
+                  ? t('stock.variantSubtitle', {
+                      materials: materialSeason(t, data.material, data.season),
+                      count: data.pairs.length,
                     })
                   : ''}
             </DialogDescription>
@@ -107,32 +100,22 @@ export function PriceModal({ target, onClose }: Props) {
               </span>
             </div>
             <div className="flex flex-wrap items-center gap-1.5">
-              {isEditPair ? (
-                <>
-                  <span className="rounded-[7px] bg-border-row px-2.5 py-[3px] text-xs font-bold text-text-secondary">
-                    р. {target.pair?.size}
-                  </span>
-                  <span className="text-xs text-text-muted">
-                    {t('stock.inStockSince', {
-                      date: target.pair ? shortDM(target.pair.intakeDate) : '',
-                    })}{' '}
-                    · {t('stock.variantFieldsReadonly')}
-                  </span>
-                </>
-              ) : (
-                <>
-                  {queued.map((p) => (
-                    <span
-                      key={p.id}
-                      className="rounded-[7px] bg-amber-bg px-2.5 py-[3px] text-xs font-bold text-amber-text"
-                    >
-                      р. {p.size}
-                    </span>
-                  ))}
-                  <span className="text-xs text-text-muted">
-                    {t('stock.priceQueue', { count: queued.length })}
-                  </span>
-                </>
+              {(queueMode ? queued : data.pairs).map((p) => (
+                <span
+                  key={p.id}
+                  className={
+                    queueMode
+                      ? 'rounded-[7px] bg-amber-bg px-2.5 py-[3px] text-xs font-bold text-amber-text'
+                      : 'rounded-[7px] bg-border-row px-2.5 py-[3px] text-xs font-bold text-text-secondary'
+                  }
+                >
+                  р. {p.size}
+                </span>
+              ))}
+              {queueMode && (
+                <span className="text-xs text-text-muted">
+                  {t('stock.priceQueue', { count: queued.length })}
+                </span>
               )}
             </div>
           </div>
@@ -153,9 +136,11 @@ export function PriceModal({ target, onClose }: Props) {
             <span className="text-base text-text-muted">₴</span>
           </label>
           <span className="text-[11.5px] text-text-faint">
-            {isEditPair && data
-              ? t('stock.priceAppliesToAll', { variant: `${data.style} · ${data.color}` })
-              : t('stock.priceAutofillNote')}
+            {queueMode
+              ? t('stock.priceAutofillNote')
+              : data
+                ? t('stock.priceAppliesToAll', { variant: `${data.style} · ${data.color}` })
+                : ''}
           </span>
         </div>
 
@@ -165,10 +150,10 @@ export function PriceModal({ target, onClose }: Props) {
             disabled={!valid || mutation.isPending}
             onClick={() => mutation.mutate(parsedValue)}
             className={`flex-1 rounded-xl p-3.5 text-center text-[14.5px] font-bold disabled:opacity-60 ${
-              isEditPair ? 'bg-ink text-page' : 'bg-accent text-white'
+              queueMode ? 'bg-accent text-white' : 'bg-ink text-page'
             }`}
           >
-            {isEditPair ? t('stock.saveChanges') : t('stock.saveAndStock')}
+            {queueMode ? t('stock.saveAndStock') : t('stock.saveChanges')}
           </button>
           <DialogClose className="rounded-xl border-[1.5px] border-border-input px-5 py-3.5 text-center text-[14.5px] font-semibold text-text-secondary">
             {t('stock.cancel')}

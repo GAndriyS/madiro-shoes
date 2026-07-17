@@ -69,8 +69,7 @@ function StockPage() {
     setFilters({});
   };
 
-  const openEditPair = (detail: VariantDetail, pair: VariantPair) =>
-    setPriceTarget({ variantId: detail.id, pair });
+  const openEditPrice = (detail: VariantDetail) => setPriceTarget({ variantId: detail.id });
   const openDeletePair = (detail: VariantDetail, pair: VariantPair) =>
     setDeleteTarget({ variant: detail, pair });
 
@@ -129,8 +128,6 @@ function StockPage() {
               onSortToggle={() => setSort((s) => (s === 'style-asc' ? 'style-desc' : 'style-asc'))}
               onRowClick={(row) => setDrawerVariantId(row.id)}
               onSetPrice={(row) => setPriceTarget({ variantId: row.id })}
-              onEdit={(row) => setPriceTarget({ variantId: row.id })}
-              onDelete={(row) => setDrawerVariantId(row.id)}
             />
             {data && (
               <div className="mt-auto">
@@ -168,7 +165,7 @@ function StockPage() {
       <VariantDrawer
         variantId={drawerVariantId}
         onClose={() => setDrawerVariantId(null)}
-        onEditPair={openEditPair}
+        onEditPrice={openEditPrice}
         onDeletePair={openDeletePair}
       />
       <PriceModal target={priceTarget} onClose={() => setPriceTarget(null)} />

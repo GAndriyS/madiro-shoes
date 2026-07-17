@@ -10,7 +10,6 @@ import { useTranslation } from 'react-i18next';
 
 import { cn } from '../../lib/cn';
 import { money } from '../../lib/format';
-import { PencilIcon, TrashIcon } from '../layout/icons';
 import { materialSeason } from './labels';
 
 export type StockSort = 'style-asc' | 'style-desc';
@@ -21,13 +20,13 @@ interface Props {
   onSortToggle: () => void;
   onRowClick: (row: StockVariantRow) => void;
   onSetPrice: (row: StockVariantRow) => void;
-  onEdit: (row: StockVariantRow) => void;
-  onDelete: (row: StockVariantRow) => void;
 }
 
-// Grid templates: desktop (>=1100) full 8 columns, tablet (768-1100) compact 5
+// Grid templates: desktop (>=1100) 7 columns, tablet (768-1100) compact 5.
+// Row-level actions were removed on purpose: price editing and pair deletion
+// live in the variant drawer (price is a variant-level attribute).
 const GRID =
-  'grid items-center gap-2 px-[18px] md:max-lg:grid-cols-[90px_70px_1.3fr_70px_100px] lg:grid-cols-[100px_80px_1fr_1.5fr_80px_110px_120px_90px] lg:px-[22px]';
+  'grid items-center gap-2 px-[18px] md:max-lg:grid-cols-[90px_70px_1.3fr_70px_100px] lg:grid-cols-[100px_80px_1fr_1.5fr_80px_110px_120px] lg:px-[22px]';
 const TABLET_HIDDEN = 'md:max-lg:hidden';
 
 function SizeChips({ row }: { row: StockVariantRow }) {
@@ -52,15 +51,7 @@ function SizeChips({ row }: { row: StockVariantRow }) {
 }
 
 /** Stock table (design 2a/2b) — TanStack Table with manual server-side sort/pagination. */
-export function StockTable({
-  rows,
-  sort,
-  onSortToggle,
-  onRowClick,
-  onSetPrice,
-  onEdit,
-  onDelete,
-}: Props) {
+export function StockTable({ rows, sort, onSortToggle, onRowClick, onSetPrice }: Props) {
   const { t } = useTranslation();
   const columnHelper = createColumnHelper<StockVariantRow>();
 
@@ -140,39 +131,8 @@ export function StockTable({
         ),
         meta: { className: TABLET_HIDDEN },
       }),
-      columnHelper.display({
-        id: 'actions',
-        header: () => <span className="block text-right">{t('stock.colActions')}</span>,
-        cell: (info) => (
-          <span className="flex justify-end gap-3">
-            <button
-              type="button"
-              aria-label={t('stock.editPairTitle')}
-              onClick={(e) => {
-                e.stopPropagation();
-                onEdit(info.row.original);
-              }}
-              className="text-text-muted hover:text-ink"
-            >
-              <PencilIcon size={15} />
-            </button>
-            <button
-              type="button"
-              aria-label={t('stock.deleteConfirm')}
-              onClick={(e) => {
-                e.stopPropagation();
-                onDelete(info.row.original);
-              }}
-              className="text-danger"
-            >
-              <TrashIcon size={15} />
-            </button>
-          </span>
-        ),
-        meta: { className: TABLET_HIDDEN },
-      }),
     ],
-    [columnHelper, t, sort, onSortToggle, onSetPrice, onEdit, onDelete],
+    [columnHelper, t, sort, onSortToggle, onSetPrice],
   );
 
   const table = useReactTable({

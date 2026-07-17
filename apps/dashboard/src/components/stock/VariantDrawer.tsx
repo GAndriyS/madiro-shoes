@@ -11,7 +11,8 @@ import { materialSeason } from './labels';
 interface Props {
   variantId: string | null;
   onClose: () => void;
-  onEditPair: (detail: VariantDetail, pair: VariantPair) => void;
+  /** Price is a variant-level attribute (5 identity fields) — edited once for all pairs. */
+  onEditPrice: (detail: VariantDetail) => void;
   onDeletePair: (detail: VariantDetail, pair: VariantPair) => void;
 }
 
@@ -26,17 +27,37 @@ const DOT: Record<VariantDetail['history'][number]['type'], string> = {
   WRITEOFF: '#a05c3b',
 };
 
-function MiniKpi({ label, value }: { label: string; value: string }) {
+function MiniKpi({
+  label,
+  value,
+  onEdit,
+  editLabel,
+}: {
+  label: string;
+  value: string;
+  onEdit?: () => void;
+  editLabel?: string;
+}) {
   return (
-    <div className="flex flex-col gap-0.5 rounded-xl border border-border bg-surface px-[15px] py-[13px]">
+    <div className="relative flex flex-col gap-0.5 rounded-xl border border-border bg-surface px-[15px] py-[13px]">
       <span className="text-[10px] font-bold tracking-[1px] text-text-muted">{label}</span>
       <span className="font-display text-[22px] font-semibold text-ink">{value}</span>
+      {onEdit && (
+        <button
+          type="button"
+          aria-label={editLabel}
+          onClick={onEdit}
+          className="absolute top-2.5 right-2.5 text-text-muted hover:text-ink"
+        >
+          <PencilIcon size={14} />
+        </button>
+      )}
     </div>
   );
 }
 
 /** Variant card drawer (design 2d): mini KPIs, per-pair actions, movement history. */
-export function VariantDrawer({ variantId, onClose, onEditPair, onDeletePair }: Props) {
+export function VariantDrawer({ variantId, onClose, onEditPrice, onDeletePair }: Props) {
   const { t } = useTranslation();
   const { data } = useQuery({
     queryKey: ['stock', 'variant', variantId],
@@ -95,6 +116,8 @@ export function VariantDrawer({ variantId, onClose, onEditPair, onDeletePair }: 
               <MiniKpi
                 label={t('stock.kpiPurchase')}
                 value={data.purchasePrice != null ? money(data.purchasePrice) : '—'}
+                onEdit={() => onEditPrice(data)}
+                editLabel={t('stock.priceTitle')}
               />
               <MiniKpi
                 label={t('stock.kpiLastSale')}
@@ -129,24 +152,14 @@ export function VariantDrawer({ variantId, onClose, onEditPair, onDeletePair }: 
                     <span className="text-xs text-text-muted">
                       {t('stock.inStockSince', { date: shortDM(p.intakeDate) })}
                     </span>
-                    <span className="flex gap-3">
-                      <button
-                        type="button"
-                        aria-label={t('stock.editPairTitle')}
-                        onClick={() => onEditPair(data, p)}
-                        className="text-text-muted hover:text-ink"
-                      >
-                        <PencilIcon size={15} />
-                      </button>
-                      <button
-                        type="button"
-                        aria-label={t('stock.deleteConfirm')}
-                        onClick={() => onDeletePair(data, p)}
-                        className="text-danger"
-                      >
-                        <TrashIcon size={15} />
-                      </button>
-                    </span>
+                    <button
+                      type="button"
+                      aria-label={t('stock.deleteConfirm')}
+                      onClick={() => onDeletePair(data, p)}
+                      className="text-danger"
+                    >
+                      <TrashIcon size={15} />
+                    </button>
                   </div>
                 ))}
               </div>
