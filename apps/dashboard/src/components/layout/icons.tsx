@@ -101,6 +101,23 @@ export function CloseIcon(props: IconProps) {
   );
 }
 
+export function CheckIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M20 6L9 17l-5-5" />
+    </Svg>
+  );
+}
+
+export function AlertIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8v4M12 16h.01" />
+    </Svg>
+  );
+}
+
 export function CalendarIcon(props: IconProps) {
   return (
     <Svg {...props}>

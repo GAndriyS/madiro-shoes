@@ -1,6 +1,9 @@
+import { intakeQueueResponseSchema, type IntakeQueueResponse } from '@madiro/shared';
+import { useQuery } from '@tanstack/react-query';
 import { Outlet, createFileRoute, redirect } from '@tanstack/react-router';
 
 import { BottomNav, MobileHeader, Sidebar } from '../components/layout/AppNav';
+import { api } from '../lib/api';
 import { isAuthenticatedAdmin } from '../stores/auth';
 
 export const Route = createFileRoute('/_app')({
@@ -13,8 +16,13 @@ export const Route = createFileRoute('/_app')({
 });
 
 function AppLayout() {
-  // Queue variant count for the badges — mocked until the Intake screen wires the real value.
-  const queueVariants = 3;
+  // Nav badge = variants awaiting a price; kept fresh via the shared query key.
+  const { data } = useQuery({
+    queryKey: ['intake', 'queue'],
+    queryFn: async () =>
+      intakeQueueResponseSchema.parse(await api.get<IntakeQueueResponse>('/intake/queue')),
+  });
+  const queueVariants = data?.summary.variants ?? 0;
 
   return (
     <div className="flex min-h-screen">

@@ -6,7 +6,7 @@ import { api } from '../../lib/api';
 import { money } from '../../lib/format';
 import { CloseIcon, PencilIcon, TrashIcon } from '../layout/icons';
 import { Dialog, DialogClose, DialogDescription, DialogTitle, SheetContent } from '../ui/dialog';
-import { materialSeason } from './labels';
+import { materialSeason, pricedPurchaseLabel } from './labels';
 
 interface Props {
   variantId: string | null;
@@ -76,7 +76,10 @@ export function VariantDrawer({ variantId, onClose, onEditPrice, onDeletePair }:
     }[h.type];
     const parts: string[] = [];
     if (h.type === 'INTAKE') {
-      parts.push(h.amount != null ? t('stock.historyPurchase', { price: money(h.amount) }) : '');
+      // amount 0 = deliberate no price, null = draft not yet priced
+      parts.push(
+        h.amount ? t('stock.historyPurchase', { price: money(h.amount) }) : t('common.noPrice'),
+      );
     } else if (h.amount != null) {
       parts.push(money(h.amount));
     }
@@ -115,7 +118,9 @@ export function VariantDrawer({ variantId, onClose, onEditPrice, onDeletePair }:
             <div className="grid grid-cols-3 gap-2.5">
               <MiniKpi
                 label={t('stock.kpiPurchase')}
-                value={data.purchasePrice != null ? money(data.purchasePrice) : '—'}
+                value={
+                  data.purchasePrice != null ? pricedPurchaseLabel(t, data.purchasePrice) : '—'
+                }
                 onEdit={() => onEditPrice(data)}
                 editLabel={t('stock.priceTitle')}
               />

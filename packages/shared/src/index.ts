@@ -7,3 +7,4 @@ export * from './schemas/user.js';
 export * from './schemas/inventory.js';
 export * from './schemas/stats.js';
 export * from './schemas/stock.js';
+export * from './schemas/intake.js';
