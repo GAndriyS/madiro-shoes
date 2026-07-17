@@ -55,7 +55,7 @@ export function Sidebar({ queueVariants }: { queueVariants: number }) {
   };
 
   return (
-    <aside className="hidden h-screen flex-none flex-col bg-ink pt-[26px] pb-5 md:flex md:w-16 lg:w-[216px]">
+    <aside className="sticky top-0 hidden h-screen flex-none flex-col bg-ink pt-[26px] pb-5 md:flex md:w-16 lg:w-[216px]">
       <div className="px-0 pb-[26px] text-center font-display text-[19px] tracking-[5px] text-logo lg:px-[26px] lg:text-left">
         <span className="lg:hidden">M</span>
         <span className="hidden lg:inline">MADIRO</span>
