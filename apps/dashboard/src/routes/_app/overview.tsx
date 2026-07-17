@@ -47,7 +47,7 @@ function OverviewPage() {
         <>
           <KpiCards data={data} isToday={periodValue.period === 'today'} />
           <div className="grid min-h-0 flex-1 gap-3 md:gap-3.5 lg:grid-cols-[1.5fr_1fr]">
-            <RevenueChart days={data.revenueByDay} />
+            <RevenueChart series={data.revenueSeries} period={periodValue.period} />
             <QueueWidget items={data.queue} />
           </div>
           <OperationsFeed items={data.recentOperations} />

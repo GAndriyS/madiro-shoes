@@ -52,7 +52,11 @@ export const overviewResponseSchema = z.object({
     sellers: z.number().int(),
     variants: z.number().int(),
   }),
-  revenueByDay: z.array(z.object({ date: z.string(), revenue: z.number() })),
+  /** Виручка за обраний період: сьогодні — по годинах, інакше — по днях. */
+  revenueSeries: z.object({
+    granularity: z.enum(['hour', 'day']),
+    points: z.array(z.object({ date: z.string(), revenue: z.number() })),
+  }),
   queue: z.array(queueItemSchema),
   recentOperations: z.array(recentOperationSchema),
 });
