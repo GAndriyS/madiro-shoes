@@ -1,12 +1,12 @@
 import i18next from 'i18next';
 
-/** «21 200 ₴», від'ємні — з типографським мінусом: «−2 700 ₴». */
+/** «21 200 ₴»; negatives use the typographic minus: «−2 700 ₴». */
 export function money(value: number): string {
   const formatted = Math.abs(value).toLocaleString('uk-UA', { maximumFractionDigits: 0 });
   return `${value < 0 ? '−' : ''}${formatted} ₴`;
 }
 
-/** Число без валюти: «1 450» / «−1 400» (для маржі в стрічці, як у дизайні). */
+/** Number without currency: «1 450» / «−1 400» (feed margin column, per design). */
 export function num(value: number): string {
   const formatted = Math.abs(value).toLocaleString('uk-UA', { maximumFractionDigits: 0 });
   return `${value < 0 ? '−' : ''}${formatted}`;
@@ -25,7 +25,7 @@ export function timeOf(isoDate: string): string {
   return TIME.format(new Date(isoDate));
 }
 
-/** «сьогодні 10:02» / «вчора 16:40» / «12.07 15:12». */
+/** «сьогодні 10:02» / «вчора 16:40» / «12.07 15:12» day-relative label. */
 export function dayLabel(isoDate: string): string {
   const date = new Date(isoDate);
   const now = new Date();
@@ -42,14 +42,14 @@ export function dayLabel(isoDate: string): string {
   return `${dm} ${time}`;
 }
 
-/** Коротка дата: «8 лип» (для підписів чартів і діапазонів періоду). */
+/** Short date: «8 лип» (chart labels and period ranges). */
 export function shortDay(isoDate: string): string {
   return new Date(isoDate)
     .toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' })
     .replace('.', '');
 }
 
-/** Заголовок сторінки: «вівторок, 14 липня» (повний) або «14 липня» (короткий). */
+/** Page title date: «вівторок, 14 липня» (full) or «14 липня» (short). */
 export function titleDate(lang: string, withWeekday: boolean): string {
   const locale = lang === 'en' ? 'en-GB' : 'uk-UA';
   return new Date().toLocaleDateString(locale, {

@@ -1,9 +1,9 @@
 import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
 
-// Створює єдиного адміністратора з env (ADMIN_LOGIN / ADMIN_PASSWORD / ADMIN_NAME).
-// Ідемпотентний: якщо адмін уже існує — оновлює лише ім'я, пароль не чіпає
-// (для скидання пароля є pnpm admin:reset-password).
+// Creates the single administrator from env (ADMIN_LOGIN / ADMIN_PASSWORD / ADMIN_NAME).
+// Idempotent: if the admin already exists, only the name is updated and the
+// password is left alone (use pnpm admin:reset-password to reset it).
 const prisma = new PrismaClient();
 
 async function main(): Promise<void> {

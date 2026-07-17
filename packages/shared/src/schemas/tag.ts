@@ -3,9 +3,9 @@ import { z } from 'zod';
 import { sizeSchema, tagCodeSchema } from './common.js';
 
 /**
- * Результат розпізнавання бірки vision-LLM: три рукописні числові наліпки
- * SIZE / COLOR / STYLE + впевненість моделі. Людина завжди підтверджує
- * результат перед збереженням (FR-S-05).
+ * Vision-LLM tag recognition result: the three handwritten numeric stickers
+ * SIZE / COLOR / STYLE plus the model's confidence. A human always confirms
+ * the result before saving (FR-S-05).
  */
 export const tagRecognitionSchema = z.object({
   size: sizeSchema,

@@ -11,7 +11,7 @@ interface NavItem {
   labelKey: string;
   shortLabelKey: string;
   Icon: ComponentType<{ size?: number }>;
-  /** Бейдж черги = кількість варіантів (розділ 3.3, п. 11); поки з моків. */
+  /** Queue badge = number of variants (section 3.3, item 11); mocked for now. */
   badge?: number;
 }
 
@@ -41,7 +41,7 @@ function QueueBadge({ count }: { count: number }) {
   );
 }
 
-/** Повний сайдбар 216px (≥1100) та іконковий 64px (768–1100). */
+/** Full 216px sidebar (>=1100) and 64px icon sidebar (768-1100). */
 export function Sidebar({ queueVariants }: { queueVariants: number }) {
   const { t } = useTranslation();
   const items = useNavItems(queueVariants);
@@ -84,7 +84,7 @@ export function Sidebar({ queueVariants }: { queueVariants: number }) {
         ))}
       </nav>
       <div className="mt-auto flex flex-col gap-4 px-3 lg:px-[26px]">
-        {/* Профіль адміна (дизайн 1a) */}
+        {/* Admin profile block (design 1a) */}
         <div className="flex items-center justify-center gap-2.5 lg:justify-start">
           <div className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-logo text-[11px] font-extrabold text-ink">
             {user ? initials(user.name) : ''}
@@ -107,7 +107,7 @@ export function Sidebar({ queueVariants }: { queueVariants: number }) {
   );
 }
 
-/** Мобільний хедер (дизайн 1c): лого + аватар. */
+/** Mobile header (design 1c): logo + avatar. */
 export function MobileHeader() {
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
@@ -127,7 +127,7 @@ export function MobileHeader() {
   );
 }
 
-/** Нижня навігація 4 пункти (<768): Огляд / Склад / Черга / Люди. */
+/** Bottom navigation, 4 items (<768): Overview / Stock / Queue / People. */
 export function BottomNav({ queueVariants }: { queueVariants: number }) {
   const { t } = useTranslation();
   const items = useNavItems(queueVariants);

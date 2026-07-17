@@ -12,7 +12,7 @@ export function getStoredLanguage(): AppLanguage {
   return localStorage.getItem(LANGUAGE_STORAGE_KEY) === 'en' ? 'en' : 'uk';
 }
 
-/** Мова обирається лише на екрані логіну (NFR-04) і зберігається локально. */
+/** Language is picked only on the login screen (NFR-04) and stored locally. */
 export function setLanguage(lang: AppLanguage): void {
   localStorage.setItem(LANGUAGE_STORAGE_KEY, lang);
   void i18next.changeLanguage(lang);

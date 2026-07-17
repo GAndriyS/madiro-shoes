@@ -3,8 +3,8 @@ import * as readline from 'node:readline/promises';
 import { PrismaClient } from '@prisma/client';
 import * as argon2 from 'argon2';
 
-// Скидання пароля адміністратора (рішення: розділ 7, п. 6 requirements-analysis).
-// Запускається тим, хто має доступ до сервера/БД:
+// Admin password reset (decision: requirements-analysis, section 7, item 6).
+// Run by whoever has server/DB access:
 //   pnpm --filter @madiro/api admin:reset-password
 const prisma = new PrismaClient();
 

@@ -24,7 +24,7 @@ function isToday(iso: string): boolean {
   return new Date(iso).toDateString() === new Date().toDateString();
 }
 
-/** Бар-чарт виручки за обраний період: бари #e3d9c8, сьогоднішній — акцент. */
+/** Revenue bar chart for the selected period: #e3d9c8 bars, today accented. */
 export function RevenueChart({ series, period }: { series: Series; period: OverviewPeriod }) {
   const { t } = useTranslation();
   const { granularity, points } = series;
@@ -32,7 +32,7 @@ export function RevenueChart({ series, period }: { series: Series; period: Overv
   const first = points[0];
   const middle = points[Math.floor(points.length / 2)];
   const last = points[points.length - 1];
-  // Акцент останнього бара, якщо період закінчується сьогодні
+  // Accent the last bar when the period ends today
   const accentLast = last != null && (granularity === 'hour' || isToday(last.date));
 
   return (

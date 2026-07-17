@@ -11,7 +11,7 @@ const TYPE_KEY: Record<RecentOperation['type'], string> = {
   WRITEOFF: 'overview.opWriteoff',
 };
 
-/** Стрічка останніх операцій (дизайн 1a — грід; 1c — стек на мобільному). */
+/** Recent operations feed (design 1a — grid; 1c — stacked on mobile). */
 export function OperationsFeed({ items }: { items: RecentOperation[] }) {
   const { t } = useTranslation();
 
@@ -37,7 +37,7 @@ export function OperationsFeed({ items }: { items: RecentOperation[] }) {
         {t('overview.feedTitle')}
       </span>
 
-      {/* Десктоп/планшет: грід як у дизайні */}
+      {/* Desktop/tablet: grid per design */}
       <div className="hidden grid-cols-[90px_1fr_130px_110px_90px] gap-1.5 text-[12.5px] tabular-nums md:grid">
         {items.map((op) => (
           <Fragment key={op.id}>
@@ -58,7 +58,7 @@ export function OperationsFeed({ items }: { items: RecentOperation[] }) {
         ))}
       </div>
 
-      {/* Мобільний: стек (дизайн 1c) */}
+      {/* Mobile: stacked list (design 1c) */}
       <div className="flex flex-col md:hidden">
         {items.map((op, i) => (
           <div

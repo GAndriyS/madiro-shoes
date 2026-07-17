@@ -80,7 +80,7 @@ export function KpiCards({ data, isToday }: { data: OverviewResponse; isToday: b
         }
       />
 
-      {/* Темна акцентна картка — клік веде в чергу поступлень (FR-D-02) */}
+      {/* Dark accent card — links to the intake queue (FR-D-02) */}
       <Link
         to="/intake"
         className="flex flex-col gap-1 rounded-[14px] bg-ink px-4 py-3.5 md:px-5 md:py-[18px]"

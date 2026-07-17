@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { OPERATION_TYPES, PAYMENT_METHODS } from '../enums.js';
 
-/** Періоди Огляду (FR-D-02): Сьогодні / Тиждень / Місяць / довільний Період. */
+/** Overview periods (FR-D-02): today / week / month / custom range. */
 export const overviewPeriodSchema = z.enum(['today', 'week', 'month', 'custom']);
 export type OverviewPeriod = z.infer<typeof overviewPeriodSchema>;
 
@@ -15,7 +15,7 @@ export const queueItemSchema = z.object({
   size: z.number().int(),
   sellerName: z.string(),
   createdAt: isoDateTime,
-  /** Пара продана до вказання ціни (особливий кейс FR-D-11). */
+  /** The pair was sold before pricing (special case of FR-D-11). */
   soldAt: isoDateTime.nullable(),
 });
 export type QueueItem = z.infer<typeof queueItemSchema>;
@@ -29,18 +29,18 @@ export const recentOperationSchema = z.object({
   at: isoDateTime,
   sellerName: z.string(),
   paymentMethod: z.enum(PAYMENT_METHODS).nullable(),
-  /** Сума операції; від'ємна для повернення; null — чернетка без ціни. */
+  /** Operation amount; negative for a return; null — a draft without a price. */
   amount: z.number().nullable(),
-  /** Маржа; null — не рахується (без вхідної ціни або поступлення). */
+  /** Margin; null — not computed (no purchase price, or an intake). */
   margin: z.number().nullable(),
   isDraft: z.boolean(),
 });
 export type RecentOperation = z.infer<typeof recentOperationSchema>;
 
-/** Відповідь GET /stats/overview — весь екран Огляду одним запитом. */
+/** GET /stats/overview response — the whole Overview screen in one request. */
 export const overviewResponseSchema = z.object({
   revenue: z.number(),
-  /** Порівняння з попереднім періодом; null — не показується. */
+  /** Comparison with the previous period; null — hidden. */
   revenueDeltaPct: z.number().nullable(),
   sales: z.number().int(),
   returns: z.number().int(),
@@ -52,7 +52,7 @@ export const overviewResponseSchema = z.object({
     sellers: z.number().int(),
     variants: z.number().int(),
   }),
-  /** Виручка за обраний період: сьогодні — по годинах, інакше — по днях. */
+  /** Revenue for the selected period: hourly for today, daily otherwise. */
   revenueSeries: z.object({
     granularity: z.enum(['hour', 'day']),
     points: z.array(z.object({ date: z.string(), revenue: z.number() })),

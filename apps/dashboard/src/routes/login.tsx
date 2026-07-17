@@ -34,7 +34,7 @@ function LoginPage() {
       return authResponseSchema.parse(await api.post('/auth/login', body));
     },
     onSuccess: (session) => {
-      // Дашборд — лише для адміністратора (FR-D-01); продавця не пускаємо.
+      // The dashboard is admin-only (FR-D-01); sellers are rejected.
       if (session.user.role !== 'ADMIN') {
         setError(t('login.adminOnly'));
         return;

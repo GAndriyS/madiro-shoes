@@ -2,10 +2,10 @@ import type { OverviewResponse } from '@madiro/shared';
 import { HttpResponse, http } from 'msw';
 
 /**
- * Замокані дані для розробки дашборда (рішення користувача: дашборд
- * розробляється на моках, реальні дані з'являться разом зі сканером).
- * Auth НЕ мокається — запити йдуть у реальний API через Vite-proxy.
- * Базові цифри — з дизайну «Дашборд адміна», екран 1a.
+ * Mocked data for dashboard development (the dashboard is built on mocks;
+ * real data arrives together with the scanner). Auth is NOT mocked — those
+ * requests hit the real API through the Vite proxy. Base figures come from
+ * the "Дашборд адміна" design, screen 1a.
  */
 
 type Series = OverviewResponse['revenueSeries'];
@@ -17,7 +17,7 @@ function dayIso(daysAgo: number, hour = 12, minute = 0): string {
   return d.toISOString();
 }
 
-/** Сьогодні: погодинна виручка робочого дня 9:00–19:00, разом 21 200 ₴. */
+/** Today: hourly revenue for store hours 9:00-19:00, totalling 21 200 ₴. */
 function hourlySeries(): Series {
   const values = [800, 1400, 2100, 1900, 2500, 3200, 1800, 2400, 2100, 1600, 1400];
   return {
@@ -26,7 +26,7 @@ function hourlySeries(): Series {
   };
 }
 
-/** Дні, що закінчуються сьогодні; детермінований профіль, підігнаний під total. */
+/** Days ending today; a deterministic profile scaled to match the total. */
 function dailySeries(days: number, total: number): Series {
   const raw = Array.from({ length: days }, (_, i) => 5500 + ((i * 7) % 10) * 600);
   const rawSum = raw.reduce((s, v) => s + v, 0);
@@ -39,7 +39,7 @@ function dailySeries(days: number, total: number): Series {
   };
 }
 
-/** Довільний діапазон дат (включно); максимум 92 точки. */
+/** Custom date range (inclusive); at most 92 points. */
 function customSeries(from: string | null, to: string | null): Series {
   const end = to ? new Date(to) : new Date();
   const start = from ? new Date(from) : new Date(end.getTime() - 13 * 86_400_000);
@@ -198,7 +198,7 @@ function overviewFor(period: string, from: string | null, to: string | null): Ov
         ...base,
       };
     default: {
-      // Довільний період: KPI узгоджені з сумою серії
+      // Custom range: KPIs are kept consistent with the series total
       const series = customSeries(from, to);
       const revenue = series.points.reduce((s, p) => s + p.revenue, 0);
       const days = series.points.length;

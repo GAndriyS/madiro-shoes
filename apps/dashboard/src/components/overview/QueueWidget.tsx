@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { dayLabel } from '../../lib/format';
 
-/** Віджет черги «Очікують ціни» (дизайн 1a): кнопка «Ціна», продана-без-ціни — акцент. */
+/** "Awaiting price" queue widget (design 1a): «Ціна» button, sold-without-price accented. */
 export function QueueWidget({ items }: { items: QueueItem[] }) {
   const { t } = useTranslation();
 

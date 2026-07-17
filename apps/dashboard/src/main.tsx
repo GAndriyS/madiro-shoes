@@ -26,7 +26,7 @@ async function enableMocks(): Promise<void> {
     return;
   }
   const { worker } = await import('./mocks/browser');
-  // bypass: незамокані запити (auth) ідуть у реальний API через proxy
+  // bypass: unmocked requests (auth) go to the real API through the proxy
   await worker.start({ onUnhandledRequest: 'bypass' });
 }
 

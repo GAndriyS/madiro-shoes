@@ -13,7 +13,7 @@ export const Route = createFileRoute('/_app')({
 });
 
 function AppLayout() {
-  // Кількість варіантів у черзі для бейджів — поки з моків (екран Поступлення підключить реальне значення).
+  // Queue variant count for the badges — mocked until the Intake screen wires the real value.
   const queueVariants = 3;
 
   return (

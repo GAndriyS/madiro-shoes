@@ -22,14 +22,14 @@ const PRESETS = [
   { period: 'month', key: 'overview.periodMonth' },
 ] as const;
 
-/** Сегмент-контрол періоду з дизайну 1a; «Період» — довільний діапазон дат. */
+/** Period segmented control from design 1a; «Період» opens a custom date range. */
 export function PeriodSwitcher({ value, onChange }: Props) {
   const { t } = useTranslation();
   const [rangeOpen, setRangeOpen] = useState(false);
 
   return (
     <div className="relative">
-      {/* Мобільний варіант: компактний select (дизайн 1c: «Сьогодні ▾») */}
+      {/* Mobile variant: compact select (design 1c: «Сьогодні ▾») */}
       <select
         value={value.period === 'custom' ? 'month' : value.period}
         onChange={(e) => onChange({ period: e.target.value as OverviewPeriod })}
@@ -42,7 +42,7 @@ export function PeriodSwitcher({ value, onChange }: Props) {
         ))}
       </select>
 
-      {/* Десктоп/планшет: сегмент */}
+      {/* Desktop/tablet: segmented control */}
       <div className="hidden items-stretch rounded-[10px] bg-segment p-[3px] md:flex">
         {PRESETS.map(({ period, key }) => (
           <button
@@ -90,7 +90,7 @@ export function PeriodSwitcher({ value, onChange }: Props) {
             value={value.to ?? ''}
             onChange={(e) => {
               onChange({ period: 'custom', from: value.from, to: e.target.value });
-              // Діапазон повний — закриваємо пікер
+              // The range is complete — close the picker
               if (value.from && e.target.value) {
                 setRangeOpen(false);
               }

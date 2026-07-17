@@ -1,5 +1,5 @@
-// Доменна модель Madiro — див. docs/requirements-analysis.md, розділ 3.
-// Одиниця обліку — конкретна пара; варіант = Style · Color (+ Material, Season вручну).
+// Madiro domain model — see docs/requirements-analysis.md, section 3.
+// The unit of stock is a concrete pair; variant = Style · Color (+ Material, Season set manually).
 
 generator client {
   provider = "prisma-client-js"
@@ -20,7 +20,7 @@ enum Material {
   SUEDE
 }
 
-// Внутрішня назва — season; у інтерфейсах лейбл «Утеплення» (без / байка / овчина).
+// Internal name is "season"; UIs label it «Утеплення» (none / fleece / sheepskin).
 enum Season {
   NONE
   BAIKA
@@ -45,8 +45,8 @@ enum PaymentMethod {
   CARD
 }
 
-// Продавця «видаляють» через deletedAt: акаунт зникає зі списку і не може
-// увійти, але його операції лишаються у звітах (FR-D-18).
+// A seller is "deleted" via deletedAt: the account disappears from the list
+// and cannot log in, but their operations stay in the reports (FR-D-18).
 model User {
   id           String    @id @default(cuid())
   name         String
@@ -62,8 +62,8 @@ model User {
   @@map("users")
 }
 
-// Ціна закупки — одна на варіант (усі розміри); може бути відсутня
-// («без ціни — старий товар»). Історичні ціни фіксуються в Operation.
+// The purchase price is per variant (all sizes); it may be absent
+// ("no price — old stock"). Historical prices are captured in Operation.
 model Variant {
   id            String    @id @default(cuid())
   style         String
@@ -76,15 +76,15 @@ model Variant {
 
   pairs Pair[]
 
-  // Postgres трактує NULL як різні значення, тому унікальність комбінацій
-  // з відсутнім material/season додатково контролюється сервісним шаром.
+  // Postgres treats NULLs as distinct, so uniqueness of combinations with
+  // missing material/season is additionally enforced by the service layer.
   @@unique([style, color, material, season])
   @@index([style])
   @@map("variants")
 }
 
-// awaitingPrice — чернетка продавця в черзі «Очікують ціни»: пара вже на
-// складі й доступна для продажу; адмін пізніше вказує ціну або лишає без неї.
+// awaitingPrice — a seller's draft in the "awaiting price" queue: the pair is
+// already in stock and sellable; the admin later sets a price or leaves none.
 model Pair {
   id            String     @id @default(cuid())
   variantId     String
@@ -100,15 +100,15 @@ model Pair {
 
   operations Operation[]
 
-  // Пошук пари при продажу: збіг усіх 5 полів + найстаріша (FIFO).
+  // Pair lookup on sale: match all 5 identity fields, take the oldest (FIFO).
   @@index([variantId, size, status])
   @@index([status, awaitingPrice])
   @@map("pairs")
 }
 
-// Історія руху. purchasePriceAtTime фіксується на момент операції —
-// пізніша зміна ціни варіанта історію не переписує (розділ 3.3, п. 1).
-// Скасування операції адміном (розділ 7, п. 2) — через cancelledAt.
+// Movement history. purchasePriceAtTime is captured at operation time —
+// later variant price changes do not rewrite history (section 3.3, item 1).
+// Admin cancellation of an operation (section 7, item 2) — via cancelledAt.
 model Operation {
   id                  String         @id @default(cuid())
   type                OperationType

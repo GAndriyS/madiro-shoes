@@ -21,7 +21,7 @@ describe('i18n', () => {
   });
 
   it('EN покриває всі ключі УКР (жодних непекладених дірок)', () => {
-    // Суфікси множини (_one/_few/_many/_other) у мов різні — порівнюємо базові ключі.
+    // Plural suffixes (_one/_few/_many/_other) differ across languages — compare base keys.
     const flatten = (obj: object, prefix = ''): string[] =>
       Object.entries(obj).flatMap(([key, value]) =>
         typeof value === 'object' && value !== null

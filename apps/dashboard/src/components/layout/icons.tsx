@@ -1,4 +1,4 @@
-// Іконки з дизайну: інлайн SVG, stroke 1.8, стиль Feather/Lucide (NFR-06).
+// Icons from the design: inline SVG, stroke 1.8, Feather/Lucide style (NFR-06).
 import type { SVGProps } from 'react';
 
 interface IconProps extends SVGProps<SVGSVGElement> {

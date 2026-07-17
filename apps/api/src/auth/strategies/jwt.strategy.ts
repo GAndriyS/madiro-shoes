@@ -19,8 +19,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  // Звіряємося з БД: видалений продавець втрачає доступ одразу,
-  // навіть із ще живим access-токеном.
+  // Re-check against the DB: a deleted seller loses access immediately,
+  // even with a still-valid access token.
   async validate(payload: AccessTokenPayload): Promise<AuthUser> {
     const user = await this.prisma.user.findFirst({
       where: { id: payload.sub, deletedAt: null },
