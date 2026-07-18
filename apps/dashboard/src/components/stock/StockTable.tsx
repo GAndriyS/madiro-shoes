@@ -8,8 +8,8 @@ import {
 import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '../../lib/cn';
-import { money } from '../../lib/format';
+import { cn } from '@madiro/web-core';
+import { money } from '@madiro/web-core';
 import { materialSeason } from './labels';
 
 export type StockSort = 'style-asc' | 'style-desc';

@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { SearchIcon } from '../layout/icons';
+import { SearchIcon } from '@madiro/web-core';
 
 interface Props {
   query: string;

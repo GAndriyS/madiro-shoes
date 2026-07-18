@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { CheckIcon } from '../layout/icons';
+import { CheckIcon } from '@madiro/web-core';
 
 /** Empty queue state (design 3d). */
 export function IntakeEmptyQueue() {

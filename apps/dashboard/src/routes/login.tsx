@@ -4,10 +4,10 @@ import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { EyeIcon, EyeOffIcon } from '../components/layout/icons';
+import { EyeIcon, EyeOffIcon } from '@madiro/web-core';
 import { getStoredLanguage, setLanguage, type AppLanguage } from '../i18n';
-import { api, ApiError } from '../lib/api';
-import { isAuthenticatedAdmin, useAuthStore } from '../stores/auth';
+import { api, ApiError } from '@madiro/web-core';
+import { isAuthenticatedAdmin, useAuthStore } from '@madiro/web-core';
 
 export const Route = createFileRoute('/login')({
   beforeLoad: () => {

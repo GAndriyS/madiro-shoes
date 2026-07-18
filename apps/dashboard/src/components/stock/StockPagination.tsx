@@ -1,6 +1,6 @@
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '../../lib/cn';
+import { cn } from '@madiro/web-core';
 
 interface Props {
   page: number;

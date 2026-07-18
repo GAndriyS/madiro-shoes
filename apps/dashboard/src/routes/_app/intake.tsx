@@ -15,8 +15,8 @@ import { IntakeHistory } from '../../components/intake/IntakeHistory';
 import { IntakeQueueCard } from '../../components/intake/IntakeQueueCard';
 import { NoPriceModal } from '../../components/intake/NoPriceModal';
 import { PriceModal, type PriceModalTarget } from '../../components/stock/PriceModal';
-import { QueryBoundary } from '../../components/ui/QueryState';
-import { api } from '../../lib/api';
+import { QueryBoundary } from '@madiro/web-core';
+import { api } from '@madiro/web-core';
 
 export const Route = createFileRoute('/_app/intake')({
   component: IntakePage,

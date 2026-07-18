@@ -3,9 +3,9 @@ import { Link, useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import type { ComponentType } from 'react';
 
-import { initials } from '../../lib/format';
-import { useAuthStore } from '../../stores/auth';
-import { BoxIcon, GridIcon, LogoutIcon, PlusIcon, UsersIcon } from './icons';
+import { initials } from '@madiro/web-core';
+import { useAuthStore } from '@madiro/web-core';
+import { BoxIcon, GridIcon, LogoutIcon, PlusIcon, UsersIcon } from '@madiro/web-core';
 
 interface NavItem {
   to: string;

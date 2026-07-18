@@ -3,11 +3,23 @@ import userEvent from '@testing-library/user-event';
 import { beforeAll, describe, expect, it, vi } from 'vitest';
 
 import { QueryBoundary } from '../src/components/ui/QueryState';
-import { initI18n } from '../src/i18n';
+import { initI18n } from '../src/i18n/core';
 
 describe('QueryBoundary', () => {
   beforeAll(() => {
-    initI18n();
+    // Minimal common.* resources — the contract every consuming app must satisfy
+    initI18n({
+      uk: {
+        translation: {
+          common: {
+            loading: 'Завантаження…',
+            errorTitle: 'Не вдалося завантажити дані',
+            errorBody: 'Перевірте з’єднання та спробуйте ще раз.',
+            retry: 'Спробувати ще раз',
+          },
+        },
+      },
+    });
   });
 
   it('shows the loading state while pending', () => {

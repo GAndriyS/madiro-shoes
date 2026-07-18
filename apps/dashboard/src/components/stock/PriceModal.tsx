@@ -3,10 +3,16 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { api } from '../../lib/api';
-import { dayLabel } from '../../lib/format';
-import { CloseIcon } from '../layout/icons';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
+import { api } from '@madiro/web-core';
+import { dayLabel } from '@madiro/web-core';
+import { CloseIcon } from '@madiro/web-core';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@madiro/web-core';
 import { materialSeason } from './labels';
 
 export interface PriceModalTarget {

@@ -3,9 +3,15 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { api, ApiError } from '../../lib/api';
-import { CloseIcon, EyeIcon, EyeOffIcon, TrashIcon } from '../layout/icons';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
+import { api, ApiError } from '@madiro/web-core';
+import { CloseIcon, EyeIcon, EyeOffIcon, TrashIcon } from '@madiro/web-core';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@madiro/web-core';
 
 export type UserFormTarget = { mode: 'add' } | { mode: 'edit'; seller: Seller };
 

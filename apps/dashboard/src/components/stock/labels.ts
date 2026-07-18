@@ -1,7 +1,7 @@
 import type { Material, Season } from '@madiro/shared';
 import type { TFunction } from 'i18next';
 
-import { money } from '../../lib/format';
+import { money } from '@madiro/web-core';
 
 /**
  * Purchase price display for a non-null value: 0 = deliberate «Без ціни» (old

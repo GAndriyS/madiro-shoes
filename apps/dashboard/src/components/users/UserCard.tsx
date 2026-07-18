@@ -1,8 +1,8 @@
 import type { Seller } from '@madiro/shared';
 import { useTranslation } from 'react-i18next';
 
-import { dayLabel, initials } from '../../lib/format';
-import { PencilIcon, TrashIcon } from '../layout/icons';
+import { dayLabel, initials } from '@madiro/web-core';
+import { PencilIcon, TrashIcon } from '@madiro/web-core';
 
 interface Props {
   seller: Seller;

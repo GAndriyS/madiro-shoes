@@ -1,7 +1,7 @@
 import type { IntakeQueueItem } from '@madiro/shared';
 import { useTranslation } from 'react-i18next';
 
-import { dayLabel, money } from '../../lib/format';
+import { dayLabel, money } from '@madiro/web-core';
 import { materialSeason } from '../stock/labels';
 
 interface Props {

@@ -9,9 +9,9 @@ import { OperationsFeed } from '../../components/overview/OperationsFeed';
 import { PeriodSwitcher, type PeriodValue } from '../../components/overview/PeriodSwitcher';
 import { QueueWidget } from '../../components/overview/QueueWidget';
 import { RevenueChart } from '../../components/overview/RevenueChart';
-import { QueryBoundary } from '../../components/ui/QueryState';
-import { api } from '../../lib/api';
-import { titleDate } from '../../lib/format';
+import { QueryBoundary } from '@madiro/web-core';
+import { api } from '@madiro/web-core';
+import { titleDate } from '@madiro/web-core';
 
 export const Route = createFileRoute('/_app/overview')({
   component: OverviewPage,
