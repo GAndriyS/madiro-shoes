@@ -10,6 +10,8 @@ export default tseslint.config(
       '**/coverage/',
       '**/.turbo/',
       'apps/dashboard/src/routeTree.gen.ts',
+      'apps/scanner/src/routeTree.gen.ts',
+      'apps/scanner/dev-dist/',
       'apps/dashboard/public/mockServiceWorker.js',
     ],
   },
@@ -21,6 +23,13 @@ export default tseslint.config(
         'error',
         { argsIgnorePattern: '^_', varsIgnorePattern: '^_' },
       ],
+    },
+  },
+  {
+    // Node scripts (icon generation etc.)
+    files: ['**/scripts/**/*.mjs'],
+    languageOptions: {
+      globals: { Buffer: 'readonly', console: 'readonly', process: 'readonly' },
     },
   },
   prettier,

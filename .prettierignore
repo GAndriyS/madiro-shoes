@@ -7,3 +7,4 @@ apps/api/prisma/migrations/
 docs/
 apps/dashboard/src/routeTree.gen.ts
 apps/dashboard/public/mockServiceWorker.js
+apps/scanner/src/routeTree.gen.ts

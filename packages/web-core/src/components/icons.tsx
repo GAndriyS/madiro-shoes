@@ -118,6 +118,32 @@ export function AlertIcon(props: IconProps) {
   );
 }
 
+export function ScanFrameIcon(props: IconProps) {
+  return (
+    <Svg strokeWidth={1.6} {...props}>
+      <path d="M4 8V6a2 2 0 012-2h2M16 4h2a2 2 0 012 2v2M20 16v2a2 2 0 01-2 2h-2M8 20H6a2 2 0 01-2-2v-2" />
+      <line x1="4" y1="12" x2="20" y2="12" />
+    </Svg>
+  );
+}
+
+export function ReturnIcon(props: IconProps) {
+  return (
+    <Svg strokeWidth={1.6} {...props}>
+      <path d="M9 14l-4-4 4-4" />
+      <path d="M5 10h11a4 4 0 010 8h-1" />
+    </Svg>
+  );
+}
+
+export function ChevronRightIcon(props: IconProps) {
+  return (
+    <Svg strokeWidth={2} {...props}>
+      <path d="M9 18l6-6-6-6" />
+    </Svg>
+  );
+}
+
 export function CalendarIcon(props: IconProps) {
   return (
     <Svg {...props}>

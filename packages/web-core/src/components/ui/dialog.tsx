@@ -31,6 +31,29 @@ export function DialogContent({
   );
 }
 
+/** Bottom sheet with a grab handle (scanner profile, design 1a). */
+export function BottomSheetContent({
+  className,
+  children,
+  ...props
+}: ComponentPropsWithoutRef<typeof DialogPrimitive.Content>) {
+  return (
+    <DialogPrimitive.Portal>
+      <DialogPrimitive.Overlay className="fixed inset-0 z-40 bg-[rgba(43,38,32,.35)]" />
+      <DialogPrimitive.Content
+        className={cn(
+          'fixed inset-x-0 bottom-0 z-50 mx-auto flex w-full max-w-[430px] flex-col gap-[18px] rounded-t-3xl bg-page px-5 pt-2.5 pb-[34px] outline-none',
+          className,
+        )}
+        {...props}
+      >
+        <div aria-hidden className="mx-auto h-1 w-10 rounded-sm bg-border-input" />
+        {children}
+      </DialogPrimitive.Content>
+    </DialogPrimitive.Portal>
+  );
+}
+
 /** Right-side drawer on the same Radix dialog (variant card, design 2d). */
 export function SheetContent({
   className,
