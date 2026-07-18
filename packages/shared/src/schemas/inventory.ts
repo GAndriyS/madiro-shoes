@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { MATERIALS, PAYMENT_METHODS, SEASONS } from '../enums.js';
+import { MATERIALS, PAIR_STATUSES, PAYMENT_METHODS, SEASONS } from '../enums.js';
 import { moneySchema, sizeSchema, tagCodeSchema } from './common.js';
 
 /**
@@ -17,6 +17,16 @@ export const intakeSchema = z.object({
   purchasePrice: moneySchema.nullable().optional(),
 });
 export type IntakeInput = z.infer<typeof intakeSchema>;
+
+/** Result of a successful intake — no price fields, so it is safe for sellers. */
+export const intakeResultSchema = z.object({
+  pairId: z.string(),
+  variantId: z.string(),
+  size: sizeSchema,
+  status: z.enum(PAIR_STATUSES),
+  awaitingPrice: z.boolean(),
+});
+export type IntakeResult = z.infer<typeof intakeResultSchema>;
 
 /** Pair lookup by the 5 identity fields (section 3.2). */
 export const pairLookupSchema = z.object({
