@@ -28,7 +28,7 @@ describe('GeminiVisionProvider', () => {
 
     expect(result).toEqual({ size: 38, color: '36', style: '7645', confidence: 0.95 });
     const [url, init] = fetchMock.mock.calls[0] as [string, RequestInit];
-    expect(url).toContain('gemini-2.5-flash:generateContent');
+    expect(url).toContain('gemini-flash-latest:generateContent');
     expect((init.headers as Record<string, string>)['x-goog-api-key']).toBe('test-key');
     const body = JSON.parse(init.body as string);
     expect(body.contents[0].parts[1].inline_data.data).toBe(image.buffer.toString('base64'));

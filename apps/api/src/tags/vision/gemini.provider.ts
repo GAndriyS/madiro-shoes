@@ -3,8 +3,10 @@ import { Injectable, Logger } from '@nestjs/common';
 import type { VisionImage, VisionProvider } from './vision-provider';
 import { VisionProviderError } from './vision-provider';
 
+// `gemini-flash-latest` is a moving alias to the current Flash model, so a
+// retired version (as gemini-2.5-flash became) never 404s the endpoint again.
 const GEMINI_ENDPOINT =
-  'https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent';
+  'https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent';
 
 /** Kept above the frontend's upload timeout budget (45s) with headroom. */
 const REQUEST_TIMEOUT_MS = 25_000;
