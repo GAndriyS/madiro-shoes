@@ -2,8 +2,8 @@ import type { OverviewPeriod } from '@madiro/shared';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { shortDay } from '../../lib/format';
-import { CalendarIcon } from '../layout/icons';
+import { shortDay } from '@madiro/web-core';
+import { CalendarIcon } from '@madiro/web-core';
 
 export interface PeriodValue {
   period: OverviewPeriod;

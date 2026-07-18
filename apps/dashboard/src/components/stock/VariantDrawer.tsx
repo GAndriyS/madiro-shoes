@@ -2,10 +2,16 @@ import { variantDetailSchema, type VariantDetail, type VariantPair } from '@madi
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import { api } from '../../lib/api';
-import { money } from '../../lib/format';
-import { CloseIcon, PencilIcon, TrashIcon } from '../layout/icons';
-import { Dialog, DialogClose, DialogDescription, DialogTitle, SheetContent } from '../ui/dialog';
+import { api } from '@madiro/web-core';
+import { money } from '@madiro/web-core';
+import { CloseIcon, PencilIcon, TrashIcon } from '@madiro/web-core';
+import {
+  Dialog,
+  DialogClose,
+  DialogDescription,
+  DialogTitle,
+  SheetContent,
+} from '@madiro/web-core';
 import { materialSeason, pricedPurchaseLabel } from './labels';
 
 interface Props {

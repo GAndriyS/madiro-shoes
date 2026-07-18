@@ -2,7 +2,7 @@ import type { RecentOperation } from '@madiro/shared';
 import { Fragment } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { money, num, timeOf } from '../../lib/format';
+import { money, num, timeOf } from '@madiro/web-core';
 
 const TYPE_KEY: Record<RecentOperation['type'], string> = {
   SALE: 'overview.opSale',

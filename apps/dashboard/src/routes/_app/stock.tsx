@@ -10,7 +10,7 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { SearchIcon } from '../../components/layout/icons';
+import { SearchIcon } from '@madiro/web-core';
 import { DeletePairModal, type DeleteTarget } from '../../components/stock/DeletePairModal';
 import { PriceModal, type PriceModalTarget } from '../../components/stock/PriceModal';
 import { StockCardsMobile } from '../../components/stock/StockCardsMobile';
@@ -19,9 +19,9 @@ import { StockFilters, type StockFilterState } from '../../components/stock/Stoc
 import { StockPagination } from '../../components/stock/StockPagination';
 import { StockTable, type StockSort } from '../../components/stock/StockTable';
 import { VariantDrawer } from '../../components/stock/VariantDrawer';
-import { QueryBoundary } from '../../components/ui/QueryState';
-import { api } from '../../lib/api';
-import { money } from '../../lib/format';
+import { QueryBoundary } from '@madiro/web-core';
+import { api } from '@madiro/web-core';
+import { money } from '@madiro/web-core';
 
 export const Route = createFileRoute('/_app/stock')({
   component: StockPage,

@@ -1,7 +1,7 @@
 import { SIZE_MAX, SIZE_MIN, type Material, type Season } from '@madiro/shared';
 import { useTranslation } from 'react-i18next';
 
-import { cn } from '../../lib/cn';
+import { cn } from '@madiro/web-core';
 
 export interface StockFilterState {
   material?: Material;

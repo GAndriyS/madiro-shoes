@@ -2,7 +2,7 @@ import type { QueueItem } from '@madiro/shared';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
-import { dayLabel } from '../../lib/format';
+import { dayLabel } from '@madiro/web-core';
 
 /** "Awaiting price" queue widget (design 1a): «Ціна» button, sold-without-price accented. */
 export function QueueWidget({ items }: { items: QueueItem[] }) {

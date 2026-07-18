@@ -4,8 +4,8 @@ import { Outlet, createFileRoute, redirect, useNavigate } from '@tanstack/react-
 import { useEffect } from 'react';
 
 import { BottomNav, MobileHeader, Sidebar } from '../components/layout/AppNav';
-import { api } from '../lib/api';
-import { isAuthenticatedAdmin, useAuthStore } from '../stores/auth';
+import { api } from '@madiro/web-core';
+import { isAuthenticatedAdmin, useAuthStore } from '@madiro/web-core';
 
 export const Route = createFileRoute('/_app')({
   beforeLoad: () => {

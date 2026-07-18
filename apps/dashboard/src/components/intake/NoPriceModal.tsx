@@ -2,9 +2,15 @@ import type { IntakeQueueItem } from '@madiro/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
-import { api } from '../../lib/api';
-import { AlertIcon } from '../layout/icons';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
+import { api } from '@madiro/web-core';
+import { AlertIcon } from '@madiro/web-core';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@madiro/web-core';
 import { materialSeason } from '../stock/labels';
 
 interface Props {

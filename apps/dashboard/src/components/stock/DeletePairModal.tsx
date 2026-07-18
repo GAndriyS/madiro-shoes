@@ -2,9 +2,15 @@ import type { VariantDetail, VariantPair } from '@madiro/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Trans, useTranslation } from 'react-i18next';
 
-import { api } from '../../lib/api';
-import { TrashIcon } from '../layout/icons';
-import { Dialog, DialogClose, DialogContent, DialogDescription, DialogTitle } from '../ui/dialog';
+import { api } from '@madiro/web-core';
+import { TrashIcon } from '@madiro/web-core';
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from '@madiro/web-core';
 import { materialSeason, pricedPurchaseLabel } from './labels';
 
 export interface DeleteTarget {

@@ -13,19 +13,16 @@
   },
   "dependencies": {
     "@madiro/shared": "workspace:*",
-    "@radix-ui/react-dialog": "^1.1.19",
+    "@madiro/web-core": "workspace:*",
     "@tanstack/react-query": "^5.62.0",
     "@tanstack/react-router": "^1.90.0",
     "@tanstack/react-table": "^8.21.3",
-    "clsx": "^2.1.1",
     "i18next": "^24.2.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-i18next": "^15.4.0",
     "recharts": "^3.9.2",
-    "tailwind-merge": "^3.6.0",
-    "zod": "^4.0.0",
-    "zustand": "^5.0.0"
+    "zod": "^4.0.0"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.0.0",

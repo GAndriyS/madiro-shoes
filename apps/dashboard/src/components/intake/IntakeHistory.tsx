@@ -1,7 +1,7 @@
 import type { IntakeHistoryResponse } from '@madiro/shared';
 import { useTranslation } from 'react-i18next';
 
-import { money } from '../../lib/format';
+import { money } from '@madiro/web-core';
 import { materialSeason } from '../stock/labels';
 
 interface Props {

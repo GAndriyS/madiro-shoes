@@ -2,7 +2,7 @@ import type { OverviewResponse } from '@madiro/shared';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
-import { money } from '../../lib/format';
+import { money } from '@madiro/web-core';
 
 function Card({
   label,

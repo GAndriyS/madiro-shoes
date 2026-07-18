@@ -4,12 +4,12 @@ import { createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { PlusIcon, UsersIcon } from '../../components/layout/icons';
-import { QueryBoundary } from '../../components/ui/QueryState';
+import { PlusIcon, UsersIcon } from '@madiro/web-core';
+import { QueryBoundary } from '@madiro/web-core';
 import { DeleteUserModal } from '../../components/users/DeleteUserModal';
 import { UserCard } from '../../components/users/UserCard';
 import { UserFormModal, type UserFormTarget } from '../../components/users/UserFormModal';
-import { api } from '../../lib/api';
+import { api } from '@madiro/web-core';
 
 export const Route = createFileRoute('/_app/users')({
   component: UsersPage,

@@ -2,7 +2,7 @@ import type { OverviewPeriod, OverviewResponse } from '@madiro/shared';
 import { useTranslation } from 'react-i18next';
 import { Bar, BarChart, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 
-import { money, shortDay } from '../../lib/format';
+import { money, shortDay } from '@madiro/web-core';
 
 type Series = OverviewResponse['revenueSeries'];
 
