@@ -14,16 +14,30 @@ export class ApiError extends Error {
 /** Abort a request that hangs past this budget so queries never stay pending forever. */
 const REQUEST_TIMEOUT_MS = 15_000;
 
-async function request<T>(path: string, init: RequestInit = {}, retry = true): Promise<T> {
+interface RequestOptions {
+  /** Per-call override for slow endpoints (e.g. vision recognition). */
+  timeoutMs?: number;
+}
+
+async function request<T>(
+  path: string,
+  init: RequestInit = {},
+  retry = true,
+  options: RequestOptions = {},
+): Promise<T> {
   const { accessToken } = useAuthStore.getState();
   const headers = new Headers(init.headers);
-  headers.set('Content-Type', 'application/json');
+  // FormData bodies set their own multipart boundary — forcing a Content-Type
+  // here would break the upload.
+  if (!(init.body instanceof FormData)) {
+    headers.set('Content-Type', 'application/json');
+  }
   if (accessToken) {
     headers.set('Authorization', `Bearer ${accessToken}`);
   }
 
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+  const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? REQUEST_TIMEOUT_MS);
   let response: Response;
   try {
     response = await fetch(`/api${path}`, { ...init, headers, signal: controller.signal });
@@ -38,7 +52,7 @@ async function request<T>(path: string, init: RequestInit = {}, retry = true): P
   if (response.status === 401 && retry && path !== '/auth/login') {
     const refreshed = await tryRefresh();
     if (refreshed) {
-      return request<T>(path, init, false);
+      return request<T>(path, init, false, options);
     }
     useAuthStore.getState().clearSession();
   }
@@ -90,6 +104,8 @@ export const api = {
   get: <T>(path: string) => request<T>(path),
   post: <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
+  postForm: <T>(path: string, body: FormData, options?: RequestOptions) =>
+    request<T>(path, { method: 'POST', body }, true, options),
   patch: <T>(path: string, body: unknown) =>
     request<T>(path, { method: 'PATCH', body: JSON.stringify(body) }),
   delete: <T>(path: string) => request<T>(path, { method: 'DELETE' }),
