@@ -96,6 +96,32 @@ describe('API (e2e, real Postgres)', () => {
     expect(deleted?.deletedAt).not.toBeNull();
   });
 
+  it('revokes a seller session when the admin changes their password (tokenVersion)', async () => {
+    const adminToken = (await login('admin', adminPassword).expect(200)).body.accessToken as string;
+
+    const created = await request(http)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'Петро', login: 'petro-e2e', password: 'petro-pass' })
+      .expect(201);
+    const sellerId = created.body.id as string;
+
+    const oldToken = (await login('petro-e2e', 'petro-pass').expect(200)).body
+      .accessToken as string;
+    await request(http).get('/api/auth/me').set('Authorization', `Bearer ${oldToken}`).expect(200);
+
+    // Admin resets the password → the previously issued (unexpired) token is now rejected.
+    await request(http)
+      .patch(`/api/users/${sellerId}`)
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'Петро', login: 'petro-e2e', password: 'petro-new-pass' })
+      .expect(200);
+
+    await request(http).get('/api/auth/me').set('Authorization', `Bearer ${oldToken}`).expect(401);
+    await login('petro-e2e', 'petro-pass').expect(401);
+    await login('petro-e2e', 'petro-new-pass').expect(200);
+  });
+
   it('rejects unauthenticated and non-admin access to protected routes', async () => {
     await request(http).get('/api/users').expect(401);
     await request(http).get('/api/health').expect(200);

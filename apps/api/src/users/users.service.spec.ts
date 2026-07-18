@@ -54,6 +54,17 @@ describe('UsersService', () => {
     expect(prisma.user.update.mock.calls[0][0].data).not.toHaveProperty('passwordHash');
   });
 
+  it('зміна пароля хешує його і піднімає tokenVersion (відкликає сесії)', async () => {
+    prisma.user.findFirst.mockResolvedValue({ id: 'u1', login: 'olia' });
+    prisma.user.update.mockResolvedValue({ id: 'u1' });
+
+    await service.updateSeller('u1', { name: 'Оля', login: 'olia', password: 'new-secret' });
+
+    const data = prisma.user.update.mock.calls[0][0].data;
+    await expect(argon2.verify(data.passwordHash, 'new-secret')).resolves.toBe(true);
+    expect(data.tokenVersion).toEqual({ increment: 1 });
+  });
+
   it('видалення — soft delete через deletedAt', async () => {
     prisma.user.findFirst.mockResolvedValue({ id: 'u1', login: 'olia' });
     prisma.user.update.mockResolvedValue({ id: 'u1' });

@@ -53,6 +53,9 @@ model User {
   login        String    @unique
   passwordHash String
   role         Role      @default(SELLER)
+  /// Bumped on every password change; a JWT carrying an older version is rejected,
+  /// so changing a password logs out all of that user's existing sessions.
+  tokenVersion Int       @default(0)
   createdAt    DateTime  @default(now())
   /// Updated on every successful login; shown as seller activity in the dashboard.
   lastActiveAt DateTime?
