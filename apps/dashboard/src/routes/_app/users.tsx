@@ -5,6 +5,7 @@ import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { PlusIcon, UsersIcon } from '../../components/layout/icons';
+import { QueryBoundary } from '../../components/ui/QueryState';
 import { DeleteUserModal } from '../../components/users/DeleteUserModal';
 import { UserCard } from '../../components/users/UserCard';
 import { UserFormModal, type UserFormTarget } from '../../components/users/UserFormModal';
@@ -19,7 +20,12 @@ function UsersPage() {
   const [formTarget, setFormTarget] = useState<UserFormTarget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Seller | null>(null);
 
-  const { data: sellers } = useQuery({
+  const {
+    data: sellers,
+    isPending,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: ['users'],
     queryFn: async () => sellersResponseSchema.parse(await api.get<Seller[]>('/users')),
   });
@@ -61,30 +67,32 @@ function UsersPage() {
         </button>
       </div>
 
-      {sellers && sellers.length === 0 ? (
-        <div className="flex flex-1 flex-col items-center justify-center gap-3.5 rounded-[14px] border border-border bg-surface py-16">
-          <div className="flex h-14 w-14 items-center justify-center rounded-full bg-border-row text-text-muted">
-            <UsersIcon size={24} />
+      <QueryBoundary isPending={isPending} isError={isError} onRetry={() => void refetch()}>
+        {sellers && sellers.length === 0 ? (
+          <div className="flex flex-1 flex-col items-center justify-center gap-3.5 rounded-[14px] border border-border bg-surface py-16">
+            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-border-row text-text-muted">
+              <UsersIcon size={24} />
+            </div>
+            <div className="font-display text-2xl font-semibold text-ink">
+              {t('users.emptyTitle')}
+            </div>
+            <div className="text-center text-[13px] leading-normal text-text-muted">
+              {t('users.emptyBody')}
+            </div>
           </div>
-          <div className="font-display text-2xl font-semibold text-ink">
-            {t('users.emptyTitle')}
+        ) : (
+          <div className="flex flex-col gap-2.5 md:gap-3">
+            {sellers?.map((seller) => (
+              <UserCard
+                key={seller.id}
+                seller={seller}
+                onEdit={(s) => setFormTarget({ mode: 'edit', seller: s })}
+                onDelete={requestDelete}
+              />
+            ))}
           </div>
-          <div className="text-center text-[13px] leading-normal text-text-muted">
-            {t('users.emptyBody')}
-          </div>
-        </div>
-      ) : (
-        <div className="flex flex-col gap-2.5 md:gap-3">
-          {sellers?.map((seller) => (
-            <UserCard
-              key={seller.id}
-              seller={seller}
-              onEdit={(s) => setFormTarget({ mode: 'edit', seller: s })}
-              onDelete={requestDelete}
-            />
-          ))}
-        </div>
-      )}
+        )}
+      </QueryBoundary>
 
       <p className="mt-auto px-0.5 text-xs leading-normal text-text-faint">{t('users.footnote')}</p>
 

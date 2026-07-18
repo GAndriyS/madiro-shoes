@@ -65,6 +65,7 @@ export function DeletePairModal({ target, onClose }: Props) {
               ` · ${t('stock.colPurchase').toLowerCase()} ${pricedPurchaseLabel(t, variant.purchasePrice)}`}
           </span>
         </div>
+        {mutation.isError && <p className="text-[13px] text-danger">{t('common.actionError')}</p>}
         <div className="flex gap-2.5">
           <button
             type="button"
