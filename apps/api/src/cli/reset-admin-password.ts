@@ -24,7 +24,8 @@ async function main(): Promise<void> {
 
   await prisma.user.update({
     where: { id: admin.id },
-    data: { passwordHash: await argon2.hash(password) },
+    // Bump tokenVersion so any existing admin sessions are revoked immediately.
+    data: { passwordHash: await argon2.hash(password), tokenVersion: { increment: 1 } },
   });
   console.log(`Пароль адміністратора «${admin.login}» оновлено.`);
 }

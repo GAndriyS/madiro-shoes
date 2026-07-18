@@ -26,8 +26,8 @@ jobs:
 
     env:
       DATABASE_URL: postgresql://madiro:madiro@localhost:5432/madiro?schema=public
-      JWT_ACCESS_SECRET: ci-access-secret-0123456789
-      JWT_REFRESH_SECRET: ci-refresh-secret-0123456789
+      JWT_ACCESS_SECRET: ci-access-secret-0123456789-0123456789
+      JWT_REFRESH_SECRET: ci-refresh-secret-0123456789-0123456789
 
     steps:
       - uses: actions/checkout@v4

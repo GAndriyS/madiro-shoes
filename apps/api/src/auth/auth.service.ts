@@ -9,11 +9,14 @@ import { PrismaService } from '../prisma/prisma.service';
 export interface AccessTokenPayload {
   sub: string;
   role: Role;
+  /** Token version — must match the user's current tokenVersion (see schema). */
+  ver: number;
 }
 
 interface RefreshTokenPayload {
   sub: string;
   tokenType: 'refresh';
+  ver: number;
 }
 
 @Injectable()
@@ -36,12 +39,10 @@ export class AuthService {
     void this.prisma.user
       .update({ where: { id: user.id }, data: { lastActiveAt: new Date() } })
       .catch(() => undefined);
-    return this.buildAuthResponse({
-      id: user.id,
-      name: user.name,
-      login: user.login,
-      role: user.role,
-    });
+    return this.buildAuthResponse(
+      { id: user.id, name: user.name, login: user.login, role: user.role },
+      user.tokenVersion,
+    );
   }
 
   async refresh(refreshToken: string): Promise<AuthResponse> {
@@ -59,17 +60,26 @@ export class AuthService {
 
     const user = await this.prisma.user.findFirst({
       where: { id: payload.sub, deletedAt: null },
-      select: { id: true, name: true, login: true, role: true },
+      select: { id: true, name: true, login: true, role: true, tokenVersion: true },
     });
     if (!user) {
       throw new UnauthorizedException('Користувача не знайдено');
     }
-    return this.buildAuthResponse(user);
+    // A password change bumps tokenVersion and invalidates older refresh tokens.
+    if (payload.ver !== user.tokenVersion) {
+      throw new UnauthorizedException('Сесію відкликано');
+    }
+    const { tokenVersion, ...authUser } = user;
+    return this.buildAuthResponse(authUser, tokenVersion);
   }
 
-  private async buildAuthResponse(user: AuthUser): Promise<AuthResponse> {
-    const accessPayload: AccessTokenPayload = { sub: user.id, role: user.role };
-    const refreshPayload: RefreshTokenPayload = { sub: user.id, tokenType: 'refresh' };
+  private async buildAuthResponse(user: AuthUser, tokenVersion: number): Promise<AuthResponse> {
+    const accessPayload: AccessTokenPayload = { sub: user.id, role: user.role, ver: tokenVersion };
+    const refreshPayload: RefreshTokenPayload = {
+      sub: user.id,
+      tokenType: 'refresh',
+      ver: tokenVersion,
+    };
 
     const [accessToken, refreshToken] = await Promise.all([
       this.jwt.signAsync(accessPayload, {

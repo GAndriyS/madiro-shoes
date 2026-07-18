@@ -1,8 +1,14 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import * as argon2 from 'argon2';
 import type { CreateUserInput, Seller, UpdateUserInput } from '@madiro/shared';
 
 import { PrismaService } from '../prisma/prisma.service';
+
+/** Postgres unique-violation → a friendly 409 (covers the check-then-write race). */
+function isUniqueViolation(err: unknown): boolean {
+  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002';
+}
 
 @Injectable()
 export class UsersService {
@@ -30,15 +36,22 @@ export class UsersService {
     // Logins must be unique across everyone, including soft-deleted accounts
     // and the admin (the DB unique index covers them all).
     await this.assertLoginFree(input.login);
-    const user = await this.prisma.user.create({
-      data: {
-        name: input.name,
-        login: input.login,
-        passwordHash: await argon2.hash(input.password),
-        role: 'SELLER',
-      },
-    });
-    return { id: user.id };
+    try {
+      const user = await this.prisma.user.create({
+        data: {
+          name: input.name,
+          login: input.login,
+          passwordHash: await argon2.hash(input.password),
+          role: 'SELLER',
+        },
+      });
+      return { id: user.id };
+    } catch (err) {
+      if (isUniqueViolation(err)) {
+        throw new ConflictException('Такий логін уже існує');
+      }
+      throw err;
+    }
   }
 
   async updateSeller(id: string, input: UpdateUserInput): Promise<{ id: string }> {
@@ -46,16 +59,29 @@ export class UsersService {
     if (input.login !== seller.login) {
       await this.assertLoginFree(input.login);
     }
-    await this.prisma.user.update({
-      where: { id },
-      data: {
-        name: input.name,
-        login: input.login,
-        // Omitted password keeps the current hash (design 4e: «залишити без змін»)
-        ...(input.password ? { passwordHash: await argon2.hash(input.password) } : {}),
-      },
-    });
-    return { id };
+    try {
+      await this.prisma.user.update({
+        where: { id },
+        data: {
+          name: input.name,
+          login: input.login,
+          // Omitted password keeps the current hash (design 4e: «залишити без змін»).
+          // A new password bumps tokenVersion, revoking the seller's active sessions.
+          ...(input.password
+            ? {
+                passwordHash: await argon2.hash(input.password),
+                tokenVersion: { increment: 1 },
+              }
+            : {}),
+        },
+      });
+      return { id };
+    } catch (err) {
+      if (isUniqueViolation(err)) {
+        throw new ConflictException('Такий логін уже існує');
+      }
+      throw err;
+    }
   }
 
   /** Soft delete: the account disappears and cannot log in, history stays (FR-D-18). */

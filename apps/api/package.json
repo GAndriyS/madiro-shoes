@@ -15,6 +15,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "ts-node --project tsconfig.cli.json prisma/seed.ts",
+    "db:seed:demo": "ts-node --project tsconfig.cli.json prisma/seed-demo.ts",
     "admin:reset-password": "ts-node --project tsconfig.cli.json src/cli/reset-admin-password.ts"
   },
   "prisma": {

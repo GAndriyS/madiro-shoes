@@ -40,6 +40,7 @@ describe('AuthService', () => {
       name: 'Оля',
       login: 'olia',
       role: 'SELLER',
+      tokenVersion: 0,
       passwordHash: await argon2.hash('secret1'),
     });
 
@@ -56,6 +57,7 @@ describe('AuthService', () => {
       name: 'Оля',
       login: 'olia',
       role: 'SELLER',
+      tokenVersion: 0,
       passwordHash: await argon2.hash('secret1'),
     });
 
@@ -75,10 +77,33 @@ describe('AuthService', () => {
       name: 'Оля',
       login: 'olia',
       role: 'SELLER',
+      tokenVersion: 0,
       passwordHash: await argon2.hash('secret1'),
     });
     const { accessToken } = await service.login('olia', 'secret1');
 
     await expect(service.refresh(accessToken)).rejects.toThrow(UnauthorizedException);
+  });
+
+  it('відкликає refresh-токен зі старою версією після зміни пароля', async () => {
+    findFirst.mockResolvedValueOnce({
+      id: 'u1',
+      name: 'Оля',
+      login: 'olia',
+      role: 'SELLER',
+      tokenVersion: 0,
+      passwordHash: await argon2.hash('secret1'),
+    });
+    const { refreshToken } = await service.login('olia', 'secret1');
+
+    // Password changed → tokenVersion bumped to 1; the old refresh (ver 0) is rejected.
+    findFirst.mockResolvedValueOnce({
+      id: 'u1',
+      name: 'Оля',
+      login: 'olia',
+      role: 'SELLER',
+      tokenVersion: 1,
+    });
+    await expect(service.refresh(refreshToken)).rejects.toThrow(UnauthorizedException);
   });
 });

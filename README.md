@@ -34,6 +34,9 @@ cp .env apps/api/.env
 pnpm --filter @madiro/api db:migrate
 pnpm --filter @madiro/api db:seed
 
+# (опційно) демо-дані: продавці, варіанти, пари, операції
+pnpm --filter @madiro/api db:seed:demo
+
 # API в режимі розробки (http://localhost:3000/api)
 pnpm --filter @madiro/api dev
 ```

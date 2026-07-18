@@ -19,16 +19,18 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     });
   }
 
-  // Re-check against the DB: a deleted seller loses access immediately,
-  // even with a still-valid access token.
+  // Re-check against the DB: a deleted seller loses access immediately, and a
+  // password change (which bumps tokenVersion) invalidates even an unexpired
+  // access token.
   async validate(payload: AccessTokenPayload): Promise<AuthUser> {
     const user = await this.prisma.user.findFirst({
       where: { id: payload.sub, deletedAt: null },
-      select: { id: true, name: true, login: true, role: true },
+      select: { id: true, name: true, login: true, role: true, tokenVersion: true },
     });
-    if (!user) {
+    if (!user || payload.ver !== user.tokenVersion) {
       throw new UnauthorizedException();
     }
-    return user;
+    const { tokenVersion: _tokenVersion, ...authUser } = user;
+    return authUser;
   }
 }
