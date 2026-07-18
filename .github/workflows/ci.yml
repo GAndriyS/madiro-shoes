@@ -8,6 +8,27 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: madiro
+          POSTGRES_PASSWORD: madiro
+          POSTGRES_DB: madiro
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U madiro -d madiro"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://madiro:madiro@localhost:5432/madiro?schema=public
+      JWT_ACCESS_SECRET: ci-access-secret-0123456789
+      JWT_REFRESH_SECRET: ci-refresh-secret-0123456789
+
     steps:
       - uses: actions/checkout@v4
 
@@ -38,3 +59,14 @@ jobs:
 
       - name: Build
         run: pnpm build
+
+      - name: Apply migrations
+        run: pnpm --filter @madiro/api db:deploy
+
+      # Fail if schema.prisma drifted from the committed migrations
+      # (someone edited the schema without generating a migration).
+      - name: Check migration drift
+        run: pnpm --filter @madiro/api db:drift
+
+      - name: API integration tests
+        run: pnpm --filter @madiro/api test:e2e
