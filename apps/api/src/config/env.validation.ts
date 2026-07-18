@@ -11,6 +11,11 @@ const envSchema = z.object({
   JWT_REFRESH_TTL: z.string().default('30d'),
   /** Comma-separated allowlist of browser origins for CORS. */
   CORS_ORIGINS: z.string().default('http://localhost:5173'),
+  /**
+   * Vision provider key (Gemini). Optional: without it dev/test fall back to
+   * the mock provider and production answers 503 on /tags/recognize.
+   */
+  GEMINI_API_KEY: z.string().optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;

@@ -8,6 +8,7 @@ import { validateEnv } from './config/env.validation';
 import { HealthController } from './health/health.controller';
 import { MeModule } from './me/me.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { TagsModule } from './tags/tags.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -20,6 +21,7 @@ import { UsersModule } from './users/users.module';
     AuthModule,
     UsersModule,
     MeModule,
+    TagsModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
