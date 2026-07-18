@@ -45,6 +45,10 @@ describe('API (e2e, real Postgres)', () => {
   });
 
   afterAll(async () => {
+    // FK-safe order: the summary test leaves operations/pairs referencing users.
+    await prisma.operation.deleteMany();
+    await prisma.pair.deleteMany();
+    await prisma.variant.deleteMany();
     await prisma.user.deleteMany();
     await app.close();
   });
