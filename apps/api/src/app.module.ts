@@ -6,6 +6,7 @@ import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AuthModule } from './auth/auth.module';
 import { validateEnv } from './config/env.validation';
 import { HealthController } from './health/health.controller';
+import { IntakeModule } from './intake/intake.module';
 import { MeModule } from './me/me.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { TagsModule } from './tags/tags.module';
@@ -22,6 +23,7 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     MeModule,
     TagsModule,
+    IntakeModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],

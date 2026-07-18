@@ -1,6 +1,7 @@
 import {
   MATERIALS,
   SEASONS,
+  type IntakeInput,
   type Material,
   type Season,
   type TagRecognition,
@@ -12,8 +13,12 @@ import { useTranslation } from 'react-i18next';
 /** Recognitions below this read as "double-check me" in the UI (heuristic). */
 const LOW_CONFIDENCE_THRESHOLD = 0.8;
 
+export type SaveMode = 'next' | 'finish';
+
 interface ConfirmFormProps {
   recognition: TagRecognition;
+  saving: boolean;
+  onSave: (input: IntakeInput, mode: SaveMode) => void;
   onRescan: () => void;
   onBack: () => void;
 }
@@ -82,18 +87,21 @@ function PillGroup<T extends string>({
 }
 
 /**
- * Prefilled confirmation (design 3a): editable SIZE/COLOR/STYLE cards, season
- * and material pills. Saving is intentionally disabled — intake persistence
- * is the next PR; the form proves the recognition loop end to end.
+ * Prefilled intake confirmation (design 3a). An admin sets a purchase price or
+ * marks the pair "no price — old stock"; a seller sees a note and saves a draft
+ * that enters the awaiting-price queue. Both roles can save-and-scan-next
+ * (batch) or save-and-finish.
  */
-export function ConfirmForm({ recognition, onRescan, onBack }: ConfirmFormProps) {
+export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: ConfirmFormProps) {
   const { t } = useTranslation();
-  const role = useAuthStore((s) => s.user?.role);
+  const isAdmin = useAuthStore((s) => s.user?.role) === 'ADMIN';
   const [size, setSize] = useState(String(recognition.size));
   const [color, setColor] = useState(recognition.color);
   const [style, setStyle] = useState(recognition.style);
   const [season, setSeason] = useState<Season>('NONE');
   const [material, setMaterial] = useState<Material | null>(null);
+  const [priceMode, setPriceMode] = useState<'set' | 'none'>('set');
+  const [price, setPrice] = useState('');
 
   const seasonLabels: Record<Season, string> = {
     NONE: t('intake.seasonNone'),
@@ -103,6 +111,28 @@ export function ConfirmForm({ recognition, onRescan, onBack }: ConfirmFormProps)
   const materialLabels: Record<Material, string> = {
     LEATHER: t('intake.materialLeather'),
     SUEDE: t('intake.materialSuede'),
+  };
+
+  const priceValue = Number(price);
+  const priceEntered = price.length > 0 && priceValue > 0;
+  // Admin must decide: a price or the explicit "no price" toggle.
+  const canSave = size.length > 0 && color.length > 0 && style.length > 0 && !saving;
+  const adminNeedsPrice = isAdmin && priceMode === 'set' && !priceEntered;
+
+  const submit = (mode: SaveMode) => {
+    if (!canSave || adminNeedsPrice) return;
+    const purchasePrice = isAdmin ? (priceMode === 'none' ? null : priceValue) : undefined;
+    onSave(
+      {
+        size: Number(size),
+        color,
+        style,
+        ...(material ? { material } : {}),
+        season,
+        ...(purchasePrice !== undefined ? { purchasePrice } : {}),
+      },
+      mode,
+    );
   };
 
   return (
@@ -120,7 +150,7 @@ export function ConfirmForm({ recognition, onRescan, onBack }: ConfirmFormProps)
           <div className="text-[15px] font-bold text-ink">{t('intake.confirmTitle')}</div>
         </div>
         <span className="rounded-lg bg-segment px-2.5 py-[5px] text-[11px] font-bold tracking-[1px] text-accent-hover">
-          {role === 'ADMIN' ? t('intake.badgeAdmin') : t('intake.badgeSeller')}
+          {isAdmin ? t('intake.badgeAdmin') : t('intake.badgeSeller')}
         </span>
       </div>
 
@@ -154,21 +184,70 @@ export function ConfirmForm({ recognition, onRescan, onBack }: ConfirmFormProps)
         onSelect={(option) => setMaterial((current) => (current === option ? null : option))}
       />
 
-      <div className="mt-auto flex flex-col gap-2.5">
-        <div className="text-center text-[12px] text-text-muted">
-          {t('intake.saveDisabledNote')}
+      {isAdmin ? (
+        <div className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between">
+            <span className="text-[11px] font-bold tracking-[1.5px] text-text-muted">
+              {t('intake.priceLabel')}
+            </span>
+            <button
+              type="button"
+              onClick={() => setPriceMode((m) => (m === 'set' ? 'none' : 'set'))}
+              className="text-[12.5px] font-semibold text-accent-hover"
+            >
+              {priceMode === 'set' ? t('intake.noPriceToggle') : t('intake.withPriceToggle')}
+            </button>
+          </div>
+          {priceMode === 'set' ? (
+            <div className="flex items-baseline gap-2 rounded-[14px] border-[1.5px] border-ink bg-surface px-[18px] py-4">
+              <input
+                inputMode="numeric"
+                value={price}
+                placeholder={t('intake.pricePlaceholder')}
+                onChange={(e) => setPrice(e.target.value.replace(/\D/g, ''))}
+                className="w-full bg-transparent font-display text-[34px] font-semibold text-ink outline-none placeholder:text-text-faint"
+              />
+              <span className="text-base text-text-muted">₴</span>
+            </div>
+          ) : (
+            <div className="rounded-[14px] border-[1.5px] border-dashed border-border-input bg-surface px-[18px] py-4 text-[13px] text-text-secondary">
+              {t('common.noPrice')}
+            </div>
+          )}
         </div>
+      ) : (
+        <div className="flex items-center gap-3 rounded-xl border border-dashed border-border-input bg-row-selected px-4 py-3.5">
+          <AlertIcon size={20} className="flex-none text-accent" />
+          <div className="text-[12.5px] leading-snug text-accent-hover">
+            {t('intake.sellerDraftNote')}
+          </div>
+        </div>
+      )}
+
+      <div className="mt-auto flex flex-col gap-2.5 pt-2">
         <button
           type="button"
-          disabled
-          className="rounded-[14px] bg-accent p-[17px] text-center text-base font-bold text-white opacity-50"
+          disabled={!canSave || adminNeedsPrice}
+          onClick={() => submit('next')}
+          className={cn(
+            'rounded-[14px] p-[17px] text-center text-base font-bold disabled:opacity-50',
+            isAdmin ? 'bg-accent text-white' : 'bg-ink text-page',
+          )}
         >
-          {t('intake.save')}
+          {isAdmin ? t('intake.saveAndNextAdmin') : t('intake.saveAndNextSeller')}
+        </button>
+        <button
+          type="button"
+          disabled={!canSave || adminNeedsPrice}
+          onClick={() => submit('finish')}
+          className="p-1 text-center text-[13px] font-semibold text-text-secondary disabled:opacity-50"
+        >
+          {t('intake.saveAndFinish')}
         </button>
         <button
           type="button"
           onClick={onRescan}
-          className="p-1 text-center text-[13px] font-semibold text-text-secondary"
+          className="p-1 text-center text-[13px] font-semibold text-text-faint"
         >
           {t('intake.rescan')}
         </button>
