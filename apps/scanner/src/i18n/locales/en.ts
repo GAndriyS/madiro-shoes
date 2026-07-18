@@ -1,0 +1,65 @@
+import type { uk } from './uk';
+
+type Messages = { [K in keyof typeof uk]: Record<string, string> };
+
+export const en: Messages = {
+  common: {
+    loading: 'Loading…',
+    errorTitle: 'Could not load data',
+    errorBody: 'Check your connection and try again.',
+    retry: 'Try again',
+    actionError: 'The action failed. Please try again.',
+    back: 'Back',
+    today: 'today',
+    yesterday: 'yesterday',
+    noPrice: 'no price',
+  },
+  login: {
+    subtitle: 'Shoe inventory · staff sign-in',
+    loginLabel: 'LOGIN',
+    passwordLabel: 'PASSWORD',
+    submit: 'Log in',
+    invalidCredentials: 'Invalid login or password',
+    genericError: 'Could not log in. Please try again.',
+    showPassword: 'Show password',
+    hidePassword: 'Hide password',
+    footnote: 'Accounts are created by the administrator.\nForgot the password — ask them.',
+  },
+  home: {
+    greeting: 'Good day, {{name}}',
+    saleTitle: 'Sale / out',
+    saleSubtitle: 'Scan a tag to check out',
+    intakeTitle: 'Intake',
+    intakeSubtitle: 'New pair into stock',
+    returnTitle: 'Customer return',
+    manual: 'Enter manually',
+    search: 'Stock search',
+    summaryLabel: 'MY SALES TODAY',
+    summaryAll: 'All →',
+    summaryPairs_one: 'pair',
+    summaryPairs_other: 'pairs',
+    summaryTotal: 'total',
+  },
+  profile: {
+    roleSeller: 'Seller',
+    roleAdmin: 'Administrator',
+    mySales: 'My sales',
+    myDrafts: 'My intake drafts',
+    logout: 'Log out',
+    footnote: 'The next seller signs in with their own login',
+    open: 'Open profile',
+  },
+  offline: {
+    banner: 'No connection — actions are unavailable until the internet is back',
+  },
+  stubs: {
+    sale: 'Sale / out',
+    intake: 'Intake',
+    return: 'Customer return',
+    manual: 'Enter a pair manually',
+    search: 'Stock search',
+    mySales: 'My sales',
+    myDrafts: 'My intake drafts',
+    body: 'This flow is the next development step.',
+  },
+};

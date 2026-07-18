@@ -122,6 +122,43 @@ describe('API (e2e, real Postgres)', () => {
     await login('petro-e2e', 'petro-new-pass').expect(200);
   });
 
+  it('serves the scanner home summary for any authenticated staff member', async () => {
+    const adminToken = (await login('admin', adminPassword).expect(200)).body.accessToken as string;
+
+    const created = await request(http)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${adminToken}`)
+      .send({ name: 'Соломія', login: 'solomia-e2e', password: 'solomia-pass' })
+      .expect(201);
+    const sellerId = created.body.id as string;
+    const sellerToken = (await login('solomia-e2e', 'solomia-pass').expect(200)).body
+      .accessToken as string;
+
+    // Fresh seller: zeros everywhere
+    const empty = await request(http)
+      .get('/api/me/summary')
+      .set('Authorization', `Bearer ${sellerToken}`)
+      .expect(200);
+    expect(empty.body).toEqual({ todaySalesPairs: 0, todaySalesTotal: 0, draftsInQueue: 0 });
+
+    // A draft pair and a sale operation make the summary move
+    const variant = await prisma.variant.create({
+      data: { style: '7777', color: '11', material: 'LEATHER', season: 'NONE' },
+    });
+    const pair = await prisma.pair.create({
+      data: { variantId: variant.id, size: 38, awaitingPrice: true, createdById: sellerId },
+    });
+    await prisma.operation.create({
+      data: { type: 'SALE', pairId: pair.id, userId: sellerId, salePrice: 2850 },
+    });
+
+    const filled = await request(http)
+      .get('/api/me/summary')
+      .set('Authorization', `Bearer ${sellerToken}`)
+      .expect(200);
+    expect(filled.body).toEqual({ todaySalesPairs: 1, todaySalesTotal: 2850, draftsInQueue: 1 });
+  });
+
   it('rejects unauthenticated and non-admin access to protected routes', async () => {
     await request(http).get('/api/users').expect(401);
     await request(http).get('/api/health').expect(200);

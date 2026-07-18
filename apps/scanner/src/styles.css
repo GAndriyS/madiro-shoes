@@ -1,0 +1,5 @@
+@import 'tailwindcss';
+@import '@madiro/web-core/tokens.css';
+
+/* Make Tailwind see utility classes used inside the shared package */
+@source '../../../packages/web-core/src';

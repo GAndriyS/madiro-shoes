@@ -10,11 +10,14 @@ React 19 · TypeScript · TanStack (Router / Query / Table) · Zustand · NestJS
 
 ## Структура монорепо
 
-| Шлях              | Призначення                                                             |
-| ----------------- | ----------------------------------------------------------------------- |
-| `apps/api`        | NestJS API: Prisma + PostgreSQL, JWT-auth (ролі admin/seller)           |
-| `packages/shared` | Спільні TypeScript-типи, Zod-схеми та константи (контракти фронт ↔ бек) |
-| `docs/`           | Документація проєкту                                                    |
+| Шлях                | Призначення                                                             |
+| ------------------- | ----------------------------------------------------------------------- |
+| `apps/api`          | NestJS API: Prisma + PostgreSQL, JWT-auth (ролі admin/seller)           |
+| `apps/dashboard`    | Веб-дашборд адміністратора (Vite + React 19 + TanStack), порт 5173      |
+| `apps/scanner`      | PWA-сканер для персоналу (installable, offline-банер), порт 5174        |
+| `packages/shared`   | Спільні TypeScript-типи, Zod-схеми та константи (контракти фронт ↔ бек) |
+| `packages/web-core` | Спільний фронтенд-код: api-клієнт, auth, i18n, токени, UI-примітиви     |
+| `docs/`             | Документація проєкту                                                    |
 
 ## Запуск локально
 
@@ -39,7 +42,13 @@ pnpm --filter @madiro/api db:seed:demo
 
 # API в режимі розробки (http://localhost:3000/api)
 pnpm --filter @madiro/api dev
+
+# Дашборд адміна (http://localhost:5173) і PWA-сканер (http://localhost:5174)
+pnpm --filter @madiro/dashboard dev
+pnpm --filter @madiro/scanner dev
 ```
+
+Демо-логіни після `db:seed:demo`: продавці `olia` / `olia-2026` та `iryna` / `iryna-2026` (сканер), адмін — із вашого `.env`.
 
 ## Команди
 
