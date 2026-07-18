@@ -9,8 +9,15 @@ import './styles.css';
 
 initI18n();
 
-const queryClient = new QueryClient({
-  defaultOptions: { queries: { retry: 1, refetchOnWindowFocus: false } },
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      // Short staleTime damps refetch storms when a mutation invalidates a broad key.
+      staleTime: 30_000,
+      retry: 1,
+      refetchOnWindowFocus: false,
+    },
+  },
 });
 
 const router = createRouter({ routeTree });

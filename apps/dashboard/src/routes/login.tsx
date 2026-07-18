@@ -1,5 +1,5 @@
 import { authResponseSchema, loginRequestSchema } from '@madiro/shared';
-import { useMutation } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -21,6 +21,7 @@ export const Route = createFileRoute('/login')({
 function LoginPage() {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const setSession = useAuthStore((s) => s.setSession);
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
@@ -39,6 +40,8 @@ function LoginPage() {
         setError(t('login.adminOnly'));
         return;
       }
+      // Clear any cache left by a previous session before the new admin's data loads.
+      queryClient.clear();
       setSession(session);
       void navigate({ to: '/overview' });
     },

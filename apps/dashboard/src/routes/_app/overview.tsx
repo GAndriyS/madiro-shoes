@@ -9,6 +9,7 @@ import { OperationsFeed } from '../../components/overview/OperationsFeed';
 import { PeriodSwitcher, type PeriodValue } from '../../components/overview/PeriodSwitcher';
 import { QueueWidget } from '../../components/overview/QueueWidget';
 import { RevenueChart } from '../../components/overview/RevenueChart';
+import { QueryBoundary } from '../../components/ui/QueryState';
 import { api } from '../../lib/api';
 import { titleDate } from '../../lib/format';
 
@@ -20,7 +21,7 @@ function OverviewPage() {
   const { t, i18n } = useTranslation();
   const [periodValue, setPeriodValue] = useState<PeriodValue>({ period: 'today' });
 
-  const { data } = useQuery({
+  const { data, isPending, isError, refetch } = useQuery({
     queryKey: ['stats', 'overview', periodValue],
     queryFn: async () => {
       const params = new URLSearchParams({ period: periodValue.period });
@@ -43,16 +44,18 @@ function OverviewPage() {
         <PeriodSwitcher value={periodValue} onChange={setPeriodValue} />
       </div>
 
-      {data && (
-        <>
-          <KpiCards data={data} isToday={periodValue.period === 'today'} />
-          <div className="grid min-h-0 flex-1 gap-3 md:gap-3.5 lg:grid-cols-[1.5fr_1fr]">
-            <RevenueChart series={data.revenueSeries} period={periodValue.period} />
-            <QueueWidget items={data.queue} />
-          </div>
-          <OperationsFeed items={data.recentOperations} />
-        </>
-      )}
+      <QueryBoundary isPending={isPending} isError={isError} onRetry={() => void refetch()}>
+        {data && (
+          <>
+            <KpiCards data={data} isToday={periodValue.period === 'today'} />
+            <div className="grid min-h-0 flex-1 gap-3 md:gap-3.5 lg:grid-cols-[1.5fr_1fr]">
+              <RevenueChart series={data.revenueSeries} period={periodValue.period} />
+              <QueueWidget items={data.queue} />
+            </div>
+            <OperationsFeed items={data.recentOperations} />
+          </>
+        )}
+      </QueryBoundary>
     </div>
   );
 }

@@ -19,6 +19,7 @@ import { StockFilters, type StockFilterState } from '../../components/stock/Stoc
 import { StockPagination } from '../../components/stock/StockPagination';
 import { StockTable, type StockSort } from '../../components/stock/StockTable';
 import { VariantDrawer } from '../../components/stock/VariantDrawer';
+import { QueryBoundary } from '../../components/ui/QueryState';
 import { api } from '../../lib/api';
 import { money } from '../../lib/format';
 
@@ -47,7 +48,7 @@ function StockPage() {
     setPage(1);
   }, [debouncedSearch, filters, sort]);
 
-  const { data } = useQuery({
+  const { data, isPending, isError, refetch } = useQuery({
     queryKey: ['stock', 'list', { search: debouncedSearch, filters, sort, page }],
     placeholderData: keepPreviousData,
     queryFn: async () => {
@@ -115,52 +116,56 @@ function StockPage() {
         onChange={setFilters}
       />
 
-      {data && data.items.length === 0 ? (
-        <div className="flex flex-1 flex-col rounded-[14px] border border-border bg-surface">
-          <StockEmptyState query={debouncedSearch} onReset={resetAll} />
-        </div>
-      ) : (
-        <>
-          <div className="hidden flex-1 flex-col overflow-hidden rounded-[14px] border border-border bg-surface md:flex">
-            <StockTable
-              rows={data?.items ?? []}
-              sort={sort}
-              onSortToggle={() => setSort((s) => (s === 'style-asc' ? 'style-desc' : 'style-asc'))}
-              onRowClick={(row) => setDrawerVariantId(row.id)}
-              onSetPrice={(row) => setPriceTarget({ variantId: row.id })}
-            />
-            {data && (
-              <div className="mt-auto">
-                <StockPagination
-                  page={data.page}
-                  pageSize={data.pageSize}
-                  total={data.total}
-                  shown={data.items.length}
-                  onPage={setPage}
-                />
-              </div>
-            )}
+      <QueryBoundary isPending={isPending} isError={isError} onRetry={() => void refetch()}>
+        {data && data.items.length === 0 ? (
+          <div className="flex flex-1 flex-col rounded-[14px] border border-border bg-surface">
+            <StockEmptyState query={debouncedSearch} onReset={resetAll} />
           </div>
+        ) : (
+          <>
+            <div className="hidden flex-1 flex-col overflow-hidden rounded-[14px] border border-border bg-surface md:flex">
+              <StockTable
+                rows={data?.items ?? []}
+                sort={sort}
+                onSortToggle={() =>
+                  setSort((s) => (s === 'style-asc' ? 'style-desc' : 'style-asc'))
+                }
+                onRowClick={(row) => setDrawerVariantId(row.id)}
+                onSetPrice={(row) => setPriceTarget({ variantId: row.id })}
+              />
+              {data && (
+                <div className="mt-auto">
+                  <StockPagination
+                    page={data.page}
+                    pageSize={data.pageSize}
+                    total={data.total}
+                    shown={data.items.length}
+                    onPage={setPage}
+                  />
+                </div>
+              )}
+            </div>
 
-          <div className="md:hidden">
-            <StockCardsMobile
-              rows={data?.items ?? []}
-              onRowClick={(row: StockVariantRow) => setDrawerVariantId(row.id)}
-            />
-            {data && (
-              <div className="mt-2 rounded-[14px] border border-border bg-surface">
-                <StockPagination
-                  page={data.page}
-                  pageSize={data.pageSize}
-                  total={data.total}
-                  shown={data.items.length}
-                  onPage={setPage}
-                />
-              </div>
-            )}
-          </div>
-        </>
-      )}
+            <div className="md:hidden">
+              <StockCardsMobile
+                rows={data?.items ?? []}
+                onRowClick={(row: StockVariantRow) => setDrawerVariantId(row.id)}
+              />
+              {data && (
+                <div className="mt-2 rounded-[14px] border border-border bg-surface">
+                  <StockPagination
+                    page={data.page}
+                    pageSize={data.pageSize}
+                    total={data.total}
+                    shown={data.items.length}
+                    onPage={setPage}
+                  />
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </QueryBoundary>
 
       <VariantDrawer
         variantId={drawerVariantId}

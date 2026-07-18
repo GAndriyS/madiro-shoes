@@ -56,6 +56,7 @@ export function DeleteUserModal({ seller, onClose }: Props) {
             </span>
           </div>
         </div>
+        {mutation.isError && <p className="text-[13px] text-danger">{t('common.actionError')}</p>}
         <div className="flex gap-2.5">
           <button
             type="button"

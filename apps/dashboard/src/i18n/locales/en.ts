@@ -10,6 +10,11 @@ export const en: Messages = {
     today: 'today',
     yesterday: 'yesterday',
     noPrice: 'no price',
+    loading: 'Loading…',
+    errorTitle: 'Could not load data',
+    errorBody: 'Check your connection and try again.',
+    retry: 'Try again',
+    actionError: 'The action failed. Please try again.',
   },
   login: {
     subtitle: 'Admin panel',

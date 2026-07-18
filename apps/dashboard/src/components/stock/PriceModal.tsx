@@ -153,6 +153,10 @@ export function PriceModal({ target, onClose }: Props) {
           </span>
         </div>
 
+        {(mutation.isError || noPriceMutation.isError) && (
+          <p className="text-[13px] text-danger">{t('common.actionError')}</p>
+        )}
+
         <div className="flex flex-col gap-2.5">
           <div className="flex gap-2.5">
             <button

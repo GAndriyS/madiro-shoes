@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { Link, useNavigate } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 import type { ComponentType } from 'react';
@@ -48,9 +49,12 @@ export function Sidebar({ queueVariants }: { queueVariants: number }) {
   const user = useAuthStore((s) => s.user);
   const clearSession = useAuthStore((s) => s.clearSession);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
   const logout = () => {
     clearSession();
+    // Drop the previous admin's cached data so it can't flash to the next login.
+    queryClient.clear();
     void navigate({ to: '/login' });
   };
 

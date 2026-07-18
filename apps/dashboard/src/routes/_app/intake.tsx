@@ -15,6 +15,7 @@ import { IntakeHistory } from '../../components/intake/IntakeHistory';
 import { IntakeQueueCard } from '../../components/intake/IntakeQueueCard';
 import { NoPriceModal } from '../../components/intake/NoPriceModal';
 import { PriceModal, type PriceModalTarget } from '../../components/stock/PriceModal';
+import { QueryBoundary } from '../../components/ui/QueryState';
 import { api } from '../../lib/api';
 
 export const Route = createFileRoute('/_app/intake')({
@@ -27,13 +28,23 @@ function IntakePage() {
   const [priceTarget, setPriceTarget] = useState<PriceModalTarget | null>(null);
   const [noPriceItem, setNoPriceItem] = useState<IntakeQueueItem | null>(null);
 
-  const { data: queue } = useQuery({
+  const {
+    data: queue,
+    isPending: queuePending,
+    isError: queueError,
+    refetch: refetchQueue,
+  } = useQuery({
     queryKey: ['intake', 'queue'],
     queryFn: async () =>
       intakeQueueResponseSchema.parse(await api.get<IntakeQueueResponse>('/intake/queue')),
   });
 
-  const { data: history } = useQuery({
+  const {
+    data: history,
+    isPending: historyPending,
+    isError: historyError,
+    refetch: refetchHistory,
+  } = useQuery({
     queryKey: ['intake', 'history', historyPage],
     placeholderData: keepPreviousData,
     queryFn: async () =>
@@ -65,28 +76,40 @@ function IntakePage() {
           <span className="hidden text-[11px] font-bold tracking-[1.5px] text-text-muted md:block">
             {t('intake.queueLabel')}
           </span>
-          {queue && queue.items.length === 0 ? (
-            <IntakeEmptyQueue />
-          ) : (
-            <>
-              {queue?.items.map((item) => (
-                <IntakeQueueCard
-                  key={item.variantId}
-                  item={item}
-                  onSetPrice={(it) => setPriceTarget({ variantId: it.variantId })}
-                  onNoPrice={(it) => setNoPriceItem(it)}
-                />
-              ))}
-              {queue && queue.items.length > 0 && (
-                <p className="px-0.5 text-xs leading-normal text-text-faint">
-                  {t('intake.queueFootnote')}
-                </p>
-              )}
-            </>
-          )}
+          <QueryBoundary
+            isPending={queuePending}
+            isError={queueError}
+            onRetry={() => void refetchQueue()}
+          >
+            {queue && queue.items.length === 0 ? (
+              <IntakeEmptyQueue />
+            ) : (
+              <>
+                {queue?.items.map((item) => (
+                  <IntakeQueueCard
+                    key={item.variantId}
+                    item={item}
+                    onSetPrice={(it) => setPriceTarget({ variantId: it.variantId })}
+                    onNoPrice={(it) => setNoPriceItem(it)}
+                  />
+                ))}
+                {queue && queue.items.length > 0 && (
+                  <p className="px-0.5 text-xs leading-normal text-text-faint">
+                    {t('intake.queueFootnote')}
+                  </p>
+                )}
+              </>
+            )}
+          </QueryBoundary>
         </div>
 
-        {history && <IntakeHistory data={history} onPage={setHistoryPage} />}
+        <QueryBoundary
+          isPending={historyPending}
+          isError={historyError}
+          onRetry={() => void refetchHistory()}
+        >
+          {history && <IntakeHistory data={history} onPage={setHistoryPage} />}
+        </QueryBoundary>
       </div>
 
       <PriceModal target={priceTarget} onClose={() => setPriceTarget(null)} />
