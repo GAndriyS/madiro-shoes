@@ -11,6 +11,14 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * API origin. Empty in dev (requests stay relative to `/api` so the Vite proxy
+ * handles them); in production each app is built with VITE_API_URL pointing at
+ * the deployed API, since the frontends and API live on separate origins.
+ */
+const API_BASE =
+  (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? '';
+
 /** Abort a request that hangs past this budget so queries never stay pending forever. */
 const REQUEST_TIMEOUT_MS = 15_000;
 
@@ -40,7 +48,11 @@ async function request<T>(
   const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? REQUEST_TIMEOUT_MS);
   let response: Response;
   try {
-    response = await fetch(`/api${path}`, { ...init, headers, signal: controller.signal });
+    response = await fetch(`${API_BASE}/api${path}`, {
+      ...init,
+      headers,
+      signal: controller.signal,
+    });
   } catch (err) {
     throw err instanceof DOMException && err.name === 'AbortError'
       ? new ApiError(408, `${init.method ?? 'GET'} ${path} → timeout`)
@@ -83,7 +95,7 @@ async function doRefresh(): Promise<boolean> {
     return false;
   }
   try {
-    const response = await fetch('/api/auth/refresh', {
+    const response = await fetch(`${API_BASE}/api/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken }),
