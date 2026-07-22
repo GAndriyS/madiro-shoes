@@ -24,3 +24,17 @@ export function storeDayStart(now: Date = new Date()): Date {
     Number(parts['second']) * 1_000;
   return new Date(now.getTime() - now.getMilliseconds() - sinceMidnightMs);
 }
+
+/**
+ * Start of the current month in the store's timezone, as a UTC Date.
+ * Derived by walking back whole days from today's store-day start; a DST
+ * transition inside the month may skew this by an hour — irrelevant at the
+ * "my sales for the month" granularity.
+ */
+export function storeMonthStart(now: Date = new Date()): Date {
+  const dayStart = storeDayStart(now);
+  const dayOfMonth = Number(
+    new Intl.DateTimeFormat('en-CA', { timeZone: STORE_TIMEZONE, day: 'numeric' }).format(now),
+  );
+  return new Date(dayStart.getTime() - (dayOfMonth - 1) * 86_400_000);
+}

@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type { IntakeInput, IntakeResult, Role } from '@madiro/shared';
+import type { DraftUpdateInput, IntakeInput, IntakeResult, MyDraft, Role } from '@madiro/shared';
 
 import { PrismaService } from '../prisma/prisma.service';
 
@@ -69,5 +69,71 @@ export class IntakeService {
         awaitingPrice: pair.awaitingPrice,
       };
     });
+  }
+
+  /**
+   * Edit an own draft still awaiting price (FR-S-13): the five identity fields
+   * only. Changing variant fields moves the pair via find-or-create; a variant
+   * left without pairs stays around for future reuse.
+   */
+  updateDraft(pairId: string, input: DraftUpdateInput, userId: string): Promise<MyDraft> {
+    const material = input.material ?? null;
+    const season = input.season ?? null;
+
+    return this.prisma.$transaction(async (tx) => {
+      await this.findOwnDraft(tx, pairId, userId);
+
+      const variant =
+        (await tx.variant.findFirst({
+          where: { style: input.style, color: input.color, material, season },
+        })) ??
+        (await tx.variant.create({
+          data: { style: input.style, color: input.color, material, season },
+        }));
+
+      const pair = await tx.pair.update({
+        where: { id: pairId },
+        data: { variantId: variant.id, size: input.size },
+      });
+
+      return {
+        pairId: pair.id,
+        style: variant.style,
+        color: variant.color,
+        size: pair.size,
+        material: variant.material,
+        season: variant.season,
+        createdAt: pair.createdAt.toISOString(),
+        awaitingPrice: pair.awaitingPrice,
+      };
+    });
+  }
+
+  /**
+   * Delete an own draft awaiting price (FR-S-13). Operations reference the pair
+   * with FK RESTRICT, so the INTAKE operation goes first, in one transaction.
+   */
+  deleteDraft(pairId: string, userId: string): Promise<{ pairId: string }> {
+    return this.prisma.$transaction(async (tx) => {
+      await this.findOwnDraft(tx, pairId, userId);
+      await tx.operation.deleteMany({ where: { pairId } });
+      await tx.pair.delete({ where: { id: pairId } });
+      return { pairId };
+    });
+  }
+
+  /** A draft is editable only while it is the caller's own and still awaits a price. */
+  private async findOwnDraft(
+    tx: Prisma.TransactionClient,
+    pairId: string,
+    userId: string,
+  ): Promise<void> {
+    const draft = await tx.pair.findFirst({
+      where: { id: pairId, createdById: userId, awaitingPrice: true, status: 'IN_STOCK' },
+      select: { id: true },
+    });
+    if (!draft) {
+      throw new NotFoundException('Чернетку не знайдено');
+    }
   }
 }
