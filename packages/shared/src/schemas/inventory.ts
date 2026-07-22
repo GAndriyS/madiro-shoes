@@ -130,6 +130,38 @@ export const writeoffSchema = z.object({
 });
 export type WriteoffInput = z.infer<typeof writeoffSchema>;
 
+/**
+ * Customer return lookup (FR-S-14): the scanned tag finds the most recent
+ * sale of a matching sold pair (rule 3.3 #6). Null when no sale matches.
+ * No purchase prices here (FR-B-02).
+ */
+export const returnLookupResponseSchema = z.object({
+  sale: z
+    .object({
+      operationId: z.string(),
+      pairId: z.string(),
+      style: tagCodeSchema,
+      color: tagCodeSchema,
+      size: sizeSchema,
+      material: z.enum(MATERIALS).nullable(),
+      season: z.enum(SEASONS).nullable(),
+      salePrice: moneySchema,
+      paymentMethod: z.enum(PAYMENT_METHODS).nullable(),
+      soldAt: z.string(),
+      /** Whole days since the sale — the 14-day guideline is advisory only. */
+      daysSince: z.number().int().min(0),
+      sellerName: z.string(),
+    })
+    .nullable(),
+});
+export type ReturnLookupResponse = z.infer<typeof returnLookupResponseSchema>;
+
+/** Registering a return pins the exact sale operation being reversed. */
+export const returnSchema = z.object({
+  operationId: z.string().min(1),
+});
+export type ReturnInput = z.infer<typeof returnSchema>;
+
 /** Setting a variant's purchase price from the queue (FR-D-08); null = "no price — old stock". */
 export const setPurchasePriceSchema = z.object({
   variantId: z.string().min(1),
