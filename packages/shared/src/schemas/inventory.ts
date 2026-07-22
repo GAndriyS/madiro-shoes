@@ -18,6 +18,19 @@ export const intakeSchema = z.object({
 });
 export type IntakeInput = z.infer<typeof intakeSchema>;
 
+/**
+ * Editing an own draft awaiting price (FR-S-13): the same five identity fields
+ * a seller enters on intake — never the price.
+ */
+export const draftUpdateSchema = z.object({
+  size: sizeSchema,
+  color: tagCodeSchema,
+  style: tagCodeSchema,
+  material: z.enum(MATERIALS).optional(),
+  season: z.enum(SEASONS).optional(),
+});
+export type DraftUpdateInput = z.infer<typeof draftUpdateSchema>;
+
 /** Result of a successful intake — no price fields, so it is safe for sellers. */
 export const intakeResultSchema = z.object({
   pairId: z.string(),
