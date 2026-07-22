@@ -9,6 +9,7 @@ import { HealthController } from './health/health.controller';
 import { IntakeModule } from './intake/intake.module';
 import { MeModule } from './me/me.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { SaleModule } from './sale/sale.module';
 import { TagsModule } from './tags/tags.module';
 import { UsersModule } from './users/users.module';
 
@@ -24,6 +25,7 @@ import { UsersModule } from './users/users.module';
     MeModule,
     TagsModule,
     IntakeModule,
+    SaleModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
