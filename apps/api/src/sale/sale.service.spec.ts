@@ -116,6 +116,35 @@ describe('SaleService', () => {
     ]);
   });
 
+  it('search: варіанти за префіксом стилю з кількістю по розмірах, без цін', async () => {
+    variantFindMany.mockResolvedValue([
+      {
+        style: '7645',
+        color: '36',
+        material: 'LEATHER',
+        season: 'SHEEPSKIN',
+        pairs: [{ size: 38 }, { size: 38 }, { size: 39 }],
+      },
+    ]);
+
+    const res = await service.search('76');
+
+    expect(variantFindMany.mock.calls[0][0].where.style).toEqual({ startsWith: '76' });
+    expect(res.items).toEqual([
+      {
+        style: '7645',
+        color: '36',
+        material: 'LEATHER',
+        season: 'SHEEPSKIN',
+        sizes: [
+          { size: 38, count: 2 },
+          { size: 39, count: 1 },
+        ],
+      },
+    ]);
+    expect(JSON.stringify(res)).not.toMatch(/price/i);
+  });
+
   it('продаж: пара стає SOLD, операція SALE з ціною/оплатою і зафіксованою закупкою', async () => {
     tx.$queryRaw.mockResolvedValue([{ id: 'p1', status: 'IN_STOCK' }]);
     tx.pair.update.mockResolvedValue({

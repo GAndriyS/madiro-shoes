@@ -1,11 +1,13 @@
-import { BadRequestException, Body, Controller, HttpCode, Post } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
 import {
   pairLookupSchema,
   saleSchema,
+  tagCodeSchema,
   writeoffSchema,
   type AuthUser,
   type CheckoutResult,
   type SaleLookupResponse,
+  type StockSearchResponse,
 } from '@madiro/shared';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -26,6 +28,16 @@ export class SaleController {
       throw new BadRequestException(parsed.error.issues);
     }
     return this.sale.lookup(parsed.data);
+  }
+
+  // Reference stock search by style prefix (FR-S-16).
+  @Get('search')
+  search(@Query('style') style: unknown): Promise<StockSearchResponse> {
+    const parsed = tagCodeSchema.safeParse(style);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.issues);
+    }
+    return this.sale.search(parsed.data);
   }
 
   @Post()
