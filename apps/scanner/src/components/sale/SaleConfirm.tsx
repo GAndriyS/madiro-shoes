@@ -10,6 +10,8 @@ export interface ComboChoice {
 }
 
 interface SaleConfirmProps {
+  /** Screen title override (manual entry); defaults to «Підтвердження скану». */
+  title?: string;
   photoUrl: string | null;
   size: string;
   color: string;
@@ -22,7 +24,8 @@ interface SaleConfirmProps {
   onComboSelect: (combo: ComboChoice) => void;
   onSizeSelect: (size: number) => void;
   onNext: () => void;
-  onRescan: () => void;
+  /** Absent in manual mode — hides the «Сканувати ще раз» actions. */
+  onRescan?: () => void;
   onManualSearch: () => void;
   onBack: () => void;
 }
@@ -36,6 +39,7 @@ const sameCombo = (a: ComboChoice, b: SaleCombo) =>
  * sizes, and the not-found state with close matches (design 2b-1).
  */
 export function SaleConfirm({
+  title,
   photoUrl,
   size,
   color,
@@ -99,7 +103,7 @@ export function SaleConfirm({
         >
           <ChevronRightIcon size={16} className="rotate-180" />
         </button>
-        <div className="text-[15px] font-bold text-ink">{t('sale.confirmTitle')}</div>
+        <div className="text-[15px] font-bold text-ink">{title ?? t('sale.confirmTitle')}</div>
       </div>
 
       {photoUrl && (
@@ -251,13 +255,15 @@ export function SaleConfirm({
             >
               {t('sale.manualSearch')}
             </button>
-            <button
-              type="button"
-              onClick={onRescan}
-              className="p-1 text-center text-[13px] font-semibold text-text-secondary"
-            >
-              {t('sale.rescan')}
-            </button>
+            {onRescan && (
+              <button
+                type="button"
+                onClick={onRescan}
+                className="p-1 text-center text-[13px] font-semibold text-text-secondary"
+              >
+                {t('sale.rescan')}
+              </button>
+            )}
           </>
         ) : (
           <>
@@ -269,13 +275,15 @@ export function SaleConfirm({
             >
               {loading ? t('common.loading') : t('sale.next')}
             </button>
-            <button
-              type="button"
-              onClick={onRescan}
-              className="p-1 text-center text-[13px] font-semibold text-text-faint"
-            >
-              {t('sale.rescan')}
-            </button>
+            {onRescan && (
+              <button
+                type="button"
+                onClick={onRescan}
+                className="p-1 text-center text-[13px] font-semibold text-text-faint"
+              >
+                {t('sale.rescan')}
+              </button>
+            )}
           </>
         )}
       </div>

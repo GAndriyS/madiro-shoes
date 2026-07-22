@@ -182,9 +182,13 @@ export const en: Messages = {
     cancel: 'Cancel',
     error: 'Could not save. Please try again.',
   },
-  stubs: {
-    manual: 'Enter a pair manually',
-    search: 'Stock search',
-    body: 'This flow is the next development step.',
+  manual: {
+    title: 'Enter a pair manually',
+  },
+  search: {
+    title: 'Stock search',
+    placeholder: 'Style — e.g. 7645',
+    hint: 'Type at least 2 digits of the style',
+    empty: 'No variants in stock with style {{style}}…',
   },
 };

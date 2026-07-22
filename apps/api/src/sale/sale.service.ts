@@ -6,6 +6,7 @@ import type {
   SaleCombo,
   SaleInput,
   SaleLookupResponse,
+  StockSearchResponse,
   WriteoffInput,
 } from '@madiro/shared';
 
@@ -118,6 +119,42 @@ export class SaleService {
         : null,
       salePriceHint,
       similar,
+    };
+  }
+
+  /**
+   * Reference stock search by style prefix (FR-S-16): variants with in-stock
+   * pairs and per-size counts. No prices of any kind — seller-safe (FR-B-02).
+   */
+  async search(stylePrefix: string): Promise<StockSearchResponse> {
+    const variants = await this.prisma.variant.findMany({
+      where: {
+        style: { startsWith: stylePrefix },
+        pairs: { some: { status: 'IN_STOCK' } },
+      },
+      orderBy: [{ style: 'asc' }, { color: 'asc' }],
+      take: 20,
+      include: {
+        pairs: { where: { status: 'IN_STOCK' }, select: { size: true } },
+      },
+    });
+
+    return {
+      items: variants.map((v) => {
+        const counts = new Map<number, number>();
+        for (const p of v.pairs) {
+          counts.set(p.size, (counts.get(p.size) ?? 0) + 1);
+        }
+        return {
+          style: v.style,
+          color: v.color,
+          material: v.material,
+          season: v.season,
+          sizes: [...counts.entries()]
+            .sort((a, b) => a[0] - b[0])
+            .map(([size, count]) => ({ size, count })),
+        };
+      }),
     };
   }
 

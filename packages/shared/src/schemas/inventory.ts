@@ -131,6 +131,23 @@ export const writeoffSchema = z.object({
 export type WriteoffInput = z.infer<typeof writeoffSchema>;
 
 /**
+ * Reference stock search by style (FR-S-16): variants currently in stock with
+ * per-size counts. Read-only for sellers — no prices of any kind.
+ */
+export const stockSearchResponseSchema = z.object({
+  items: z.array(
+    z.object({
+      style: tagCodeSchema,
+      color: tagCodeSchema,
+      material: z.enum(MATERIALS).nullable(),
+      season: z.enum(SEASONS).nullable(),
+      sizes: z.array(z.object({ size: sizeSchema, count: z.number().int().positive() })),
+    }),
+  ),
+});
+export type StockSearchResponse = z.infer<typeof stockSearchResponseSchema>;
+
+/**
  * Customer return lookup (FR-S-14): the scanned tag finds the most recent
  * sale of a matching sold pair (rule 3.3 #6). Null when no sale matches.
  * No purchase prices here (FR-B-02).

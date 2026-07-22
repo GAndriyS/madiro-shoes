@@ -2,7 +2,11 @@ import type { Server } from 'node:http';
 
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { checkoutResultSchema, saleLookupResponseSchema } from '@madiro/shared';
+import {
+  checkoutResultSchema,
+  saleLookupResponseSchema,
+  stockSearchResponseSchema,
+} from '@madiro/shared';
 import * as argon2 from 'argon2';
 import request from 'supertest';
 
@@ -163,6 +167,22 @@ describe('Sale (e2e, real Postgres)', () => {
 
     const pair = await prisma.pair.findUniqueOrThrow({ where: { id: pairId } });
     expect(pair.status).toBe('WRITTEN_OFF');
+  });
+
+  it('search: варіанти за префіксом стилю, лише на складі, без цін закупки', async () => {
+    const res = await request(http)
+      .get('/api/sale/search')
+      .query({ style: '76' })
+      .set('Authorization', `Bearer ${sellerToken}`)
+      .expect(200);
+    const parsed = stockSearchResponseSchema.parse(res.body);
+
+    // Both size-38 pairs were checked out by earlier tests — nothing left in stock.
+    // The seed guarantees at least the shape; assert seller safety regardless.
+    expect(JSON.stringify(res.body)).not.toContain('1400'); // FR-B-02
+    for (const item of parsed.items) {
+      expect(item.style.startsWith('76')).toBe(true);
+    }
   });
 
   it('без токена → 401', async () => {
