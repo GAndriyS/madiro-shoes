@@ -1,5 +1,7 @@
 import { meSummarySchema, type MeSummary } from '@madiro/shared';
 import {
+  CheckIcon,
+  CloseIcon,
   PencilIcon,
   PlusIcon,
   ReturnIcon,
@@ -12,10 +14,11 @@ import {
 } from '@madiro/web-core';
 import { useQuery } from '@tanstack/react-query';
 import { Link, createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ProfileSheet } from '../../components/ProfileSheet';
+import { useFlashStore } from '../../lib/flash';
 import { homeDate } from '../../lib/homeDate';
 
 export const Route = createFileRoute('/_app/')({
@@ -27,6 +30,15 @@ function HomePage() {
   const { t, i18n } = useTranslation();
   const user = useAuthStore((s) => s.user);
   const [profileOpen, setProfileOpen] = useState(false);
+  const flash = useFlashStore((s) => s.flash);
+  const clearFlash = useFlashStore((s) => s.clear);
+
+  // Checkout success toast (design 2a-3): shown once, self-dismissing.
+  useEffect(() => {
+    if (!flash) return;
+    const timer = setTimeout(clearFlash, 5000);
+    return () => clearTimeout(timer);
+  }, [flash, clearFlash]);
 
   const { data: summary } = useQuery({
     queryKey: ['me', 'summary'],
@@ -134,6 +146,26 @@ function HomePage() {
           </div>
         </div>
       </div>
+
+      {flash && (
+        <div className="fixed inset-x-5 bottom-6 z-30 mx-auto flex max-w-[390px] items-center gap-3 rounded-2xl bg-[#e2ecdc] px-4 py-3.5 shadow-modal">
+          <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#3c5c34] text-page">
+            <CheckIcon size={16} />
+          </span>
+          <span className="flex min-w-0 flex-col">
+            <span className="text-[13.5px] font-bold text-[#3c5c34]">{flash.title}</span>
+            <span className="truncate text-[12px] text-[#3c5c34]/80">{flash.subtitle}</span>
+          </span>
+          <button
+            type="button"
+            aria-label={t('common.back')}
+            onClick={clearFlash}
+            className="ml-auto flex h-7 w-7 flex-none items-center justify-center rounded-full text-[#3c5c34]/60"
+          >
+            <CloseIcon size={14} />
+          </button>
+        </div>
+      )}
 
       <ProfileSheet open={profileOpen} onClose={() => setProfileOpen(false)} summary={summary} />
     </div>

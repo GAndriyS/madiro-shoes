@@ -7,6 +7,8 @@ import { normalizePhoto } from '../../lib/normalizePhoto';
 import { useCamera } from '../../lib/useCamera';
 
 interface CameraScreenProps {
+  /** Header title — the flow name («Поступлення» / «Продаж / вихід»). */
+  title?: string;
   processing: boolean;
   onCapture: (photo: Blob) => void;
   onManual: () => void;
@@ -17,7 +19,7 @@ interface CameraScreenProps {
  * torch (where supported), 72px shutter, manual-entry escape hatch. When the
  * camera is unavailable (desktop, denied) a file-input card takes its place.
  */
-export function CameraScreen({ processing, onCapture, onManual }: CameraScreenProps) {
+export function CameraScreen({ title, processing, onCapture, onManual }: CameraScreenProps) {
   const { t } = useTranslation();
   const { videoRef, status, torchSupported, torchOn, toggleTorch, captureFrame } = useCamera();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -44,7 +46,7 @@ export function CameraScreen({ processing, onCapture, onManual }: CameraScreenPr
         >
           <ChevronRightIcon size={16} className="rotate-180" />
         </Link>
-        <span className="text-sm font-bold text-[#e8dfd0]">{t('intake.title')}</span>
+        <span className="text-sm font-bold text-[#e8dfd0]">{title ?? t('intake.title')}</span>
       </div>
 
       <div className="relative flex flex-1 items-center justify-center">
