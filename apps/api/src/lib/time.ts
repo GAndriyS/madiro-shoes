@@ -38,3 +38,23 @@ export function storeMonthStart(now: Date = new Date()): Date {
   );
   return new Date(dayStart.getTime() - (dayOfMonth - 1) * 86_400_000);
 }
+
+/**
+ * Store-timezone midnight of a calendar date ("YYYY-MM-DD") as a UTC Date.
+ * Noon UTC of that date falls on the same Kyiv calendar day (UTC+2/+3),
+ * so its store-day start is exactly the requested midnight.
+ */
+export function storeDayStartOf(date: string): Date {
+  return storeDayStart(new Date(`${date}T12:00:00Z`));
+}
+
+/** The store-timezone hour (0-23) of an instant — buckets the hourly chart. */
+export function storeHourOf(at: Date): number {
+  return Number(
+    new Intl.DateTimeFormat('en-GB', {
+      timeZone: STORE_TIMEZONE,
+      hour: 'numeric',
+      hour12: false,
+    }).format(at),
+  );
+}

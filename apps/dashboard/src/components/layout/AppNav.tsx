@@ -12,7 +12,7 @@ interface NavItem {
   labelKey: string;
   shortLabelKey: string;
   Icon: ComponentType<{ size?: number }>;
-  /** Queue badge = number of variants (section 3.3, item 11); mocked for now. */
+  /** Queue badge = number of variants (section 3.3, item 11). */
   badge?: number;
 }
 

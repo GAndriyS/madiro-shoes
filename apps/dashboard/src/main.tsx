@@ -28,21 +28,10 @@ declare module '@tanstack/react-router' {
   }
 }
 
-async function enableMocks(): Promise<void> {
-  if (!import.meta.env.DEV) {
-    return;
-  }
-  const { worker } = await import('./mocks/browser');
-  // bypass: unmocked requests (auth) go to the real API through the proxy
-  await worker.start({ onUnhandledRequest: 'bypass' });
-}
-
-void enableMocks().then(() => {
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <QueryClientProvider client={queryClient}>
-        <RouterProvider router={router} />
-      </QueryClientProvider>
-    </StrictMode>,
-  );
-});
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <QueryClientProvider client={queryClient}>
+      <RouterProvider router={router} />
+    </QueryClientProvider>
+  </StrictMode>,
+);
