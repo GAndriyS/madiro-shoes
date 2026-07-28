@@ -7,7 +7,7 @@ import { IntakeService } from './intake.service';
 function makeTx() {
   return {
     // Advisory lock that serializes find-or-create per variant identity.
-    $queryRaw: jest.fn(),
+    $executeRaw: jest.fn(),
     variant: {
       findFirst: jest.fn(),
       create: jest.fn(),
@@ -114,8 +114,8 @@ describe('IntakeService', () => {
     await service.create(input, { id: 'u1', role: 'SELLER' });
 
     // The lock is taken before the existence check, inside the same transaction.
-    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
-    expect(tx.$queryRaw.mock.invocationCallOrder[0]!).toBeLessThan(
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(tx.$executeRaw.mock.invocationCallOrder[0]!).toBeLessThan(
       tx.variant.findFirst.mock.invocationCallOrder[0]!,
     );
   });
