@@ -2,6 +2,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { ReturnsService } from './returns.service';
 
 function makeTx() {
@@ -13,6 +14,8 @@ function makeTx() {
 }
 
 describe('ReturnsService', () => {
+  /** Realtime is fire-and-forget: assert it fires, never let it fail a write. */
+  const realtime = { emit: jest.fn() };
   let service: ReturnsService;
   let tx: ReturnType<typeof makeTx>;
   const transaction = jest.fn();
@@ -31,6 +34,7 @@ describe('ReturnsService', () => {
     const moduleRef = await Test.createTestingModule({
       providers: [
         ReturnsService,
+        { provide: RealtimeGateway, useValue: realtime },
         {
           provide: PrismaService,
           useValue: {
@@ -163,6 +167,8 @@ describe('ReturnsService', () => {
       salePrice: 2850,
       paymentMethod: 'CARD',
     });
+    // The dashboard feed and KPIs must move without a reload (FR-B-04).
+    expect(realtime.emit).toHaveBeenCalledWith('return');
   });
 
   it('подвійне повернення: пара вже не SOLD → 409', async () => {
@@ -171,6 +177,8 @@ describe('ReturnsService', () => {
 
     await expect(service.register('op1', 'seller-1')).rejects.toBeInstanceOf(ConflictException);
     expect(tx.pair.update).not.toHaveBeenCalled();
+    // A rejected return announces nothing.
+    expect(realtime.emit).not.toHaveBeenCalled();
   });
 
   it('невідома операція → 404', async () => {

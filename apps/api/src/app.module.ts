@@ -13,6 +13,7 @@ import { pinoOptions } from './logging/logging.config';
 import { IntakeModule } from './intake/intake.module';
 import { MeModule } from './me/me.module';
 import { PrismaModule } from './prisma/prisma.module';
+import { RealtimeModule } from './realtime/realtime.module';
 import { ReturnsModule } from './returns/returns.module';
 import { SaleModule } from './sale/sale.module';
 import { StatsModule } from './stats/stats.module';
@@ -35,6 +36,7 @@ import { UsersModule } from './users/users.module';
     // it via @Throttle. In-memory store — swap for Redis if the API ever scales out.
     ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 300 }]),
     PrismaModule,
+    RealtimeModule,
     AuthModule,
     UsersModule,
     MeModule,

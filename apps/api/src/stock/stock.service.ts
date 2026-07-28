@@ -3,6 +3,7 @@ import { Prisma } from '@prisma/client';
 import type { StockListQuery, StockListResponse, VariantDetail } from '@madiro/shared';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 const PAGE_SIZE = 8;
 const DAY_MS = 86_400_000;
@@ -40,7 +41,10 @@ interface StockRowSql {
 
 @Injectable()
 export class StockService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeGateway,
+  ) {}
 
   /**
    * Stock table (FR-D-06): one row per variant with in-stock pairs. Search,
@@ -225,8 +229,8 @@ export class StockService {
     return this.confirm(variantId, new Prisma.Decimal(0));
   }
 
-  private confirm(variantId: string, price: Prisma.Decimal): Promise<{ ok: true }> {
-    return this.prisma.$transaction(async (tx) => {
+  private async confirm(variantId: string, price: Prisma.Decimal): Promise<{ ok: true }> {
+    const result = await this.prisma.$transaction(async (tx) => {
       const variant = await tx.variant.findUnique({
         where: { id: variantId },
         select: { id: true },
@@ -249,6 +253,11 @@ export class StockService {
       }
       return { ok: true as const };
     });
+
+    // Confirming a price empties part of the queue — other dashboard sessions
+    // (a second tab, the admin's phone) must see it without a reload.
+    this.realtime.emit('intake-priced');
+    return result;
   }
 
   /** Delete a pair (FR-D-09): operations first (FK RESTRICT), one transaction. */

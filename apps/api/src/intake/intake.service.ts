@@ -11,6 +11,7 @@ import type {
 } from '@madiro/shared';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 const HISTORY_PAGE_SIZE = 6;
 const DAY_MS = 86_400_000;
@@ -40,12 +41,9 @@ async function findOrCreateVariant(
 ): Promise<Variant> {
   // '|' is safe as a separator: style/color are digit codes and material/season
   // are enum names, so no field can contain it and forge another identity.
-  const key = [
-    identity.style,
-    identity.color,
-    identity.material ?? '',
-    identity.season ?? '',
-  ].join('|');
+  const key = [identity.style, identity.color, identity.material ?? '', identity.season ?? ''].join(
+    '|',
+  );
   // $executeRaw, not $queryRaw: the lock function returns void, which has no
   // Prisma column type to deserialize.
   await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${key}::text, 0))`;
@@ -58,7 +56,10 @@ async function findOrCreateVariant(
 
 @Injectable()
 export class IntakeService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeGateway,
+  ) {}
 
   /**
    * Take a pair into stock. Variants are auto-created from the tag fields; the
@@ -77,7 +78,7 @@ export class IntakeService {
     const awaitingPrice = !isAdmin;
     const purchasePrice = priced ? new Prisma.Decimal(input.purchasePrice as number) : null;
 
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const variant = await findOrCreateVariant(tx, {
         style: input.style,
         color: input.color,
@@ -118,6 +119,11 @@ export class IntakeService {
         awaitingPrice: pair.awaitingPrice,
       };
     });
+
+    // A seller's draft moves the queue and its badge; a priced admin intake
+    // only moves stock — the dashboard reacts to both.
+    this.realtime.emit(result.awaitingPrice ? 'intake-draft' : 'intake-priced');
+    return result;
   }
 
   /**
@@ -125,11 +131,11 @@ export class IntakeService {
    * only. Changing variant fields moves the pair via find-or-create; a variant
    * left without pairs stays around for future reuse.
    */
-  updateDraft(pairId: string, input: DraftUpdateInput, userId: string): Promise<MyDraft> {
+  async updateDraft(pairId: string, input: DraftUpdateInput, userId: string): Promise<MyDraft> {
     const material = input.material ?? null;
     const season = input.season ?? null;
 
-    return this.prisma.$transaction(async (tx) => {
+    const draft = await this.prisma.$transaction(async (tx) => {
       await this.findOwnDraft(tx, pairId, userId);
 
       const variant = await findOrCreateVariant(tx, {
@@ -155,19 +161,25 @@ export class IntakeService {
         awaitingPrice: pair.awaitingPrice,
       };
     });
+
+    this.realtime.emit('intake-draft');
+    return draft;
   }
 
   /**
    * Delete an own draft awaiting price (FR-S-13). Operations reference the pair
    * with FK RESTRICT, so the INTAKE operation goes first, in one transaction.
    */
-  deleteDraft(pairId: string, userId: string): Promise<{ pairId: string }> {
-    return this.prisma.$transaction(async (tx) => {
+  async deleteDraft(pairId: string, userId: string): Promise<{ pairId: string }> {
+    const deleted = await this.prisma.$transaction(async (tx) => {
       await this.findOwnDraft(tx, pairId, userId);
       await tx.operation.deleteMany({ where: { pairId } });
       await tx.pair.delete({ where: { id: pairId } });
       return { pairId };
     });
+
+    this.realtime.emit('intake-draft');
+    return deleted;
   }
 
   /**

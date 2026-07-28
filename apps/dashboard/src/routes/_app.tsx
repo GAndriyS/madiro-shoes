@@ -4,6 +4,7 @@ import { Outlet, createFileRoute, redirect, useNavigate } from '@tanstack/react-
 import { useEffect } from 'react';
 
 import { BottomNav, MobileHeader, Sidebar } from '../components/layout/AppNav';
+import { useRealtime } from '../lib/realtime';
 import { api } from '@madiro/web-core';
 import { isAuthenticatedAdmin, useAuthStore } from '@madiro/web-core';
 
@@ -18,6 +19,8 @@ export const Route = createFileRoute('/_app')({
 
 function AppLayout() {
   const navigate = useNavigate();
+  // Queue, badges and the operations feed follow the scanner live (FR-B-04).
+  useRealtime();
   // beforeLoad only runs on navigation; also react to a session cleared mid-view
   // (logout in another tab, or a failed token refresh from lib/api.ts).
   const accessToken = useAuthStore((s) => s.accessToken);

@@ -1,6 +1,7 @@
 import { Test } from '@nestjs/testing';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { IntakeService } from './intake.service';
 
 /** Minimal transaction client the service drives inside $transaction. */
@@ -19,6 +20,8 @@ function makeTx() {
 }
 
 describe('IntakeService', () => {
+  /** Realtime is fire-and-forget: assert it fires, never let it fail a write. */
+  const realtime = { emit: jest.fn() };
   let service: IntakeService;
   let tx: ReturnType<typeof makeTx>;
   const transaction = jest.fn();
@@ -30,6 +33,7 @@ describe('IntakeService', () => {
     const moduleRef = await Test.createTestingModule({
       providers: [
         IntakeService,
+        { provide: RealtimeGateway, useValue: realtime },
         { provide: PrismaService, useValue: { $transaction: transaction } },
       ],
     }).compile();
@@ -66,6 +70,8 @@ describe('IntakeService', () => {
     expect(tx.variant.update).not.toHaveBeenCalled();
     expect(tx.pair.create.mock.calls[0][0].data.awaitingPrice).toBe(true);
     expect(tx.operation.create.mock.calls[0][0].data.purchasePriceAtTime).toBeNull();
+    // The queue and its badge move on the dashboard right away (FR-B-04).
+    expect(realtime.emit).toHaveBeenCalledWith('intake-draft');
   });
 
   it('адмін з ціною: оновлює ціну варіанта, pair не чекає ціни', async () => {

@@ -11,10 +11,14 @@ import type {
 } from '@madiro/shared';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 @Injectable()
 export class SaleService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeGateway,
+  ) {}
 
   /**
    * Scan-to-sell lookup (FR-S-06/09). The tag gives 3 of the 5 identity fields;
@@ -182,7 +186,7 @@ export class SaleService {
    * two sellers cannot check out the same last pair (section 7 #12): the loser
    * sees a 409 and re-scans.
    */
-  private checkout(
+  private async checkout(
     pairId: string,
     userId: string,
     op: {
@@ -193,7 +197,7 @@ export class SaleService {
       comment?: string | null;
     },
   ): Promise<CheckoutResult> {
-    return this.prisma.$transaction(async (tx) => {
+    const result = await this.prisma.$transaction(async (tx) => {
       const locked = await tx.$queryRaw<{ id: string; status: string }[]>`
         SELECT id, status FROM pairs WHERE id = ${pairId} FOR UPDATE`;
       const row = locked[0];
@@ -233,5 +237,9 @@ export class SaleService {
         paymentMethod: op.paymentMethod ?? null,
       };
     });
+
+    // The dashboard feed, KPIs and stock all move on a checkout.
+    this.realtime.emit(op.type === 'SALE' ? 'sale' : 'writeoff');
+    return result;
   }
 }

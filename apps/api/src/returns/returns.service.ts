@@ -3,10 +3,14 @@ import type { CheckoutResult, PairLookupInput, ReturnLookupResponse } from '@mad
 
 import { storeDayStart } from '../lib/time';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 @Injectable()
 export class ReturnsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeGateway,
+  ) {}
 
   /**
    * Find the sale a customer return reverses (FR-S-14): the most recent
@@ -111,8 +115,8 @@ export class ReturnsService {
    * basis — stored positive, read paths subtract it. Row-locked like a sale,
    * so a double return loses with a 409.
    */
-  register(operationId: string, userId: string): Promise<CheckoutResult> {
-    return this.prisma.$transaction(async (tx) => {
+  async register(operationId: string, userId: string): Promise<CheckoutResult> {
+    const result = await this.prisma.$transaction(async (tx) => {
       const sale = await tx.operation.findFirst({
         where: { id: operationId, type: 'SALE', cancelledAt: null },
         include: { pair: { select: { id: true } } },
@@ -159,5 +163,8 @@ export class ReturnsService {
         paymentMethod: sale.paymentMethod,
       };
     });
+
+    this.realtime.emit('return');
+    return result;
   }
 }
