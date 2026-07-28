@@ -6,6 +6,8 @@ import { IntakeService } from './intake.service';
 /** Minimal transaction client the service drives inside $transaction. */
 function makeTx() {
   return {
+    // Advisory lock that serializes find-or-create per variant identity.
+    $queryRaw: jest.fn(),
     variant: {
       findFirst: jest.fn(),
       create: jest.fn(),
@@ -104,5 +106,17 @@ describe('IntakeService', () => {
       material: 'LEATHER',
       season: 'NONE',
     });
+  });
+
+  it('find-or-create серіалізується advisory-локом (NULL-и не рятує unique)', async () => {
+    tx.variant.findFirst.mockResolvedValue(null);
+
+    await service.create(input, { id: 'u1', role: 'SELLER' });
+
+    // The lock is taken before the existence check, inside the same transaction.
+    expect(tx.$queryRaw).toHaveBeenCalledTimes(1);
+    expect(tx.$queryRaw.mock.invocationCallOrder[0]!).toBeLessThan(
+      tx.variant.findFirst.mock.invocationCallOrder[0]!,
+    );
   });
 });

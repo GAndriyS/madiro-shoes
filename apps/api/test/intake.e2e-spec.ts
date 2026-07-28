@@ -114,6 +114,25 @@ describe('Intake (e2e, real Postgres)', () => {
     expect(after).toBe(before);
   });
 
+  it('одночасне поступлення того самого варіанта без матеріалу/утеплення не дублює його', async () => {
+    const seller = await token('seller-intake', sellerPassword);
+    const body = { size: 39, color: '77', style: '9001' }; // material/season = null
+
+    // Postgres treats NULLs as distinct, so @@unique alone lets both inserts
+    // through (docs/audit-2026-07, M-2) — the advisory lock in
+    // findOrCreateVariant is what keeps this at a single variant.
+    const results = await Promise.all([
+      request(http).post('/api/intake').set('Authorization', `Bearer ${seller}`).send(body),
+      request(http).post('/api/intake').set('Authorization', `Bearer ${seller}`).send(body),
+    ]);
+    expect(results.map((r) => r.status)).toEqual([201, 201]);
+
+    const variants = await prisma.variant.findMany({ where: { style: '9001', color: '77' } });
+    expect(variants).toHaveLength(1);
+    // Both pairs landed on that one variant.
+    await expect(prisma.pair.count({ where: { variantId: variants[0]!.id } })).resolves.toBe(2);
+  });
+
   it('без токена → 401', async () => {
     await request(http)
       .post('/api/intake')
