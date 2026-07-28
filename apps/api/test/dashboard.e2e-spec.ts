@@ -163,6 +163,35 @@ describe('Dashboard (e2e, real Postgres)', () => {
     expect(filtered.items[0]!.style).toBe('5211');
   });
 
+  it('склад: пошук, розмір, «залишок ≤ 2», сортування й пагінація — на боці БД', async () => {
+    const list = async (qs: string) =>
+      stockListResponseSchema.parse(
+        (await asAdmin(request(http).get(`/api/stock/variants${qs}`)).expect(200)).body,
+      );
+
+    // Search matches style, colour code and size alike.
+    expect((await list('?search=7645')).items.map((r) => r.style)).toEqual(['7645']);
+    expect((await list('?search=44')).items.map((r) => r.style)).toEqual(['5211']); // colour
+    expect((await list('?search=39')).items.map((r) => r.style)).toEqual(['7645']); // size
+    expect(await list('?search=нема')).toMatchObject({ total: 0, items: [] });
+
+    // Chips: exact size, material, «залишок ≤ 2» (1 and 2 pairs — both qualify).
+    expect((await list('?size=36')).items.map((r) => r.style)).toEqual(['5211']);
+    expect((await list('?material=SUEDE')).items.map((r) => r.style)).toEqual(['5211']);
+    expect((await list('?lowStock=true')).items.map((r) => r.style)).toEqual(['5211', '7645']);
+
+    // Sort direction is applied by Postgres, not by the page slice.
+    expect((await list('?sort=style-asc')).items.map((r) => r.style)).toEqual(['5211', '7645']);
+    expect((await list('?sort=style-desc')).items.map((r) => r.style)).toEqual(['7645', '5211']);
+
+    // A page past the end still reports the real total, so the pager works.
+    const beyond = await list('?page=5');
+    expect(beyond.items).toEqual([]);
+    expect(beyond.total).toBe(2);
+    // The summary spans the whole stock even when a filter narrows the page.
+    expect((await list('?search=7645')).summary.pairsTotal).toBe(3);
+  });
+
   it('деталі варіанта: пари, історія з підписаними сумами, KPI', async () => {
     const res = await asAdmin(request(http).get(`/api/stock/variants/${pricedVariantId}`)).expect(
       200,
