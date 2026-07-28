@@ -2,6 +2,7 @@ import type { Server } from 'node:http';
 
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
+import { CLIENT_HEADER, REFRESH_COOKIE } from '@madiro/shared';
 import * as argon2 from 'argon2';
 import request from 'supertest';
 
@@ -161,6 +162,46 @@ describe('API (e2e, real Postgres)', () => {
       .set('Authorization', `Bearer ${sellerToken}`)
       .expect(200);
     expect(filled.body).toEqual({ todaySalesPairs: 1, todaySalesTotal: 2850, draftsInQueue: 1 });
+  });
+
+  it('keeps the refresh token in an httpOnly cookie, never in the response body', async () => {
+    const res = await login('admin', adminPassword).expect(200);
+
+    // S-H3: a token the page can read is a token an XSS can steal.
+    expect(res.body.refreshToken).toBeUndefined();
+    expect(res.body.accessToken).toBeTruthy();
+
+    const cookie = (res.headers['set-cookie'] as unknown as string[]).find((c) =>
+      c.startsWith(`${REFRESH_COOKIE}=`),
+    )!;
+    expect(cookie).toContain('HttpOnly');
+    expect(cookie).toContain('Path=/api/auth');
+
+    // The cookie alone renews the session — the request carries no body.
+    const refreshed = await request(http)
+      .post('/api/auth/refresh')
+      .set('Cookie', cookie)
+      .set(CLIENT_HEADER, '1')
+      .expect(200);
+    expect(refreshed.body.accessToken).toBeTruthy();
+    expect(refreshed.body.user.login).toBe('admin');
+    // Every refresh re-issues the cookie, so an active session slides forward.
+    expect(refreshed.headers['set-cookie']).toBeDefined();
+
+    // A cross-site request cannot set the client header → CSRF is dead on arrival.
+    await request(http).post('/api/auth/refresh').set('Cookie', cookie).expect(403);
+    // No cookie at all → 401, not 500.
+    await request(http).post('/api/auth/refresh').set(CLIENT_HEADER, '1').expect(401);
+
+    // Logout drops the cookie server-side instead of only forgetting it client-side.
+    const loggedOut = await request(http)
+      .post('/api/auth/logout')
+      .set('Cookie', cookie)
+      .set(CLIENT_HEADER, '1')
+      .expect(204);
+    expect((loggedOut.headers['set-cookie'] as unknown as string[])[0]).toContain(
+      `${REFRESH_COOKIE}=;`,
+    );
   });
 
   it('rejects unauthenticated and non-admin access to protected routes', async () => {

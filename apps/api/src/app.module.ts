@@ -1,7 +1,8 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import cookieParser from 'cookie-parser';
 import { LoggerModule } from 'nestjs-pino';
 
 import { AuthModule } from './auth/auth.module';
@@ -47,4 +48,13 @@ import { UsersModule } from './users/users.module';
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  /**
+   * Registered here rather than in main.ts so that e2e tests, which build the
+   * app straight from this module, read the refresh cookie exactly like
+   * production does (audit S-H3).
+   */
+  configure(consumer: MiddlewareConsumer): void {
+    consumer.apply(cookieParser()).forRoutes('*');
+  }
+}

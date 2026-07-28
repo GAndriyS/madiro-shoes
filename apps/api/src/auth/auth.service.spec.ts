@@ -46,8 +46,11 @@ describe('AuthService', () => {
 
     const result = await service.login('olia', 'secret1');
 
-    expect(result.user).toEqual({ id: 'u1', name: 'Оля', login: 'olia', role: 'SELLER' });
-    expect(result.accessToken).toBeTruthy();
+    // The session body carries only the access token; the refresh token is
+    // handed to the controller separately, to be set as an httpOnly cookie.
+    expect(result.session.user).toEqual({ id: 'u1', name: 'Оля', login: 'olia', role: 'SELLER' });
+    expect(result.session.accessToken).toBeTruthy();
+    expect(result.session).not.toHaveProperty('refreshToken');
     expect(result.refreshToken).toBeTruthy();
   });
 
@@ -80,7 +83,9 @@ describe('AuthService', () => {
       tokenVersion: 0,
       passwordHash: await argon2.hash('secret1'),
     });
-    const { accessToken } = await service.login('olia', 'secret1');
+    const {
+      session: { accessToken },
+    } = await service.login('olia', 'secret1');
 
     await expect(service.refresh(accessToken)).rejects.toThrow(UnauthorizedException);
   });

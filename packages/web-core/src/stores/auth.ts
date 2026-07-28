@@ -1,27 +1,29 @@
 import type { AuthResponse, AuthUser } from '@madiro/shared';
 import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 
 interface AuthState {
   user: AuthUser | null;
   accessToken: string | null;
-  refreshToken: string | null;
   setSession: (session: AuthResponse) => void;
   clearSession: () => void;
 }
 
-export const useAuthStore = create<AuthState>()(
-  persist(
-    (set) => ({
-      user: null,
-      accessToken: null,
-      refreshToken: null,
-      setSession: ({ user, accessToken, refreshToken }) => set({ user, accessToken, refreshToken }),
-      clearSession: () => set({ user: null, accessToken: null, refreshToken: null }),
-    }),
-    { name: 'madiro.auth' },
-  ),
-);
+/**
+ * Session state, deliberately in memory only.
+ *
+ * Persisting tokens in localStorage meant that any XSS could read a 30-day
+ * refresh token and keep the account for a month (audit S-H3). The refresh
+ * token now lives in an httpOnly cookie the page cannot touch, and only the
+ * short-lived access token is held here — a reload restores the session via
+ * `restoreSession()` (see lib/api), which spends the cookie instead of reading
+ * a stored token.
+ */
+export const useAuthStore = create<AuthState>()((set) => ({
+  user: null,
+  accessToken: null,
+  setSession: ({ user, accessToken }) => set({ user, accessToken }),
+  clearSession: () => set({ user: null, accessToken: null }),
+}));
 
 export function isAuthenticatedAdmin(): boolean {
   const { user, accessToken } = useAuthStore.getState();

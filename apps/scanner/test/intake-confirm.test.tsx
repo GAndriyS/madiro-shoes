@@ -11,10 +11,8 @@ const recognition = { size: 38, color: '36', style: '7645', confidence: 0.97 };
 const seller = { id: 'u1', name: 'Оля', login: 'olia', role: 'SELLER' as const };
 const admin = { id: 'a1', name: 'Адмін', login: 'admin', role: 'ADMIN' as const };
 
-const asSeller = () =>
-  useAuthStore.getState().setSession({ accessToken: 'a', refreshToken: 'r', user: seller });
-const asAdmin = () =>
-  useAuthStore.getState().setSession({ accessToken: 'a', refreshToken: 'r', user: admin });
+const asSeller = () => useAuthStore.getState().setSession({ accessToken: 'a', user: seller });
+const asAdmin = () => useAuthStore.getState().setSession({ accessToken: 'a', user: admin });
 
 describe('ConfirmForm', () => {
   beforeAll(() => {

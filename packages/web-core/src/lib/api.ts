@@ -1,4 +1,4 @@
-import { authResponseSchema } from '@madiro/shared';
+import { CLIENT_HEADER, authResponseSchema } from '@madiro/shared';
 
 import { useAuthStore } from '../stores/auth';
 
@@ -43,6 +43,9 @@ async function request<T>(
   if (accessToken) {
     headers.set('Authorization', `Bearer ${accessToken}`);
   }
+  // Marks the call as coming from our own app: the API requires this header on
+  // the cookie-authenticated auth routes, where it is the CSRF guard.
+  headers.set(CLIENT_HEADER, '1');
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? REQUEST_TIMEOUT_MS);
@@ -51,6 +54,9 @@ async function request<T>(
     response = await fetch(`${API_BASE}/api${path}`, {
       ...init,
       headers,
+      // The refresh cookie is httpOnly and cross-site in production, so it only
+      // travels when credentials are included.
+      credentials: 'include',
       signal: controller.signal,
     });
   } catch (err) {
@@ -90,15 +96,12 @@ function tryRefresh(): Promise<boolean> {
 }
 
 async function doRefresh(): Promise<boolean> {
-  const { refreshToken } = useAuthStore.getState();
-  if (!refreshToken) {
-    return false;
-  }
   try {
+    // No body: the refresh token rides along as an httpOnly cookie (S-H3).
     const response = await fetch(`${API_BASE}/api/auth/refresh`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
+      headers: { 'Content-Type': 'application/json', [CLIENT_HEADER]: '1' },
+      credentials: 'include',
     });
     if (!response.ok) {
       return false;
@@ -110,6 +113,34 @@ async function doRefresh(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/**
+ * Restores a session on app start. The access token is memory-only now, so a
+ * reload arrives with no token — but with the refresh cookie, if the session is
+ * still alive. Resolves to false when there is nothing to restore, which simply
+ * means "show the login screen".
+ */
+export function restoreSession(): Promise<boolean> {
+  return tryRefresh();
+}
+
+/**
+ * Ends the session on both sides: the API drops the refresh cookie (so it
+ * cannot be replayed), the client forgets the access token. Network failures
+ * are ignored — a logout must never leave the user stuck logged in.
+ */
+export async function logout(): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/api/auth/logout`, {
+      method: 'POST',
+      headers: { [CLIENT_HEADER]: '1' },
+      credentials: 'include',
+    });
+  } catch {
+    // ignored on purpose
+  }
+  useAuthStore.getState().clearSession();
 }
 
 export const api = {
