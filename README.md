@@ -2,7 +2,8 @@
 
 Застосунок обліку взуття для одного магазину: PWA-сканер (vision-LLM читає рукописні бірки SIZE / COLOR / STYLE) + веб-дашборд адміністратора на спільному бекенді.
 
-Повний аналіз вимог: [docs/requirements-analysis.md](docs/requirements-analysis.md).
+Специфікація продукту (фінальна, as-built): [docs/spec.md](docs/spec.md).
+Історичний аналіз вимог: [docs/requirements-analysis.md](docs/requirements-analysis.md).
 
 ## Стек
 
