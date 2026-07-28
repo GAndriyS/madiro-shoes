@@ -1,6 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import type { StockListQuery, StockListResponse, VariantDetail } from '@madiro/shared';
+import type {
+  CancelOperationResult,
+  StockListQuery,
+  StockListResponse,
+  VariantDetail,
+} from '@madiro/shared';
 
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -168,8 +178,27 @@ export class StockService {
       where: { cancelledAt: null, pair: { variantId } },
       orderBy: { createdAt: 'desc' },
       take: 20,
-      include: { pair: { select: { size: true } }, user: { select: { name: true } } },
+      include: {
+        pair: { select: { id: true, size: true, status: true } },
+        user: { select: { name: true } },
+      },
     });
+
+    // Cancellable = the sale/write-off that currently holds the pair off the
+    // shelf, i.e. the newest such operation for a pair still SOLD/WRITTEN_OFF.
+    // A sale that was already returned is not cancellable — the return has
+    // netted it out, cancelling too would subtract it twice.
+    const cancellable = new Set<string>();
+    const seenPairs = new Set<string>();
+    for (const op of ops) {
+      if (op.type !== 'SALE' && op.type !== 'WRITEOFF') continue;
+      if (seenPairs.has(op.pairId)) continue;
+      seenPairs.add(op.pairId);
+      const holds =
+        (op.type === 'SALE' && op.pair.status === 'SOLD') ||
+        (op.type === 'WRITEOFF' && op.pair.status === 'WRITTEN_OFF');
+      if (holds) cancellable.add(op.id);
+    }
 
     const lastSale = ops.find((op) => op.type === 'SALE' && op.salePrice != null);
     const monthAgo = new Date(Date.now() - 30 * DAY_MS);
@@ -204,6 +233,7 @@ export class StockService {
           op.type === 'SALE' ? price : op.type === 'RETURN' && price != null ? -price : basis;
         return {
           id: op.id,
+          canCancel: cancellable.has(op.id),
           date: op.createdAt.toISOString(),
           type: op.type,
           sizes: [op.pair.size],
@@ -213,6 +243,58 @@ export class StockService {
         };
       }),
     };
+  }
+
+  /**
+   * Reverse a mistaken sale or write-off (FR-D-07, decision §7.2). The
+   * operation is marked cancelled rather than deleted — the movement history
+   * keeps the trace, and every read path already filters `cancelledAt`, so
+   * revenue, margin and the seller's own list recompute themselves. The pair
+   * returns to the shelf with its draft status untouched, exactly like a
+   * customer return.
+   *
+   * Only sales and write-offs are reversible: cancelling an intake would have
+   * to decide what happens to a pair that may already be sold, and cancelling a
+   * return would re-sell a pair the customer physically handed back. Both are
+   * out of scope by decision, so they are refused loudly.
+   */
+  async cancelOperation(operationId: string): Promise<CancelOperationResult> {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const op = await tx.operation.findUnique({
+        where: { id: operationId },
+        select: { id: true, type: true, pairId: true, cancelledAt: true },
+      });
+      if (!op) {
+        throw new NotFoundException('Операцію не знайдено');
+      }
+      if (op.type !== 'SALE' && op.type !== 'WRITEOFF') {
+        throw new BadRequestException('Скасувати можна лише продаж або списання');
+      }
+      if (op.cancelledAt != null) {
+        throw new ConflictException('Операцію вже скасовано');
+      }
+
+      // The same row lock as a checkout: an admin cancelling and a seller
+      // registering a return must not both put the pair back.
+      const locked = await tx.$queryRaw<{ id: string; status: string }[]>`
+        SELECT id, status FROM pairs WHERE id = ${op.pairId} FOR UPDATE`;
+      const expected = op.type === 'SALE' ? 'SOLD' : 'WRITTEN_OFF';
+      if (locked[0]?.status !== expected) {
+        throw new ConflictException('Пара вже повернулася на склад');
+      }
+
+      await tx.operation.update({ where: { id: op.id }, data: { cancelledAt: new Date() } });
+      const pair = await tx.pair.update({
+        where: { id: op.pairId },
+        data: { status: 'IN_STOCK' },
+        select: { id: true, status: true },
+      });
+
+      return { operationId: op.id, pairId: pair.id, pairStatus: pair.status };
+    });
+
+    this.realtime.emit('operation-cancelled');
+    return result;
   }
 
   /**

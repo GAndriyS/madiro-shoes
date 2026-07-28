@@ -24,6 +24,8 @@ export const REALTIME_TOPICS = [
   'sale',
   'return',
   'writeoff',
+  /** The admin reversed a sale or a write-off (FR-D-07). */
+  'operation-cancelled',
 ] as const;
 export type RealtimeTopic = (typeof REALTIME_TOPICS)[number];
 

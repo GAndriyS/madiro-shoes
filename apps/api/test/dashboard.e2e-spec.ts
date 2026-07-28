@@ -288,4 +288,47 @@ describe('Dashboard (e2e, real Postgres)', () => {
     expect(await prisma.pair.findUnique({ where: { id: stockPairId } })).toBeNull();
     expect(await prisma.operation.findFirst({ where: { pairId: stockPairId } })).toBeNull();
   });
+  it('скасування продажу: пара на склад, продаж зникає зі статистики (FR-D-07)', async () => {
+    const before = variantDetailSchema.parse(
+      (await asAdmin(request(http).get(`/api/stock/variants/${pricedVariantId}`)).expect(200)).body,
+    );
+    const sale = before.history.find((h) => h.type === 'SALE')!;
+    expect(sale.canCancel).toBe(true);
+    // Intakes are not reversible by decision (§7.2) — the UI never offers it.
+    expect(before.history.filter((h) => h.type === 'INTAKE').every((h) => !h.canCancel)).toBe(true);
+
+    const revenueBefore = overviewResponseSchema.parse(
+      (await asAdmin(request(http).get('/api/stats/overview?period=today')).expect(200)).body,
+    ).revenue;
+
+    await asAdmin(request(http).post(`/api/stock/operations/${sale.id}/cancel`)).expect(200);
+
+    const cancelled = await prisma.operation.findUniqueOrThrow({ where: { id: sale.id } });
+    expect(cancelled.cancelledAt).not.toBeNull();
+
+    const after = variantDetailSchema.parse(
+      (await asAdmin(request(http).get(`/api/stock/variants/${pricedVariantId}`)).expect(200)).body,
+    );
+    // The pair is back on the shelf and the cancelled sale left the history.
+    expect(after.pairs).toHaveLength(before.pairs.length + 1);
+    expect(after.history.some((h) => h.id === sale.id)).toBe(false);
+
+    const revenueAfter = overviewResponseSchema.parse(
+      (await asAdmin(request(http).get('/api/stats/overview?period=today')).expect(200)).body,
+    ).revenue;
+    expect(revenueAfter).toBe(revenueBefore - (sale.amount ?? 0));
+
+    // Cancelling twice is a conflict, not a second reversal.
+    await asAdmin(request(http).post(`/api/stock/operations/${sale.id}/cancel`)).expect(409);
+  });
+
+  it('скасування: тільки продаж або списання, тільки адмін', async () => {
+    const intake = await prisma.operation.findFirstOrThrow({ where: { type: 'INTAKE' } });
+    await asAdmin(request(http).post(`/api/stock/operations/${intake.id}/cancel`)).expect(400);
+    await asAdmin(request(http).post('/api/stock/operations/ghost/cancel')).expect(404);
+    await request(http)
+      .post(`/api/stock/operations/${intake.id}/cancel`)
+      .set('Authorization', `Bearer ${sellerToken}`)
+      .expect(403);
+  });
 });

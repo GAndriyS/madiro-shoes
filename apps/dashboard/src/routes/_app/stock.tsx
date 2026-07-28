@@ -11,6 +11,10 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { SearchIcon } from '@madiro/web-core';
+import {
+  CancelOperationModal,
+  type CancelTarget,
+} from '../../components/stock/CancelOperationModal';
 import { DeletePairModal, type DeleteTarget } from '../../components/stock/DeletePairModal';
 import { PriceModal, type PriceModalTarget } from '../../components/stock/PriceModal';
 import { StockCardsMobile } from '../../components/stock/StockCardsMobile';
@@ -38,6 +42,7 @@ function StockPage() {
   const [drawerVariantId, setDrawerVariantId] = useState<string | null>(null);
   const [priceTarget, setPriceTarget] = useState<PriceModalTarget | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<DeleteTarget | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<CancelTarget | null>(null);
 
   useEffect(() => {
     const handle = setTimeout(() => setDebouncedSearch(search), 300);
@@ -172,9 +177,11 @@ function StockPage() {
         onClose={() => setDrawerVariantId(null)}
         onEditPrice={openEditPrice}
         onDeletePair={openDeletePair}
+        onCancelOperation={(variant, entry) => setCancelTarget({ variant, entry })}
       />
       <PriceModal target={priceTarget} onClose={() => setPriceTarget(null)} />
       <DeletePairModal target={deleteTarget} onClose={() => setDeleteTarget(null)} />
+      <CancelOperationModal target={cancelTarget} onClose={() => setCancelTarget(null)} />
     </div>
   );
 }

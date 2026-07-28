@@ -136,6 +136,16 @@ export function ReturnIcon(props: IconProps) {
   );
 }
 
+/** Reversal: an arrow curving back — cancelling a sale or a write-off. */
+export function UndoIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3 7v6h6" />
+      <path d="M3.5 13a9 9 0 103-8.5L3 7" />
+    </Svg>
+  );
+}
+
 export function ChevronRightIcon(props: IconProps) {
   return (
     <Svg strokeWidth={2} {...props}>

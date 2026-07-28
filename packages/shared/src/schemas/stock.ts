@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { MATERIALS, OPERATION_TYPES, PAYMENT_METHODS, SEASONS } from '../enums.js';
+import { MATERIALS, OPERATION_TYPES, PAIR_STATUSES, PAYMENT_METHODS, SEASONS } from '../enums.js';
 import { moneySchema } from './common.js';
 
 /** Stock list query (FR-D-06): search, filter chips, sort, server-side pagination. */
@@ -69,6 +69,13 @@ export const variantHistoryEntrySchema = z.object({
   amount: z.number().nullable(),
   actorName: z.string(),
   paymentMethod: z.enum(PAYMENT_METHODS).nullable(),
+  /**
+   * Whether the admin may still reverse this entry (FR-D-07, decision §7.2):
+   * only a sale or a write-off, and only while it is what currently holds the
+   * pair off the shelf. A sale that was already returned, or an intake, is not
+   * cancellable — the server decides, the UI just renders the action.
+   */
+  canCancel: z.boolean(),
 });
 export type VariantHistoryEntry = z.infer<typeof variantHistoryEntrySchema>;
 
@@ -85,6 +92,19 @@ export const variantDetailSchema = z.object({
   history: z.array(variantHistoryEntrySchema),
 });
 export type VariantDetail = z.infer<typeof variantDetailSchema>;
+
+/**
+ * POST /stock/operations/:id/cancel — the admin reverses a mistaken sale or
+ * write-off (FR-D-07). The operation is marked cancelled (every read path
+ * already filters it out, so statistics recompute themselves) and the pair goes
+ * back on the shelf.
+ */
+export const cancelOperationResultSchema = z.object({
+  operationId: z.string(),
+  pairId: z.string(),
+  pairStatus: z.enum(PAIR_STATUSES),
+});
+export type CancelOperationResult = z.infer<typeof cancelOperationResultSchema>;
 
 /** PATCH /stock/variants/:id/price — one price for every size of the variant (FR-D-08). */
 export const setVariantPriceSchema = z.object({

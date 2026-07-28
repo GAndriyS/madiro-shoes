@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   Param,
   Patch,
   Post,
@@ -12,6 +13,7 @@ import {
 import {
   setVariantPriceSchema,
   stockListQuerySchema,
+  type CancelOperationResult,
   type StockListResponse,
   type VariantDetail,
 } from '@madiro/shared';
@@ -56,5 +58,16 @@ export class StockController {
   @Delete('pairs/:id')
   deletePair(@Param('id') id: string): Promise<{ ok: true }> {
     return this.stock.deletePair(id);
+  }
+
+  /**
+   * Reverse a mistaken sale or write-off from the variant's movement history
+   * (FR-D-07). POST, not DELETE: nothing is removed — the operation is marked
+   * cancelled and the pair comes back on the shelf.
+   */
+  @Post('operations/:id/cancel')
+  @HttpCode(200)
+  cancelOperation(@Param('id') id: string): Promise<CancelOperationResult> {
+    return this.stock.cancelOperation(id);
   }
 }

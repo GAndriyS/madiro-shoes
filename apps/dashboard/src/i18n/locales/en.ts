@@ -142,6 +142,15 @@ export const en: Messages = {
       'The pair disappears from stock and records — use this for pairs added by mistake. The variant sales history stays intact.',
     deleteIrreversible: 'This action cannot be undone.',
     deleteConfirm: 'Delete pair',
+    cancelOperation: 'Cancel the operation',
+    cancelSaleTitle: 'Cancel this sale?',
+    cancelSaleBody:
+      'The pair goes back to stock and the sale drops out of the statistics — revenue and margin are recomputed. Use this for a sale registered by mistake; for a customer return use the scanner.',
+    cancelWriteoffTitle: 'Cancel this write-off?',
+    cancelWriteoffBody:
+      'The pair goes back to stock as if the write-off never happened. Use this when a pair was written off by mistake.',
+    cancelOperationConfirm: 'Yes, cancel it',
+    cancelConflict: 'The pair is already back in stock — refresh the page',
     emptyTitle: 'Nothing found for “{{query}}”',
     emptyBody: 'Check the model number — it may be a typo.\nOr this model is simply not in stock.',
     emptyReset: 'Clear search and filters',
