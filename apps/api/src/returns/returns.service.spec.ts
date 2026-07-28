@@ -17,17 +17,27 @@ describe('ReturnsService', () => {
   let tx: ReturnType<typeof makeTx>;
   const transaction = jest.fn();
   const operationFindFirst = jest.fn();
+  const variantFindMany = jest.fn();
+
+  /** The single returnable variant behind the scanned tag — unambiguous case. */
+  const leatherSheepskin = { id: 'v1', material: 'LEATHER', season: 'SHEEPSKIN' };
+  const suedeNone = { id: 'v2', material: 'SUEDE', season: 'NONE' };
 
   beforeEach(async () => {
     jest.resetAllMocks();
     tx = makeTx();
     transaction.mockImplementation((cb: (client: typeof tx) => unknown) => cb(tx));
+    variantFindMany.mockResolvedValue([leatherSheepskin]);
     const moduleRef = await Test.createTestingModule({
       providers: [
         ReturnsService,
         {
           provide: PrismaService,
-          useValue: { $transaction: transaction, operation: { findFirst: operationFindFirst } },
+          useValue: {
+            $transaction: transaction,
+            operation: { findFirst: operationFindFirst },
+            variant: { findMany: variantFindMany },
+          },
         },
       ],
     }).compile();
@@ -62,18 +72,68 @@ describe('ReturnsService', () => {
       sellerName: 'Оля',
       daysSince: 2,
     });
-    // The query targets sold pairs and takes the latest sale (rule 3.3 #6).
+    // The query targets sold pairs of the resolved variant and takes the
+    // latest sale (rule 3.3 #6).
     const where = operationFindFirst.mock.calls[0][0].where;
     expect(where.pair.status).toBe('SOLD');
+    expect(where.pair.variantId).toBe('v1');
     expect(operationFindFirst.mock.calls[0][0].orderBy).toEqual({ createdAt: 'desc' });
   });
 
   it('lookup: продажу немає → sale null', async () => {
+    variantFindMany.mockResolvedValue([]);
     operationFindFirst.mockResolvedValue(null);
 
     await expect(service.lookup({ size: 44, color: '00', style: '0000' })).resolves.toEqual({
+      combos: [],
       sale: null,
     });
+  });
+
+  it('lookup: дві комбінації під однією біркою → sale null і комбінації на вибір', async () => {
+    variantFindMany.mockResolvedValue([leatherSheepskin, suedeNone]);
+
+    const res = await service.lookup({ size: 38, color: '36', style: '7645' });
+
+    // Ambiguous: reversing an arbitrary one of the two sales would be wrong.
+    expect(res.sale).toBeNull();
+    expect(res.combos).toEqual([
+      { material: 'LEATHER', season: 'SHEEPSKIN' },
+      { material: 'SUEDE', season: 'NONE' },
+    ]);
+    expect(operationFindFirst).not.toHaveBeenCalled();
+  });
+
+  it('lookup: явні матеріал/утеплення звужують до потрібного варіанта', async () => {
+    variantFindMany.mockResolvedValue([leatherSheepskin, suedeNone]);
+    operationFindFirst.mockResolvedValue(saleOp);
+
+    const res = await service.lookup({
+      size: 38,
+      color: '36',
+      style: '7645',
+      material: 'SUEDE',
+      season: 'NONE',
+    });
+
+    expect(res.sale?.operationId).toBe('op1');
+    expect(operationFindFirst.mock.calls[0][0].where.pair.variantId).toBe('v2');
+  });
+
+  it('lookup: явний null означає комбінацію «без значення», а не «будь-яку»', async () => {
+    const noTraits = { id: 'v3', material: null, season: null };
+    variantFindMany.mockResolvedValue([leatherSheepskin, noTraits]);
+    operationFindFirst.mockResolvedValue(saleOp);
+
+    await service.lookup({
+      size: 38,
+      color: '36',
+      style: '7645',
+      material: null,
+      season: null,
+    });
+
+    expect(operationFindFirst.mock.calls[0][0].where.pair.variantId).toBe('v3');
   });
 
   it('повернення: пара знову IN_STOCK, RETURN копіює ціну/оплату/закупку продажу', async () => {

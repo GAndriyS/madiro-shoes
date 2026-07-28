@@ -1,12 +1,14 @@
 import {
   RETURN_GUIDELINE_DAYS,
   type Material,
+  type ReturnCombo,
   type ReturnLookupResponse,
   type Season,
 } from '@madiro/shared';
-import { AlertIcon, ChevronRightIcon, money, timeOf } from '@madiro/web-core';
+import { AlertIcon, ChevronRightIcon, cn, money, timeOf } from '@madiro/web-core';
 import { useTranslation } from 'react-i18next';
 
+import type { ComboChoice } from '../sale/SaleConfirm';
 import { FieldCard } from '../scan/fields';
 
 interface ReturnConfirmProps {
@@ -17,10 +19,16 @@ interface ReturnConfirmProps {
   lookup: ReturnLookupResponse | undefined;
   loading: boolean;
   saving: boolean;
+  /** Explicit narrowing choice; undefined = not narrowed yet. */
+  selectedCombo?: ComboChoice | undefined;
+  onComboSelect?: (combo: ComboChoice) => void;
   onConfirm: (operationId: string) => void;
   onRescan: () => void;
   onBack: () => void;
 }
+
+const sameCombo = (a: ComboChoice, b: ReturnCombo) =>
+  a.material === b.material && a.season === b.season;
 
 /**
  * Return confirmation (FR-S-14): the last sale of the scanned pair with the
@@ -35,6 +43,8 @@ export function ReturnConfirm({
   lookup,
   loading,
   saving,
+  selectedCombo,
+  onComboSelect,
   onConfirm,
   onRescan,
   onBack,
@@ -51,9 +61,24 @@ export function ReturnConfirm({
     SHEEPSKIN: t('intake.seasonSheepskin'),
   };
 
+  const comboLabel = (combo: ReturnCombo) => {
+    const parts = [
+      combo.material ? materialLabels[combo.material] : null,
+      combo.season ? seasonLabels[combo.season] : null,
+    ].filter((p): p is string => p != null);
+    return parts.length > 0 ? parts.join(' · ') : t('sale.comboNone');
+  };
+
   const sale = lookup?.sale ?? null;
+  const combos = lookup?.combos ?? [];
+  // A single combination needs no explicit choice — the server resolves it.
+  const effectiveCombo: ComboChoice | undefined =
+    selectedCombo ?? (combos.length === 1 ? combos[0] : undefined);
+  // Several returnable variants share this tag and none is picked yet: ask
+  // instead of reversing an arbitrary sale.
+  const ambiguous = !loading && sale == null && combos.length > 1 && effectiveCombo == null;
   const fieldsValid = size.length > 0 && color.length > 0 && style.length > 0;
-  const notFound = !loading && fieldsValid && lookup != null && sale == null;
+  const notFound = !loading && fieldsValid && lookup != null && sale == null && !ambiguous;
 
   const soldLine = () => {
     if (!sale) return '';
@@ -112,6 +137,46 @@ export function ReturnConfirm({
           onChange={(v) => onFieldChange('style', v)}
         />
       </div>
+
+      {combos.length > 1 && (
+        <div className="flex flex-col gap-2">
+          <div className="text-[11px] font-bold tracking-[1.5px] text-text-muted">
+            {t('sale.comboLabel')}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {combos.map((combo) => {
+              const active = effectiveCombo != null && sameCombo(effectiveCombo, combo);
+              return (
+                <button
+                  key={`${combo.material ?? '-'}·${combo.season ?? '-'}`}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() =>
+                    onComboSelect?.({ material: combo.material, season: combo.season })
+                  }
+                  className={cn(
+                    'rounded-[20px] border-[1.5px] px-3.5 py-2 text-[13px]',
+                    active
+                      ? 'border-ink bg-ink font-semibold text-page'
+                      : 'border-border-input text-text-secondary',
+                  )}
+                >
+                  {comboLabel(combo)}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {ambiguous && (
+        <div className="flex items-center gap-3 rounded-xl border border-dashed border-amber-border bg-amber-bg px-4 py-3">
+          <AlertIcon size={18} className="flex-none text-amber-text" />
+          <span className="text-[12.5px] leading-snug text-amber-text">
+            {t('return.chooseCombo')}
+          </span>
+        </div>
+      )}
 
       {sale && (
         <>

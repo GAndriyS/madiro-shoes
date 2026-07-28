@@ -148,11 +148,25 @@ export const stockSearchResponseSchema = z.object({
 export type StockSearchResponse = z.infer<typeof stockSearchResponseSchema>;
 
 /**
+ * One material/insulation combination among the sold pairs that match the
+ * scanned tag. The tag carries 3 of the 5 identity fields, so the same
+ * style·color·size can belong to several variants (leather vs suede, fleece vs
+ * none) — the seller narrows it down exactly as on checkout (rule 3.3 #5).
+ */
+export const returnComboSchema = z.object({
+  material: z.enum(MATERIALS).nullable(),
+  season: z.enum(SEASONS).nullable(),
+});
+export type ReturnCombo = z.infer<typeof returnComboSchema>;
+
+/**
  * Customer return lookup (FR-S-14): the scanned tag finds the most recent
- * sale of a matching sold pair (rule 3.3 #6). Null when no sale matches.
- * No purchase prices here (FR-B-02).
+ * sale of a matching sold pair (rule 3.3 #6). `combos` lists the combinations
+ * that actually have a returnable sale; `sale` stays null while the choice is
+ * ambiguous or nothing matches. No purchase prices here (FR-B-02).
  */
 export const returnLookupResponseSchema = z.object({
+  combos: z.array(returnComboSchema),
   sale: z
     .object({
       operationId: z.string(),

@@ -9,6 +9,7 @@ import { initI18n } from '../src/i18n';
 const soldAt = new Date(Date.now() - 2 * 86_400_000).toISOString();
 
 const found: ReturnLookupResponse = {
+  combos: [{ material: 'LEATHER', season: 'SHEEPSKIN' }],
   sale: {
     operationId: 'op1',
     pairId: 'p1',
@@ -24,7 +25,15 @@ const found: ReturnLookupResponse = {
     sellerName: 'Оля',
   },
 };
-const notFound: ReturnLookupResponse = { sale: null };
+const notFound: ReturnLookupResponse = { combos: [], sale: null };
+/** Same tag, two sold variants — the server refuses to guess (rule 3.3 #5). */
+const ambiguous: ReturnLookupResponse = {
+  combos: [
+    { material: 'LEATHER', season: 'SHEEPSKIN' },
+    { material: 'SUEDE', season: 'NONE' },
+  ],
+  sale: null,
+};
 
 describe('ReturnConfirm', () => {
   beforeAll(() => {
@@ -34,11 +43,15 @@ describe('ReturnConfirm', () => {
 
   const renderConfirm = (
     lookup: ReturnLookupResponse,
-    opts: { onConfirm?: (id: string) => void; daysSince?: number } = {},
+    opts: {
+      onConfirm?: (id: string) => void;
+      daysSince?: number;
+      onComboSelect?: (combo: { material: unknown; season: unknown }) => void;
+    } = {},
   ) => {
     const data =
       opts.daysSince != null && lookup.sale
-        ? { sale: { ...lookup.sale, daysSince: opts.daysSince } }
+        ? { ...lookup, sale: { ...lookup.sale, daysSince: opts.daysSince } }
         : lookup;
     return render(
       <ReturnConfirm
@@ -49,6 +62,7 @@ describe('ReturnConfirm', () => {
         lookup={data}
         loading={false}
         saving={false}
+        onComboSelect={opts.onComboSelect}
         onConfirm={opts.onConfirm ?? (() => {})}
         onRescan={() => {}}
         onBack={() => {}}
@@ -81,6 +95,19 @@ describe('ReturnConfirm', () => {
     renderConfirm(found, { daysSince: 20 });
     expect(screen.getByText(/орієнтир, повернення не блокується/)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /Повернути на склад/ })).toBeEnabled();
+  });
+
+  it('кілька комбінацій під біркою: підказка вибору замість картки продажу', async () => {
+    const onComboSelect = vi.fn();
+    renderConfirm(ambiguous, { onComboSelect });
+
+    expect(screen.getByText(/оберіть утеплення й матеріал/)).toBeInTheDocument();
+    // Not the «Продаж не знайдено» error — the sale exists, the choice does not.
+    expect(screen.queryByText('Продаж не знайдено')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Повернути на склад/ })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Замша · Без' }));
+    expect(onComboSelect).toHaveBeenCalledWith({ material: 'SUEDE', season: 'NONE' });
   });
 
   it('продаж не знайдено: червона картка, CTA відсутня', () => {

@@ -166,6 +166,59 @@ describe('Returns (e2e, real Postgres)', () => {
     expect(parsed.sale?.daysSince).toBe(5);
   });
 
+  it('дві комбінації під однією біркою: без уточнення — sale null, з уточненням — саме той продаж', async () => {
+    // Same style·color·size as the leather pair above, but suede without
+    // insulation: the tag cannot tell them apart, so the seller must choose.
+    const suede = await prisma.variant.create({
+      data: { style: '7645', color: '36', material: 'SUEDE', season: 'NONE' },
+    });
+    const seller = await prisma.user.findFirstOrThrow({ where: { login: 'seller-ret' } });
+    const suedePair = await prisma.pair.create({
+      data: { variantId: suede.id, size: 38, status: 'SOLD', createdById: seller.id },
+    });
+    await prisma.operation.create({
+      data: {
+        type: 'SALE',
+        pairId: suedePair.id,
+        userId: seller.id,
+        salePrice: 3300,
+        paymentMethod: 'CASH',
+      },
+    });
+
+    // Ambiguous: the suede sale is the newest, but returning it blindly could
+    // reverse the wrong pair — the API asks instead of guessing.
+    const ambiguous = returnLookupResponseSchema.parse((await lookup().expect(200)).body);
+    expect(ambiguous.sale).toBeNull();
+    expect(ambiguous.combos).toHaveLength(2);
+    expect(ambiguous.combos).toContainEqual({ material: 'SUEDE', season: 'NONE' });
+    expect(ambiguous.combos).toContainEqual({ material: 'LEATHER', season: 'SHEEPSKIN' });
+
+    // Narrowed to leather: the older 2000 sale, NOT the newer suede one.
+    const leather = returnLookupResponseSchema.parse(
+      (
+        await request(http)
+          .post('/api/returns/lookup')
+          .set('Authorization', `Bearer ${token}`)
+          .send({ size: 38, color: '36', style: '7645', material: 'LEATHER', season: 'SHEEPSKIN' })
+          .expect(200)
+      ).body,
+    );
+    expect(leather.sale?.salePrice).toBe(2000);
+
+    const suedeFound = returnLookupResponseSchema.parse(
+      (
+        await request(http)
+          .post('/api/returns/lookup')
+          .set('Authorization', `Bearer ${token}`)
+          .send({ size: 38, color: '36', style: '7645', material: 'SUEDE', season: 'NONE' })
+          .expect(200)
+      ).body,
+    );
+    expect(suedeFound.sale?.salePrice).toBe(3300);
+    expect(suedeFound.sale?.pairId).toBe(suedePair.id);
+  });
+
   it('без токена → 401; невалідне тіло → 400', async () => {
     await request(http)
       .post('/api/returns/lookup')

@@ -16,6 +16,7 @@ import { useTranslation } from 'react-i18next';
 import { CameraScreen } from '../../components/intake/CameraScreen';
 import { RecognitionError } from '../../components/intake/RecognitionError';
 import { ReturnConfirm } from '../../components/return/ReturnConfirm';
+import type { ComboChoice } from '../../components/sale/SaleConfirm';
 import { useFlashStore } from '../../lib/flash';
 
 export const Route = createFileRoute('/_app/return')({
@@ -34,6 +35,9 @@ function ReturnPage() {
   const showFlash = useFlashStore((s) => s.show);
   const [step, setStep] = useState<'capture' | 'error' | 'confirm'>('capture');
   const [fields, setFields] = useState({ size: '', color: '', style: '' });
+  // Narrowing to a material/insulation combination when the tag alone matches
+  // several sold variants (rule 3.3 #5) — the same choice as on checkout.
+  const [combo, setCombo] = useState<ComboChoice | undefined>(undefined);
   const [toast, setToast] = useState<string | null>(null);
 
   const recognize = useMutation({
@@ -60,10 +64,15 @@ function ReturnPage() {
     fields.style.length > 0;
 
   const lookup = useQuery({
-    queryKey: ['returns', 'lookup', fields.size, fields.color, fields.style],
+    queryKey: ['returns', 'lookup', fields.size, fields.color, fields.style, combo ?? null],
     enabled: step === 'confirm' && fieldsValid,
     queryFn: async () => {
-      const body: PairLookupInput = { size: sizeNum, color: fields.color, style: fields.style };
+      const body: PairLookupInput = {
+        size: sizeNum,
+        color: fields.color,
+        style: fields.style,
+        ...(combo ? { material: combo.material, season: combo.season } : {}),
+      };
       return returnLookupResponseSchema.parse(
         await api.post<ReturnLookupResponse>('/returns/lookup', body),
       );
@@ -110,10 +119,16 @@ function ReturnPage() {
           size={fields.size}
           color={fields.color}
           style={fields.style}
-          onFieldChange={(field, value) => setFields((f) => ({ ...f, [field]: value }))}
+          onFieldChange={(field, value) => {
+            // Editing the tag invalidates a narrowing made for the old fields.
+            setCombo(undefined);
+            setFields((f) => ({ ...f, [field]: value }));
+          }}
           lookup={lookup.data}
           loading={lookup.isFetching}
           saving={register.isPending}
+          selectedCombo={combo}
+          onComboSelect={setCombo}
           onConfirm={(operationId) => register.mutate(operationId)}
           onRescan={rescan}
           onBack={() => void navigate({ to: '/' })}
