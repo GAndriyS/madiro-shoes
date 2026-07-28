@@ -11,14 +11,14 @@ React 19 · TypeScript · TanStack (Router / Query / Table) · Zustand · NestJS
 
 ## Структура монорепо
 
-| Шлях                | Призначення                                                             |
-| ------------------- | ----------------------------------------------------------------------- |
-| `apps/api`          | NestJS API: Prisma + PostgreSQL, JWT-auth (ролі admin/seller)           |
-| `apps/dashboard`    | Веб-дашборд адміністратора (Vite + React 19 + TanStack), порт 5173      |
-| `apps/scanner`      | PWA-сканер для персоналу (installable, offline-банер), порт 5174        |
-| `packages/shared`   | Спільні TypeScript-типи, Zod-схеми та константи (контракти фронт ↔ бек) |
-| `packages/web-core` | Спільний фронтенд-код: api-клієнт, auth, i18n, токени, UI-примітиви     |
-| `docs/`             | Документація проєкту                                                    |
+| Шлях                | Призначення                                                              |
+| ------------------- | ------------------------------------------------------------------------ |
+| `apps/api`          | NestJS API: Prisma + PostgreSQL, JWT-auth (ролі admin/seller), Socket.io |
+| `apps/dashboard`    | Веб-дашборд адміністратора (Vite + React 19 + TanStack), порт 5173       |
+| `apps/scanner`      | PWA-сканер для персоналу (installable, offline-банер), порт 5174         |
+| `packages/shared`   | Спільні TypeScript-типи, Zod-схеми та константи (контракти фронт ↔ бек)  |
+| `packages/web-core` | Спільний фронтенд-код: api-клієнт, auth, i18n, токени, UI-примітиви      |
+| `docs/`             | Документація проєкту                                                     |
 
 ## Запуск локально
 
@@ -31,7 +31,7 @@ pnpm install
 docker compose up -d
 
 # Конфігурація
-cp .env.example .env        # заповніть ADMIN_PASSWORD і JWT-секрети
+cp .env.example .env        # заповніть ADMIN_PASSWORD і JWT-секрети (LOG_LEVEL — опційно)
 cp .env apps/api/.env
 
 # База: міграції + початковий адміністратор

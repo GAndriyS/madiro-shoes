@@ -48,18 +48,24 @@ repo and set:
 
 **api** service:
 
-| Variable             | Value                                                                 |
-| -------------------- | --------------------------------------------------------------------- |
-| `DATABASE_URL`       | Reference the Postgres variable (`${{Postgres.DATABASE_URL}}`)        |
-| `JWT_ACCESS_SECRET`  | 32+ chars — `openssl rand -hex 32`                                    |
-| `JWT_REFRESH_SECRET` | a **different** 32+ char value                                        |
-| `CORS_ORIGINS`       | `https://<scanner-domain>,https://<dashboard-domain>` (no trailing /) |
-| `GEMINI_API_KEY`     | your Google AI Studio key (label recognition)                         |
-| `ADMIN_PASSWORD`     | the admin login password (used once to seed the admin)                |
-| `NODE_ENV`           | `production`                                                          |
+| Variable             | Value                                                                                                              |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `DATABASE_URL`       | Reference the Postgres variable (`${{Postgres.DATABASE_URL}}`)                                                     |
+| `JWT_ACCESS_SECRET`  | 32+ chars — `openssl rand -hex 32`                                                                                 |
+| `JWT_REFRESH_SECRET` | a **different** 32+ char value                                                                                     |
+| `CORS_ORIGINS`       | `https://<scanner-domain>,https://<dashboard-domain>` (no trailing /) — also the allowlist for the realtime socket |
+| `GEMINI_API_KEY`     | your Google AI Studio key (label recognition)                                                                      |
+| `ADMIN_PASSWORD`     | the admin login password (used once to seed the admin)                                                             |
+| `NODE_ENV`           | `production`                                                                                                       |
 
-`ADMIN_LOGIN` (default `admin`) and `ADMIN_NAME` are optional. `PORT` is set by
-Railway automatically.
+`ADMIN_LOGIN` (default `admin`) and `ADMIN_NAME` are optional, as is
+`LOG_LEVEL` (defaults to `info` in production). `PORT` is set by Railway
+automatically.
+
+> The dashboard keeps a websocket open to `/realtime` on the api domain
+> (Railway proxies websockets out of the box) and the refresh cookie is
+> cross-site — both work only over the HTTPS domains above, with
+> `CORS_ORIGINS` naming the exact frontend origins.
 
 **scanner** and **dashboard** services — one build-time variable each:
 
