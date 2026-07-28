@@ -1,8 +1,20 @@
-import { BadRequestException, Body, Controller, Delete, Param, Patch, Post } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+} from '@nestjs/common';
 import {
   draftUpdateSchema,
   intakeSchema,
   type AuthUser,
+  type IntakeHistoryResponse,
+  type IntakeQueueResponse,
   type IntakeResult,
   type MyDraft,
 } from '@madiro/shared';
@@ -23,6 +35,20 @@ export class IntakeController {
       throw new BadRequestException(parsed.error.issues);
     }
     return this.intake.create(parsed.data, user);
+  }
+
+  // Dashboard queue/history are admin-only (method-level @Roles overrides the class).
+  @Get('queue')
+  @Roles('ADMIN')
+  queue(): Promise<IntakeQueueResponse> {
+    return this.intake.queue();
+  }
+
+  @Get('history')
+  @Roles('ADMIN')
+  history(@Query('page') page: unknown): Promise<IntakeHistoryResponse> {
+    const parsed = Math.max(1, Number(page ?? '1') || 1);
+    return this.intake.history(parsed);
   }
 
   // Own drafts awaiting price only (FR-S-13) — the service enforces ownership.
