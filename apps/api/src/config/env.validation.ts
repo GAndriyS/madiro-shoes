@@ -16,6 +16,8 @@ const envSchema = z.object({
    * the mock provider and production answers 503 on /tags/recognize.
    */
   GEMINI_API_KEY: z.string().optional(),
+  /** Pino level; defaults to `info` in production and `debug` elsewhere. */
+  LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).optional(),
 });
 
 export type Env = z.infer<typeof envSchema>;
