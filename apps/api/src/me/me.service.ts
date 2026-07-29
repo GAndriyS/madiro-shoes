@@ -1,8 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import type { MeSummary, MyDraftsResponse, MySalesPeriod, MySalesResponse } from '@madiro/shared';
+import type { MeSummary, MyDraftsResponse, MySalesQuery, MySalesResponse } from '@madiro/shared';
 
-import { storeDayStart, storeMonthStart } from '../lib/time';
+import { storeDayStart, storeMonthRange, storeMonthStart } from '../lib/time';
 import { PrismaService } from '../prisma/prisma.service';
+
+/** Half-open range as a Prisma filter: the end day itself must stay excluded. */
+function rangeFilter(range: { start: Date; end: Date }): { gte: Date; lt: Date } {
+  return { gte: range.start, lt: range.end };
+}
 
 @Injectable()
 export class MeService {
@@ -44,18 +49,28 @@ export class MeService {
   }
 
   /**
-   * The seller's own sales for today or the current month (FR-S-17).
-   * Informational only: no margins, no bonuses, no other sellers.
+   * The seller's own sales for today, the current month, or a chosen calendar
+   * month (FR-S-17). Informational only: no margins, no bonuses, no other
+   * sellers.
+   *
+   * Today and the current month run open-ended (`gte`) because nothing can be
+   * recorded after "now"; a chosen past month is bounded on both sides, or it
+   * would drag in every sale since.
    */
-  async sales(userId: string, period: MySalesPeriod): Promise<MySalesResponse> {
-    const since = period === 'today' ? storeDayStart() : storeMonthStart();
+  async sales(userId: string, query: MySalesQuery): Promise<MySalesResponse> {
+    const createdAt =
+      query.period === 'today'
+        ? { gte: storeDayStart() }
+        : query.month
+          ? rangeFilter(storeMonthRange(query.month))
+          : { gte: storeMonthStart() };
 
     const ops = await this.prisma.operation.findMany({
       where: {
         userId,
         type: { in: ['SALE', 'RETURN'] },
         cancelledAt: null,
-        createdAt: { gte: since },
+        createdAt,
       },
       orderBy: { createdAt: 'desc' },
       include: {

@@ -1,6 +1,6 @@
 import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
 import {
-  mySalesPeriodSchema,
+  mySalesQuerySchema,
   type AuthUser,
   type MeSummary,
   type MyDraftsResponse,
@@ -22,8 +22,16 @@ export class MeController {
   }
 
   @Get('sales')
-  sales(@CurrentUser() user: AuthUser, @Query('period') period: unknown): Promise<MySalesResponse> {
-    const parsed = mySalesPeriodSchema.safeParse(period ?? 'today');
+  sales(
+    @CurrentUser() user: AuthUser,
+    @Query('period') period: unknown,
+    @Query('month') month: unknown,
+  ): Promise<MySalesResponse> {
+    const parsed = mySalesQuerySchema.safeParse({
+      period: period ?? 'today',
+      // An absent month must stay absent: '' would fail the YYYY-MM pattern.
+      ...(month ? { month } : {}),
+    });
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.issues);
     }

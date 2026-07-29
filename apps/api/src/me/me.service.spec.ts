@@ -56,4 +56,71 @@ describe('MeService', () => {
     expect(where.createdAt.gte).toBeInstanceOf(Date);
     expect(count.mock.calls[0][0].where).toEqual({ createdById: 'u42', awaitingPrice: true });
   });
+
+  describe('sales', () => {
+    beforeEach(() => findMany.mockResolvedValue([]));
+
+    const whereOfLastCall = () => findMany.mock.calls[0][0].where;
+
+    it('сьогодні: відкритий інтервал від початку дня', async () => {
+      await service.sales('u1', { period: 'today' });
+
+      const { createdAt } = whereOfLastCall();
+      expect(createdAt.gte).toBeInstanceOf(Date);
+      expect(createdAt.lt).toBeUndefined();
+    });
+
+    it('поточний місяць без явного month — теж відкритий інтервал', async () => {
+      await service.sales('u1', { period: 'month' });
+
+      const { createdAt } = whereOfLastCall();
+      expect(createdAt.gte).toBeInstanceOf(Date);
+      expect(createdAt.lt).toBeUndefined();
+    });
+
+    // A past month must be bounded on both sides, or it would sum every sale since.
+    it('обраний місяць обмежений з обох боків', async () => {
+      await service.sales('u1', { period: 'month', month: '2026-03' });
+
+      const { createdAt } = whereOfLastCall();
+      expect(createdAt.gte.toISOString()).toBe('2026-02-28T22:00:00.000Z');
+      expect(createdAt.lt.toISOString()).toBe('2026-03-31T21:00:00.000Z');
+    });
+
+    it('рахує нетто за період і підписує повернення від’ємною сумою', async () => {
+      findMany.mockResolvedValue([
+        {
+          id: 'o1',
+          type: 'SALE',
+          salePrice: 2850,
+          paymentMethod: 'CARD',
+          createdAt: new Date('2026-03-04T10:00:00.000Z'),
+          pair: { size: 38, variant: { style: '7645', color: '36' } },
+        },
+        {
+          id: 'o2',
+          type: 'RETURN',
+          salePrice: 2850,
+          paymentMethod: 'CARD',
+          createdAt: new Date('2026-03-05T10:00:00.000Z'),
+          pair: { size: 38, variant: { style: '7645', color: '36' } },
+        },
+      ]);
+
+      const res = await service.sales('u1', { period: 'month', month: '2026-03' });
+
+      expect(res.pairs).toBe(0);
+      expect(res.total).toBe(0);
+      expect(res.items.map((i) => i.amount)).toEqual([2850, -2850]);
+    });
+
+    it('лише свої нескасовані продажі та повернення', async () => {
+      await service.sales('u42', { period: 'month', month: '2026-03' });
+
+      const where = whereOfLastCall();
+      expect(where.userId).toBe('u42');
+      expect(where.cancelledAt).toBeNull();
+      expect(where.type).toEqual({ in: ['SALE', 'RETURN'] });
+    });
+  });
 });
