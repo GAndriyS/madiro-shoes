@@ -28,6 +28,40 @@ export function shiftMonth(key: string, delta: number): string {
   return `${shiftedYear}-${String(shiftedMonth).padStart(2, '0')}`;
 }
 
+/** Store-timezone calendar day of an ISO timestamp, as `YYYY-MM-DD`. */
+export function dayKeyOf(iso: string, timeZone: string = STORE_TIMEZONE): string {
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date(iso));
+}
+
+/**
+ * Group consecutive rows by their store-timezone calendar day (FR-S-17: «Мої
+ * продажі» за місяць групуються по днях). The API returns operations sorted
+ * by time, so one pass is enough and the day order is preserved.
+ */
+export function groupByDay<T>(items: readonly T[], at: (item: T) => string) {
+  const groups: { day: string; items: T[] }[] = [];
+  for (const item of items) {
+    const day = dayKeyOf(at(item));
+    const last = groups[groups.length - 1];
+    if (last && last.day === day) {
+      last.items.push(item);
+    } else {
+      groups.push({ day, items: [item] });
+    }
+  }
+  return groups;
+}
+
+/** «12.07» from a `YYYY-MM-DD` day key — the header for days before yesterday. */
+export function dayKeyShort(dayKey: string): string {
+  return `${dayKey.slice(8, 10)}.${dayKey.slice(5, 7)}`;
+}
+
 /**
  * «Липень 2026» / «July 2026» — capitalised, since Ukrainian month names are
  * lowercase.

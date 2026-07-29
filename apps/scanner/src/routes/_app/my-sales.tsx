@@ -5,7 +5,14 @@ import { Link, createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { currentMonthKey, monthLabel, shiftMonth } from '../../lib/months';
+import {
+  currentMonthKey,
+  dayKeyOf,
+  dayKeyShort,
+  groupByDay,
+  monthLabel,
+  shiftMonth,
+} from '../../lib/months';
 
 export const Route = createFileRoute('/_app/my-sales')({
   component: MySalesPage,
@@ -138,33 +145,53 @@ function MySalesPage() {
               </div>
             ) : (
               <div className="flex flex-col tabular-nums">
-                {sales.data.items.map((row, index) => {
-                  const isReturn = row.type === 'RETURN';
-                  const tone = isReturn ? 'text-[#a05c3b]' : 'text-ink';
-                  const subtitle = isReturn
-                    ? `${timeOf(row.at)} · ${t('mySales.returnNote')}`
-                    : [timeOf(row.at), paymentWord(row.paymentMethod)].filter(Boolean).join(' · ');
-                  return (
-                    <div
-                      key={row.id}
-                      className={cn(
-                        'flex items-baseline justify-between px-0.5 py-3.5',
-                        index < sales.data.items.length - 1 && 'border-b border-border',
-                      )}
-                    >
-                      <div className="flex flex-col gap-0.5">
-                        <span className={cn('text-[14.5px] font-bold', tone)}>
-                          {row.style} · {row.color} · р. {row.size}
-                          {isReturn ? ` — ${t('mySales.returnTag')}` : ''}
-                        </span>
-                        <span className="text-[11.5px] text-text-muted">{subtitle}</span>
+                {/* Month view groups operations by store-timezone day (FR-S-17);
+                    the today view is a single day, so headers would be noise. */}
+                {(period === 'month'
+                  ? groupByDay(sales.data.items, (row) => row.at)
+                  : [{ day: null as string | null, items: sales.data.items }]
+                ).map((group) => (
+                  <div key={group.day ?? 'today'} className="flex flex-col">
+                    {group.day != null && (
+                      <div className="mt-3 mb-0.5 border-b border-border pb-1.5 text-[11px] font-bold tracking-[1.5px] text-text-muted uppercase first:mt-0">
+                        {group.day === dayKeyOf(new Date().toISOString())
+                          ? t('common.today')
+                          : group.day === dayKeyOf(new Date(Date.now() - 86_400_000).toISOString())
+                            ? t('common.yesterday')
+                            : dayKeyShort(group.day)}
                       </div>
-                      <span className={cn('text-[15px] font-bold', tone)}>
-                        {row.amount != null ? money(row.amount) : t('common.noPrice')}
-                      </span>
-                    </div>
-                  );
-                })}
+                    )}
+                    {group.items.map((row, index) => {
+                      const isReturn = row.type === 'RETURN';
+                      const tone = isReturn ? 'text-[#a05c3b]' : 'text-ink';
+                      const subtitle = isReturn
+                        ? `${timeOf(row.at)} · ${t('mySales.returnNote')}`
+                        : [timeOf(row.at), paymentWord(row.paymentMethod)]
+                            .filter(Boolean)
+                            .join(' · ');
+                      return (
+                        <div
+                          key={row.id}
+                          className={cn(
+                            'flex items-baseline justify-between px-0.5 py-3.5',
+                            index < group.items.length - 1 && 'border-b border-border',
+                          )}
+                        >
+                          <div className="flex flex-col gap-0.5">
+                            <span className={cn('text-[14.5px] font-bold', tone)}>
+                              {row.style} · {row.color} · р. {row.size}
+                              {isReturn ? ` — ${t('mySales.returnTag')}` : ''}
+                            </span>
+                            <span className="text-[11.5px] text-text-muted">{subtitle}</span>
+                          </div>
+                          <span className={cn('text-[15px] font-bold', tone)}>
+                            {row.amount != null ? money(row.amount) : t('common.noPrice')}
+                          </span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ))}
               </div>
             )}
           </>
