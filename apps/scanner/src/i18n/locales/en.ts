@@ -174,6 +174,8 @@ export const en: Messages = {
     nextMonth: 'Next month',
     returnTag: 'return',
     returnNote: 'pair is back in stock',
+    writeoffTag: 'write-off',
+    writeoffNote: 'no amount — pair written off from stock',
     empty: 'No sales for this period yet.',
   },
   myDrafts: {

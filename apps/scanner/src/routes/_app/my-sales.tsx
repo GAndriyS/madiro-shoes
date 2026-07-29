@@ -163,12 +163,21 @@ function MySalesPage() {
                     )}
                     {group.items.map((row, index) => {
                       const isReturn = row.type === 'RETURN';
-                      const tone = isReturn ? 'text-[#a05c3b]' : 'text-ink';
+                      // A write-off is informational (S-5): neutral tone, no
+                      // amount — it never counts towards the period totals.
+                      const isWriteoff = row.type === 'WRITEOFF';
+                      const tone = isReturn
+                        ? 'text-[#a05c3b]'
+                        : isWriteoff
+                          ? 'text-text-muted'
+                          : 'text-ink';
                       const subtitle = isReturn
                         ? `${timeOf(row.at)} · ${t('mySales.returnNote')}`
-                        : [timeOf(row.at), paymentWord(row.paymentMethod)]
-                            .filter(Boolean)
-                            .join(' · ');
+                        : isWriteoff
+                          ? `${timeOf(row.at)} · ${t('mySales.writeoffNote')}`
+                          : [timeOf(row.at), paymentWord(row.paymentMethod)]
+                              .filter(Boolean)
+                              .join(' · ');
                       return (
                         <div
                           key={row.id}
@@ -181,11 +190,16 @@ function MySalesPage() {
                             <span className={cn('text-[14.5px] font-bold', tone)}>
                               {row.style} · {row.color} · р. {row.size}
                               {isReturn ? ` — ${t('mySales.returnTag')}` : ''}
+                              {isWriteoff ? ` — ${t('mySales.writeoffTag')}` : ''}
                             </span>
                             <span className="text-[11.5px] text-text-muted">{subtitle}</span>
                           </div>
                           <span className={cn('text-[15px] font-bold', tone)}>
-                            {row.amount != null ? money(row.amount) : t('common.noPrice')}
+                            {isWriteoff
+                              ? '—'
+                              : row.amount != null
+                                ? money(row.amount)
+                                : t('common.noPrice')}
                           </span>
                         </div>
                       );

@@ -173,6 +173,8 @@ export const uk = {
     nextMonth: 'Наступний місяць',
     returnTag: 'повернення',
     returnNote: 'пара знову на складі',
+    writeoffTag: 'списання',
+    writeoffNote: 'без суми — пара списана зі складу',
     empty: 'Поки немає продажів за цей період.',
   },
   myDrafts: {
