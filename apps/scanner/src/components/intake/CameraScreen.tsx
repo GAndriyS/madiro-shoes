@@ -1,4 +1,4 @@
-import { BoltIcon, CameraIcon, ChevronRightIcon, cn } from '@madiro/web-core';
+import { BoltIcon, CameraIcon, ChevronRightIcon, ImageIcon, cn } from '@madiro/web-core';
 import { Link } from '@tanstack/react-router';
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -50,7 +50,16 @@ export function CameraScreen({ title, processing, onCapture, onManual }: CameraS
       </div>
 
       <div className="relative flex flex-1 items-center justify-center">
-        {status === 'unavailable' ? (
+        {status === 'pending' ? (
+          // Explicit "asking for the camera" state (S-12) — a black void reads
+          // as a hang while the permission prompt sits behind the app.
+          <div className="flex flex-col items-center gap-4">
+            <span className="h-9 w-9 animate-spin rounded-full border-[3px] border-queue-badge border-t-transparent" />
+            <span className="text-[13px] text-[rgba(232,223,208,.75)]">
+              {t('intake.cameraPending')}
+            </span>
+          </div>
+        ) : status === 'unavailable' ? (
           <div className="mx-6 flex flex-col items-center gap-4 rounded-2xl bg-[rgba(255,255,255,.06)] px-6 py-8 text-center">
             <CameraIcon size={32} className="text-[#e8dfd0]" />
             <div className="text-[15px] font-bold text-[#e8dfd0]">
@@ -94,23 +103,40 @@ export function CameraScreen({ title, processing, onCapture, onManual }: CameraS
         )}
       </div>
 
-      <div className="relative flex items-center justify-center gap-[38px] px-5 pt-3.5 pb-8">
-        {status === 'streaming' && torchSupported ? (
-          <button
-            type="button"
-            aria-label={t('intake.torch')}
-            aria-pressed={torchOn}
-            onClick={() => void toggleTorch()}
-            className={cn(
-              'flex h-[34px] w-[34px] items-center justify-center rounded-full',
-              torchOn ? 'bg-queue-badge text-ink' : 'bg-[rgba(255,255,255,.1)] text-[#e8dfd0]',
-            )}
-          >
-            <BoltIcon size={16} />
-          </button>
-        ) : (
-          <span className="h-[34px] w-[34px]" />
-        )}
+      <div className="relative flex items-center justify-center gap-[28px] px-5 pt-3.5 pb-8">
+        <div className="flex w-[76px] items-center justify-end gap-2">
+          {/* Gallery stays available even with a live camera (S-12): a glare
+              on the film can defeat the viewfinder while a gallery shot works. */}
+          {status === 'streaming' && (
+            <label
+              aria-label={t('intake.gallery')}
+              className="flex h-[34px] w-[34px] cursor-pointer items-center justify-center rounded-full bg-[rgba(255,255,255,.1)] text-[#e8dfd0]"
+            >
+              <ImageIcon size={16} />
+              <input
+                type="file"
+                accept="image/*"
+                className="hidden"
+                disabled={processing}
+                onChange={(e) => void pickFile(e.target.files?.[0] ?? null)}
+              />
+            </label>
+          )}
+          {status === 'streaming' && torchSupported && (
+            <button
+              type="button"
+              aria-label={t('intake.torch')}
+              aria-pressed={torchOn}
+              onClick={() => void toggleTorch()}
+              className={cn(
+                'flex h-[34px] w-[34px] items-center justify-center rounded-full',
+                torchOn ? 'bg-queue-badge text-ink' : 'bg-[rgba(255,255,255,.1)] text-[#e8dfd0]',
+              )}
+            >
+              <BoltIcon size={16} />
+            </button>
+          )}
+        </div>
 
         <button
           type="button"
@@ -125,7 +151,7 @@ export function CameraScreen({ title, processing, onCapture, onManual }: CameraS
         <button
           type="button"
           onClick={onManual}
-          className="w-[60px] text-center text-[11.5px] leading-snug text-[rgba(232,223,208,.6)]"
+          className="w-[76px] text-center text-[11.5px] leading-snug text-[rgba(232,223,208,.6)]"
         >
           {t('intake.manual')}
         </button>

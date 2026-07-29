@@ -58,6 +58,8 @@ export const en: Messages = {
     torch: 'Torch',
     shutter: 'Take photo',
     manual: 'Enter manually',
+    gallery: 'Pick a photo from the gallery',
+    cameraPending: 'Requesting camera access…',
     cameraUnavailableTitle: 'Camera unavailable',
     cameraUnavailableBody:
       'Could not access the camera. Pick a tag photo from the gallery or take one with the system camera.',
