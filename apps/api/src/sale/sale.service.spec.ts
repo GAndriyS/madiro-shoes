@@ -127,13 +127,18 @@ describe('SaleService', () => {
         color: '36',
         material: 'LEATHER',
         season: 'SHEEPSKIN',
-        pairs: [{ size: 38 }, { size: 38 }, { size: 39 }],
+        pairs: [
+          { size: 38, awaitingPrice: false },
+          { size: 38, awaitingPrice: true },
+          { size: 39, awaitingPrice: false },
+        ],
       },
     ]);
 
     const res = await service.search('76');
 
     expect(variantFindMany.mock.calls[0][0].where.style).toEqual({ startsWith: '76' });
+    expect(res.truncated).toBe(false);
     expect(res.items).toEqual([
       {
         style: '7645',
@@ -144,9 +149,28 @@ describe('SaleService', () => {
           { size: 38, count: 2 },
           { size: 39, count: 1 },
         ],
+        awaitingPriceCount: 1,
       },
     ]);
-    expect(JSON.stringify(res)).not.toMatch(/price/i);
+    // awaitingPriceCount legitimately mentions "Price" — assert no money fields.
+    expect(JSON.stringify(res)).not.toMatch(/purchasePrice|salePrice/i);
+  });
+
+  it('search: 21-й варіант не віддається, але вмикає truncated (S-13)', async () => {
+    variantFindMany.mockResolvedValue(
+      Array.from({ length: 21 }, (_, i) => ({
+        style: '5500',
+        color: String(100 + i),
+        material: null,
+        season: 'NONE',
+        pairs: [{ size: 40, awaitingPrice: false }],
+      })),
+    );
+
+    const res = await service.search('55');
+
+    expect(res.truncated).toBe(true);
+    expect(res.items).toHaveLength(20);
   });
 
   it('продаж: пара стає SOLD, операція SALE з ціною/оплатою і зафіксованою закупкою', async () => {
