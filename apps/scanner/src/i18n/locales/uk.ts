@@ -201,5 +201,9 @@ export const uk = {
     placeholder: 'Style — наприклад 7645',
     hint: 'Введіть щонайменше 2 цифри стилю',
     empty: 'На складі немає варіантів зі стилем {{style}}…',
+    awaitingPrice_one: '{{count}} очікує ціни',
+    awaitingPrice_few: '{{count}} очікують ціни',
+    awaitingPrice_many: '{{count}} очікують ціни',
+    awaitingPrice_other: '{{count}} очікує ціни',
   },
 };

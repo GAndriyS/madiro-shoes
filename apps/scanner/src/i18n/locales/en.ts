@@ -202,5 +202,7 @@ export const en: Messages = {
     placeholder: 'Style — e.g. 7645',
     hint: 'Type at least 2 digits of the style',
     empty: 'No variants in stock with style {{style}}…',
+    awaitingPrice_one: '{{count}} awaiting price',
+    awaitingPrice_other: '{{count}} awaiting price',
   },
 };

@@ -96,12 +96,19 @@ function SearchPage() {
                       key={`${item.style}·${item.color}·${item.material ?? '-'}·${item.season ?? '-'}`}
                       className="flex flex-col gap-2.5 rounded-[14px] border border-border bg-surface px-[18px] py-[15px]"
                     >
-                      <div className="flex flex-col gap-[3px]">
-                        <span className="text-[15px] font-bold text-ink">
-                          {item.style} · {t('sale.colorWord')} {item.color}
-                        </span>
-                        {traits.length > 0 && (
-                          <span className="text-xs text-text-muted">{traits.join(' · ')}</span>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex flex-col gap-[3px]">
+                          <span className="text-[15px] font-bold text-ink">
+                            {item.style} · {t('sale.colorWord')} {item.color}
+                          </span>
+                          {traits.length > 0 && (
+                            <span className="text-xs text-text-muted">{traits.join(' · ')}</span>
+                          )}
+                        </div>
+                        {item.awaitingPriceCount > 0 && (
+                          <span className="rounded-[9px] bg-[#f0e5cc] px-[9px] py-[4px] text-[11px] font-bold whitespace-nowrap text-[#8a6d2b]">
+                            {t('search.awaitingPrice', { count: item.awaitingPriceCount })}
+                          </span>
                         )}
                       </div>
                       <div className="flex flex-wrap gap-2">

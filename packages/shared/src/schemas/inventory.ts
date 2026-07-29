@@ -143,6 +143,8 @@ export const stockSearchResponseSchema = z.object({
       material: z.enum(MATERIALS).nullable(),
       season: z.enum(SEASONS),
       sizes: z.array(z.object({ size: sizeSchema, count: z.number().int().positive() })),
+      /** In-stock pairs of this variant still awaiting a price (FR-S-16 badge). */
+      awaitingPriceCount: z.number().int().min(0),
     }),
   ),
 });

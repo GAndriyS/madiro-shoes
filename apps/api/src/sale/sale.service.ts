@@ -139,15 +139,17 @@ export class SaleService {
       orderBy: [{ style: 'asc' }, { color: 'asc' }],
       take: 20,
       include: {
-        pairs: { where: { status: 'IN_STOCK' }, select: { size: true } },
+        pairs: { where: { status: 'IN_STOCK' }, select: { size: true, awaitingPrice: true } },
       },
     });
 
     return {
       items: variants.map((v) => {
         const counts = new Map<number, number>();
+        let awaitingPriceCount = 0;
         for (const p of v.pairs) {
           counts.set(p.size, (counts.get(p.size) ?? 0) + 1);
+          if (p.awaitingPrice) awaitingPriceCount += 1;
         }
         return {
           style: v.style,
@@ -157,6 +159,7 @@ export class SaleService {
           sizes: [...counts.entries()]
             .sort((a, b) => a[0] - b[0])
             .map(([size, count]) => ({ size, count })),
+          awaitingPriceCount,
         };
       }),
     };
