@@ -359,7 +359,7 @@ operation-cancelled`) і часом. **Даних у події немає** —
   не покриває NULL material).
 - **Тести**: юніт (Jest/Vitest) + компонентні (Testing Library) + e2e
   проти реального Postgres (supertest + реальний socket.io-клієнт;
-  56 сценаріїв у 8 сьютах); CI на кожен ПР (lint, format, typecheck,
+  55 сценаріїв у 8 сьютах); CI на кожен ПР (lint, format, typecheck,
   unit, build, міграції, drift-гейт схеми, e2e).
 - **Деплой — Railway**: 3 сервіси (api / scanner / dashboard) з власних
   Dockerfile + керований Postgres. API на старті застосовує міграції та
