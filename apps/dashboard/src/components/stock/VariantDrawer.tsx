@@ -1,10 +1,15 @@
-import { variantDetailSchema, type VariantDetail, type VariantPair } from '@madiro/shared';
+import {
+  variantDetailSchema,
+  type VariantDetail,
+  type VariantHistoryEntry,
+  type VariantPair,
+} from '@madiro/shared';
 import { useQuery } from '@tanstack/react-query';
 import { useTranslation } from 'react-i18next';
 
 import { api } from '@madiro/web-core';
 import { money } from '@madiro/web-core';
-import { CloseIcon, PencilIcon, TrashIcon } from '@madiro/web-core';
+import { CloseIcon, PencilIcon, TrashIcon, UndoIcon } from '@madiro/web-core';
 import {
   Dialog,
   DialogClose,
@@ -20,6 +25,8 @@ interface Props {
   /** Price is a variant-level attribute (5 identity fields) — edited once for all pairs. */
   onEditPrice: (detail: VariantDetail) => void;
   onDeletePair: (detail: VariantDetail, pair: VariantPair) => void;
+  /** Reversing a mistaken sale or write-off (FR-D-07); only offered where the server allows it. */
+  onCancelOperation: (detail: VariantDetail, entry: VariantHistoryEntry) => void;
 }
 
 function shortDM(iso: string): string {
@@ -63,7 +70,13 @@ function MiniKpi({
 }
 
 /** Variant card drawer (design 2d): mini KPIs, per-pair actions, movement history. */
-export function VariantDrawer({ variantId, onClose, onEditPrice, onDeletePair }: Props) {
+export function VariantDrawer({
+  variantId,
+  onClose,
+  onEditPrice,
+  onDeletePair,
+  onCancelOperation,
+}: Props) {
   const { t } = useTranslation();
   const { data } = useQuery({
     queryKey: ['stock', 'variant', variantId],
@@ -202,6 +215,17 @@ export function VariantDrawer({ variantId, onClose, onEditPrice, onDeletePair }:
                         {line.sizes}
                         {line.tail && ` — ${line.tail}`}
                       </span>
+                      {h.canCancel && (
+                        <button
+                          type="button"
+                          aria-label={t('stock.cancelOperation')}
+                          title={t('stock.cancelOperation')}
+                          onClick={() => onCancelOperation(data, h)}
+                          className="flex-none text-text-muted hover:text-danger"
+                        >
+                          <UndoIcon size={15} />
+                        </button>
+                      )}
                     </div>
                   );
                 })}

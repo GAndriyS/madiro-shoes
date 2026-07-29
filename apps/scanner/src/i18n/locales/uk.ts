@@ -84,6 +84,7 @@ export const uk = {
     rescan: 'Сканувати ще раз',
     priceLabel: 'ЦІНА ЗАКУПКИ',
     pricePlaceholder: 'Ціна',
+    priceHintNote: 'Підставлено ціну цього варіанта — змініть, якщо потрібно',
     noPriceToggle: 'Без ціни — старий товар',
     withPriceToggle: 'Вказати ціну',
     sellerDraftNote:
@@ -147,6 +148,8 @@ export const uk = {
     guidelineOver: 'Минуло понад {{limit}} днів з продажу — це орієнтир, повернення не блокується',
     note: 'Пара повернеться на склад, продаж буде скасовано у статистиці',
     cta: 'Повернути на склад · {{amount}}',
+    chooseCombo:
+      'Кілька проданих пар з такою біркою — оберіть утеплення й матеріал тієї, яку повертають',
     notFoundTitle: 'Продаж не знайдено',
     notFoundBody:
       'Немає проданої пари {{style}} · {{color}} · р. {{size}}. Перевірте поля вище — можливо, AI помилився у цифрі.',
@@ -161,6 +164,8 @@ export const uk = {
     pairsLabel: 'пар продано',
     totalToday: 'сума за день',
     totalMonth: 'сума за місяць',
+    previousMonth: 'Попередній місяць',
+    nextMonth: 'Наступний місяць',
     returnTag: 'повернення',
     returnNote: 'пара знову на складі',
     empty: 'Поки немає продажів за цей період.',

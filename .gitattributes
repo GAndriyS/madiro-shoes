@@ -1,0 +1,20 @@
+# Normalize line endings: LF in the repository and in every checkout.
+# Without this, a Windows checkout can end up with CRLF on disk and every
+# commit shows up as a whole-file diff.
+* text=auto eol=lf
+
+# Generated / lock files: keep them text but never let a tool reflow them.
+pnpm-lock.yaml linguist-generated=true
+*.gen.ts linguist-generated=true
+
+# Binaries — never touch.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.ico binary
+*.gz binary
+*.zip binary
+*.pdf binary
+*.woff binary
+*.woff2 binary

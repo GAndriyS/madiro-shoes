@@ -1,43 +1,97 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  Post,
+  Req,
+  Res,
+  UnauthorizedException,
+  UseGuards,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import {
+  REFRESH_COOKIE,
   loginRequestSchema,
-  refreshRequestSchema,
   type AuthResponse,
   type AuthUser,
 } from '@madiro/shared';
+import type { CookieOptions, Request, Response } from 'express';
 
+import type { Env } from '../config/env.validation';
 import { AuthService } from './auth.service';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Public } from './decorators/public.decorator';
 import { Roles } from './decorators/roles.decorator';
+import { ClientHeaderGuard } from './guards/client-header.guard';
+import { refreshCookieOptions } from './refresh-cookie';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly config: ConfigService<Env, true>,
+  ) {}
 
   @Public()
   @Post('login')
   @HttpCode(200)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
-  login(@Body() body: unknown): Promise<AuthResponse> {
+  async login(
+    @Body() body: unknown,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponse> {
     const parsed = loginRequestSchema.safeParse(body);
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.issues);
     }
-    return this.auth.login(parsed.data.login, parsed.data.password);
+    const { session, refreshToken } = await this.auth.login(
+      parsed.data.login,
+      parsed.data.password,
+    );
+    res.cookie(REFRESH_COOKIE, refreshToken, this.cookieOptions());
+    return session;
   }
 
+  /**
+   * Renews the access token from the refresh cookie — no request body, because
+   * the token is not something the client can read (audit S-H3). Every refresh
+   * re-issues the cookie, so an active session slides forward instead of dying
+   * 30 days after the last login.
+   */
   @Public()
+  @UseGuards(ClientHeaderGuard)
   @Post('refresh')
   @HttpCode(200)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  refresh(@Body() body: unknown): Promise<AuthResponse> {
-    const parsed = refreshRequestSchema.safeParse(body);
-    if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
+  async refresh(
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ): Promise<AuthResponse> {
+    const cookie = (req.cookies as Record<string, string | undefined> | undefined)?.[
+      REFRESH_COOKIE
+    ];
+    if (!cookie) {
+      throw new UnauthorizedException('Сесію не знайдено');
     }
-    return this.auth.refresh(parsed.data.refreshToken);
+    const { session, refreshToken } = await this.auth.refresh(cookie);
+    res.cookie(REFRESH_COOKIE, refreshToken, this.cookieOptions());
+    return session;
+  }
+
+  /**
+   * Drops the refresh cookie. Public on purpose: logging out has to work even
+   * when the access token has already expired.
+   */
+  @Public()
+  @UseGuards(ClientHeaderGuard)
+  @Post('logout')
+  @HttpCode(204)
+  logout(@Res({ passthrough: true }) res: Response): void {
+    const { maxAge: _maxAge, ...options } = this.cookieOptions();
+    res.clearCookie(REFRESH_COOKIE, options);
   }
 
   // Any authenticated user (admin or seller) may read their own profile.
@@ -45,5 +99,12 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser() user: AuthUser): AuthUser {
     return user;
+  }
+
+  private cookieOptions(): CookieOptions {
+    return refreshCookieOptions({
+      NODE_ENV: this.config.get('NODE_ENV', { infer: true }),
+      JWT_REFRESH_TTL: this.config.get('JWT_REFRESH_TTL', { infer: true }),
+    });
   }
 }

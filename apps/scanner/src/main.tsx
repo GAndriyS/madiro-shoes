@@ -1,3 +1,4 @@
+import { restoreSession } from '@madiro/web-core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createRouter } from '@tanstack/react-router';
 import { StrictMode } from 'react';
@@ -27,10 +28,15 @@ declare module '@tanstack/react-router' {
   }
 }
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <RouterProvider router={router} />
-    </QueryClientProvider>
-  </StrictMode>,
-);
+// The access token is memory-only now (audit S-H3), so a reload starts without
+// one. Spend the httpOnly refresh cookie first and mount only then — otherwise
+// the route guard would bounce a perfectly valid session to the login screen.
+void restoreSession().finally(() => {
+  createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+      <QueryClientProvider client={queryClient}>
+        <RouterProvider router={router} />
+      </QueryClientProvider>
+    </StrictMode>,
+  );
+});

@@ -2,6 +2,7 @@ import { ConflictException, NotFoundException } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { SaleService } from './sale.service';
 
 function makeTx() {
@@ -13,6 +14,8 @@ function makeTx() {
 }
 
 describe('SaleService', () => {
+  /** Realtime is fire-and-forget: assert it fires, never let it fail a write. */
+  const realtime = { emit: jest.fn() };
   let service: SaleService;
   let tx: ReturnType<typeof makeTx>;
   const transaction = jest.fn();
@@ -27,6 +30,7 @@ describe('SaleService', () => {
     const moduleRef = await Test.createTestingModule({
       providers: [
         SaleService,
+        { provide: RealtimeGateway, useValue: realtime },
         {
           provide: PrismaService,
           useValue: {
@@ -174,6 +178,8 @@ describe('SaleService', () => {
       salePrice: 2850,
       paymentMethod: 'CARD',
     });
+    // The dashboard feed and KPIs follow the sale live (FR-B-04).
+    expect(realtime.emit).toHaveBeenCalledWith('sale');
   });
 
   it('списання: WRITTEN_OFF без ціни, з коментарем', async () => {
@@ -192,6 +198,7 @@ describe('SaleService', () => {
     expect(op.comment).toBe('Дефект підошви');
     expect(res.salePrice).toBeNull();
     expect(res.status).toBe('WRITTEN_OFF');
+    expect(realtime.emit).toHaveBeenCalledWith('writeoff');
   });
 
   it('конкурентність: пара вже не на складі → 409 (переможець один)', async () => {
@@ -201,6 +208,8 @@ describe('SaleService', () => {
       service.sell({ pairId: 'p1', salePrice: 100, paymentMethod: 'CASH' }, 'seller-1'),
     ).rejects.toBeInstanceOf(ConflictException);
     expect(tx.pair.update).not.toHaveBeenCalled();
+    // The loser of the race announces nothing.
+    expect(realtime.emit).not.toHaveBeenCalled();
   });
 
   it('неіснуюча пара → 404', async () => {

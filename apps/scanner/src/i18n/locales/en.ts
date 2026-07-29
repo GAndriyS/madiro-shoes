@@ -85,6 +85,7 @@ export const en: Messages = {
     rescan: 'Scan again',
     priceLabel: 'PURCHASE PRICE',
     pricePlaceholder: 'Price',
+    priceHintNote: "Prefilled with this variant's price — change it if needed",
     noPriceToggle: 'No price — old stock',
     withPriceToggle: 'Set a price',
     sellerDraftNote:
@@ -148,6 +149,8 @@ export const en: Messages = {
     guidelineOver: 'More than {{limit}} days since the sale — a guideline, returns are not blocked',
     note: 'The pair goes back to stock; the sale is cancelled out in statistics',
     cta: 'Return to stock · {{amount}}',
+    chooseCombo:
+      'Several sold pairs share this tag — pick the insulation and material of the one being returned',
     notFoundTitle: 'Sale not found',
     notFoundBody:
       'No sold pair {{style}} · {{color}} · size {{size}}. Check the fields above — the AI may have misread a digit.',
@@ -162,6 +165,8 @@ export const en: Messages = {
     pairsLabel: 'pairs sold',
     totalToday: 'total for the day',
     totalMonth: 'total for the month',
+    previousMonth: 'Previous month',
+    nextMonth: 'Next month',
     returnTag: 'return',
     returnNote: 'pair is back in stock',
     empty: 'No sales for this period yet.',

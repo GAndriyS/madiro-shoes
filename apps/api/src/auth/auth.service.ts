@@ -19,6 +19,17 @@ interface RefreshTokenPayload {
   ver: number;
 }
 
+/**
+ * What a successful login/refresh produces. The two tokens travel differently:
+ * the access token goes in the response body and lives in the client's memory,
+ * while the refresh token is turned into an httpOnly cookie by the controller
+ * and never reaches JavaScript (audit S-H3).
+ */
+export interface AuthTokens {
+  session: AuthResponse;
+  refreshToken: string;
+}
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -28,7 +39,7 @@ export class AuthService {
   ) {}
 
   // The same account serves the scanner and the dashboard; deleted sellers cannot log in.
-  async login(login: string, password: string): Promise<AuthResponse> {
+  async login(login: string, password: string): Promise<AuthTokens> {
     const user = await this.prisma.user.findFirst({
       where: { login, deletedAt: null },
     });
@@ -45,7 +56,7 @@ export class AuthService {
     );
   }
 
-  async refresh(refreshToken: string): Promise<AuthResponse> {
+  async refresh(refreshToken: string): Promise<AuthTokens> {
     let payload: RefreshTokenPayload;
     try {
       payload = await this.jwt.verifyAsync<RefreshTokenPayload>(refreshToken, {
@@ -73,7 +84,7 @@ export class AuthService {
     return this.buildAuthResponse(authUser, tokenVersion);
   }
 
-  private async buildAuthResponse(user: AuthUser, tokenVersion: number): Promise<AuthResponse> {
+  private async buildAuthResponse(user: AuthUser, tokenVersion: number): Promise<AuthTokens> {
     const accessPayload: AccessTokenPayload = { sub: user.id, role: user.role, ver: tokenVersion };
     const refreshPayload: RefreshTokenPayload = {
       sub: user.id,
@@ -92,6 +103,6 @@ export class AuthService {
       }),
     ]);
 
-    return { accessToken, refreshToken, user };
+    return { session: { accessToken, user }, refreshToken };
   }
 }

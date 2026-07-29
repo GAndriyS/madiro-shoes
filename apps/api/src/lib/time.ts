@@ -48,6 +48,27 @@ export function storeDayStartOf(date: string): Date {
   return storeDayStart(new Date(`${date}T12:00:00Z`));
 }
 
+/**
+ * Half-open `[start, end)` range of a calendar month ("YYYY-MM") in the store
+ * timezone. Unlike the open-ended "current month" range, this one is bounded on
+ * both sides, so an older month excludes everything that came after it.
+ *
+ * The end is derived by naming the first day of the *next* month rather than by
+ * adding days, so month lengths and the December → January rollover need no
+ * special case.
+ */
+export function storeMonthRange(month: string): { start: Date; end: Date } {
+  const [year, monthNumber] = month.split('-').map(Number) as [number, number];
+  const nextYear = monthNumber === 12 ? year + 1 : year;
+  const nextMonth = monthNumber === 12 ? 1 : monthNumber + 1;
+  const pad = (value: number): string => String(value).padStart(2, '0');
+
+  return {
+    start: storeDayStartOf(`${year}-${pad(monthNumber)}-01`),
+    end: storeDayStartOf(`${nextYear}-${pad(nextMonth)}-01`),
+  };
+}
+
 /** The store-timezone hour (0-23) of an instant — buckets the hourly chart. */
 export function storeHourOf(at: Date): number {
   return Number(

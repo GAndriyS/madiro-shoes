@@ -21,6 +21,8 @@ enum Material {
 }
 
 // Internal name is "season"; UIs label it «Утеплення» (none / fleece / sheepskin).
+// NONE is a statement ("no insulation"), not an absence — which is why the
+// column is required while material, where "unspecified" is a real state, is not.
 enum Season {
   NONE
   BAIKA
@@ -74,15 +76,17 @@ model Variant {
   style         String
   color         String
   material      Material?
-  season        Season?
+  season        Season    @default(NONE)
   purchasePrice Decimal?  @db.Decimal(10, 2)
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
 
   pairs Pair[]
 
-  // Postgres treats NULLs as distinct, so uniqueness of combinations with
-  // missing material/season is additionally enforced by the service layer.
+  // Postgres treats NULLs as distinct, so this constraint cannot cover
+  // combinations with a missing material. Those are kept unique by the
+  // transaction-scoped advisory lock in intake's findOrCreateVariant, which
+  // serializes the find-or-create per identity (docs/audit-2026-07, M-2).
   @@unique([style, color, material, season])
   @@index([style])
   @@map("variants")

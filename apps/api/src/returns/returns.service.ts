@@ -3,17 +3,59 @@ import type { CheckoutResult, PairLookupInput, ReturnLookupResponse } from '@mad
 
 import { storeDayStart } from '../lib/time';
 import { PrismaService } from '../prisma/prisma.service';
+import { RealtimeGateway } from '../realtime/realtime.gateway';
 
 @Injectable()
 export class ReturnsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly realtime: RealtimeGateway,
+  ) {}
 
   /**
    * Find the sale a customer return reverses (FR-S-14): the most recent
    * non-cancelled SALE of a still-sold pair matching the scanned tag
    * (rule 3.3 #6 — with several identical sold pairs, take the last sale).
+   *
+   * The tag only carries size·color·style, so the full 5-field identity
+   * (section 3.2) is resolved the same way checkout does it (rule 3.3 #5):
+   * the response lists the material/insulation combinations that actually have
+   * a returnable sale, an explicit choice narrows them, and a sale is returned
+   * only once exactly one combination remains. Without this, a return could
+   * reverse the sale of a different variant that happens to share
+   * style·color·size (leather vs suede).
    */
   async lookup(input: PairLookupInput): Promise<ReturnLookupResponse> {
+    // Variants whose sold pairs of this size still have a reversible sale.
+    const variants = await this.prisma.variant.findMany({
+      where: {
+        style: input.style,
+        color: input.color,
+        pairs: {
+          some: {
+            status: 'SOLD',
+            size: input.size,
+            operations: { some: { type: 'SALE', cancelledAt: null } },
+          },
+        },
+      },
+      select: { id: true, material: true, season: true },
+    });
+
+    const combos = variants.map((v) => ({ material: v.material, season: v.season }));
+
+    // `undefined` = the seller has not narrowed yet, explicit `null` = the
+    // combination without a value (mirrors pairLookupSchema).
+    const filtered = variants.filter(
+      (v) =>
+        (input.material === undefined || v.material === input.material) &&
+        (input.season === undefined || v.season === input.season),
+    );
+    const resolved = filtered.length === 1 ? filtered[0] : null;
+    if (!resolved) {
+      return { combos, sale: null };
+    }
+
     const op = await this.prisma.operation.findFirst({
       where: {
         type: 'SALE',
@@ -21,7 +63,7 @@ export class ReturnsService {
         pair: {
           status: 'SOLD',
           size: input.size,
-          variant: { style: input.style, color: input.color },
+          variantId: resolved.id,
         },
       },
       orderBy: { createdAt: 'desc' },
@@ -38,10 +80,11 @@ export class ReturnsService {
     });
 
     if (!op || op.salePrice == null) {
-      return { sale: null };
+      return { combos, sale: null };
     }
 
     return {
+      combos,
       sale: {
         operationId: op.id,
         pairId: op.pair.id,
@@ -72,8 +115,8 @@ export class ReturnsService {
    * basis — stored positive, read paths subtract it. Row-locked like a sale,
    * so a double return loses with a 409.
    */
-  register(operationId: string, userId: string): Promise<CheckoutResult> {
-    return this.prisma.$transaction(async (tx) => {
+  async register(operationId: string, userId: string): Promise<CheckoutResult> {
+    const result = await this.prisma.$transaction(async (tx) => {
       const sale = await tx.operation.findFirst({
         where: { id: operationId, type: 'SALE', cancelledAt: null },
         include: { pair: { select: { id: true } } },
@@ -120,5 +163,8 @@ export class ReturnsService {
         paymentMethod: sale.paymentMethod,
       };
     });
+
+    this.realtime.emit('return');
+    return result;
   }
 }

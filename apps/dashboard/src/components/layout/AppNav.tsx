@@ -4,7 +4,7 @@ import { useTranslation } from 'react-i18next';
 import type { ComponentType } from 'react';
 
 import { initials } from '@madiro/web-core';
-import { useAuthStore } from '@madiro/web-core';
+import { logout, useAuthStore } from '@madiro/web-core';
 import { BoxIcon, GridIcon, LogoutIcon, PlusIcon, UsersIcon } from '@madiro/web-core';
 
 interface NavItem {
@@ -47,12 +47,12 @@ export function Sidebar({ queueVariants }: { queueVariants: number }) {
   const { t } = useTranslation();
   const items = useNavItems(queueVariants);
   const user = useAuthStore((s) => s.user);
-  const clearSession = useAuthStore((s) => s.clearSession);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const logout = () => {
-    clearSession();
+  const signOut = async () => {
+    // Server-side too: the refresh cookie must be dropped, not just forgotten.
+    await logout();
     // Drop the previous admin's cached data so it can't flash to the next login.
     queryClient.clear();
     void navigate({ to: '/login' });
@@ -100,7 +100,7 @@ export function Sidebar({ queueVariants }: { queueVariants: number }) {
         </div>
         <button
           type="button"
-          onClick={logout}
+          onClick={() => void signOut()}
           className="flex items-center justify-center gap-[9px] py-1 text-xs text-sidebar-muted hover:text-page lg:justify-start"
         >
           <LogoutIcon size={14} />

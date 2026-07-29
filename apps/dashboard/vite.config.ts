@@ -9,6 +9,8 @@ export default defineConfig({
     port: 5173,
     proxy: {
       '/api': 'http://localhost:3000',
+      // Realtime goes through the same dev proxy, so the browser sees one origin.
+      '/socket.io': { target: 'http://localhost:3000', ws: true },
     },
   },
   test: {

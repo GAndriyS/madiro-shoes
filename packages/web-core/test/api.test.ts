@@ -14,7 +14,7 @@ function jsonResponse(status: number, body: unknown): Response {
 
 describe('api client', () => {
   beforeEach(() => {
-    useAuthStore.getState().setSession({ accessToken: 'old', refreshToken: 'r', user: admin });
+    useAuthStore.getState().setSession({ accessToken: 'old', user: admin });
   });
 
   afterEach(() => {
@@ -29,7 +29,7 @@ describe('api client', () => {
       if (u.endsWith('/api/auth/refresh')) {
         refreshCalls += 1;
         await new Promise((r) => setTimeout(r, 10));
-        return jsonResponse(200, { accessToken: 'new', refreshToken: 'r2', user: admin });
+        return jsonResponse(200, { accessToken: 'new', user: admin });
       }
       const auth = new Headers(init?.headers).get('Authorization');
       return auth === 'Bearer new'
@@ -113,7 +113,7 @@ describe('api client', () => {
     const fetchMock = vi.fn(async (url: string | URL, init?: RequestInit) => {
       if (String(url).endsWith('/api/auth/refresh')) {
         refreshed = true;
-        return jsonResponse(200, { accessToken: 'new', refreshToken: 'r2', user: admin });
+        return jsonResponse(200, { accessToken: 'new', user: admin });
       }
       expect(init?.body).toBeInstanceOf(FormData);
       const auth = new Headers(init?.headers).get('Authorization');

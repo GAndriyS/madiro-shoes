@@ -114,6 +114,25 @@ describe('Intake (e2e, real Postgres)', () => {
     expect(after).toBe(before);
   });
 
+  it('одночасне поступлення того самого варіанта без матеріалу/утеплення не дублює його', async () => {
+    const seller = await token('seller-intake', sellerPassword);
+    const body = { size: 39, color: '77', style: '9001' }; // material/season = null
+
+    // Postgres treats NULLs as distinct, so @@unique alone lets both inserts
+    // through (docs/audit-2026-07, M-2) — the advisory lock in
+    // findOrCreateVariant is what keeps this at a single variant.
+    const results = await Promise.all([
+      request(http).post('/api/intake').set('Authorization', `Bearer ${seller}`).send(body),
+      request(http).post('/api/intake').set('Authorization', `Bearer ${seller}`).send(body),
+    ]);
+    expect(results.map((r) => r.status)).toEqual([201, 201]);
+
+    const variants = await prisma.variant.findMany({ where: { style: '9001', color: '77' } });
+    expect(variants).toHaveLength(1);
+    // Both pairs landed on that one variant.
+    await expect(prisma.pair.count({ where: { variantId: variants[0]!.id } })).resolves.toBe(2);
+  });
+
   it('без токена → 401', async () => {
     await request(http)
       .post('/api/intake')
@@ -129,5 +148,75 @@ describe('Intake (e2e, real Postgres)', () => {
       .set('Authorization', `Bearer ${seller}`)
       .send({ size: 99, color: '36', style: '7645' })
       .expect(400);
+  });
+
+  describe('підказка ціни закупки (FR-D-08)', () => {
+    it('віддає ціну варіанта, ідентичність — та сама, що при поступленні', async () => {
+      const admin = await token('admin', adminPassword);
+
+      await request(http)
+        .post('/api/intake')
+        .set('Authorization', `Bearer ${admin}`)
+        .send({
+          size: 41,
+          color: '12',
+          style: '4400',
+          material: 'SUEDE',
+          season: 'BAIKA',
+          purchasePrice: 1750,
+        })
+        .expect(201);
+
+      const res = await request(http)
+        .get('/api/intake/price-hint')
+        .query({ style: '4400', color: '12', material: 'SUEDE', season: 'BAIKA' })
+        .set('Authorization', `Bearer ${admin}`)
+        .expect(200);
+
+      expect(res.body).toEqual({ purchasePrice: 1750 });
+    });
+
+    // The intake form may omit insulation; the hint must still find the variant
+    // the save would land in, or the suggestion silently disappears.
+    it('пропущене утеплення знаходить той самий варіант, що й NONE', async () => {
+      const admin = await token('admin', adminPassword);
+
+      await request(http)
+        .post('/api/intake')
+        .set('Authorization', `Bearer ${admin}`)
+        .send({ size: 40, color: '13', style: '4401', purchasePrice: 990 })
+        .expect(201);
+
+      const res = await request(http)
+        .get('/api/intake/price-hint')
+        .query({ style: '4401', color: '13' })
+        .set('Authorization', `Bearer ${admin}`)
+        .expect(200);
+
+      expect(res.body).toEqual({ purchasePrice: 990 });
+    });
+
+    it('невідомий варіант → підказки немає', async () => {
+      const admin = await token('admin', adminPassword);
+
+      const res = await request(http)
+        .get('/api/intake/price-hint')
+        .query({ style: '0000', color: '99' })
+        .set('Authorization', `Bearer ${admin}`)
+        .expect(200);
+
+      expect(res.body).toEqual({ purchasePrice: null });
+    });
+
+    // FR-B-02: this endpoint returns a purchase price, so a seller must not reach it.
+    it('продавцю закрито — 403, ціна закупки не витікає', async () => {
+      const seller = await token('seller-intake', sellerPassword);
+
+      await request(http)
+        .get('/api/intake/price-hint')
+        .query({ style: '4400', color: '12' })
+        .set('Authorization', `Bearer ${seller}`)
+        .expect(403);
+    });
   });
 });

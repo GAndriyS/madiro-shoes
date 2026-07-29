@@ -6,6 +6,7 @@ import {
   DialogTitle,
   LogoutIcon,
   initials,
+  logout,
   useAuthStore,
 } from '@madiro/web-core';
 import { useQueryClient } from '@tanstack/react-query';
@@ -24,10 +25,10 @@ export function ProfileSheet({ open, onClose, summary }: Props) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const user = useAuthStore((s) => s.user);
-  const clearSession = useAuthStore((s) => s.clearSession);
 
-  const logout = () => {
-    clearSession();
+  const signOut = async () => {
+    // Server-side too: the refresh cookie must be dropped, not just forgotten.
+    await logout();
     queryClient.clear();
     void navigate({ to: '/login' });
   };
@@ -84,7 +85,7 @@ export function ProfileSheet({ open, onClose, summary }: Props) {
 
         <button
           type="button"
-          onClick={logout}
+          onClick={() => void signOut()}
           className="flex items-center justify-center gap-2.5 rounded-[14px] border-[1.5px] border-[#d4a08a] bg-surface p-[15px] text-[15px] font-bold text-danger"
         >
           <LogoutIcon size={18} />

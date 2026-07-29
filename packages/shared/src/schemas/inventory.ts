@@ -42,16 +42,17 @@ export const intakeResultSchema = z.object({
 export type IntakeResult = z.infer<typeof intakeResultSchema>;
 
 /**
- * Pair lookup by the 5 identity fields (section 3.2). For material/season,
- * `undefined` = no filter, explicit `null` = "the combination without a value"
- * (variants created before the field existed) — the narrowing pills need both.
+ * Pair lookup by the 5 identity fields (section 3.2). `undefined` = no filter.
+ * Material additionally accepts an explicit `null` — "the combination with no
+ * material specified" is a real thing to narrow to, and the pills need it.
+ * Insulation has no such case: «Без утеплення» is the `NONE` value.
  */
 export const pairLookupSchema = z.object({
   size: sizeSchema,
   color: tagCodeSchema,
   style: tagCodeSchema,
   material: z.enum(MATERIALS).nullable().optional(),
-  season: z.enum(SEASONS).nullable().optional(),
+  season: z.enum(SEASONS).optional(),
 });
 export type PairLookupInput = z.infer<typeof pairLookupSchema>;
 
@@ -62,7 +63,7 @@ export type PairLookupInput = z.infer<typeof pairLookupSchema>;
  */
 export const saleComboSchema = z.object({
   material: z.enum(MATERIALS).nullable(),
-  season: z.enum(SEASONS).nullable(),
+  season: z.enum(SEASONS),
   sizes: z.array(sizeSchema),
 });
 export type SaleCombo = z.infer<typeof saleComboSchema>;
@@ -74,7 +75,7 @@ export const foundPairSchema = z.object({
   color: tagCodeSchema,
   size: sizeSchema,
   material: z.enum(MATERIALS).nullable(),
-  season: z.enum(SEASONS).nullable(),
+  season: z.enum(SEASONS),
   intakeDate: z.string(),
   awaitingPrice: z.boolean(),
 });
@@ -140,7 +141,7 @@ export const stockSearchResponseSchema = z.object({
       style: tagCodeSchema,
       color: tagCodeSchema,
       material: z.enum(MATERIALS).nullable(),
-      season: z.enum(SEASONS).nullable(),
+      season: z.enum(SEASONS),
       sizes: z.array(z.object({ size: sizeSchema, count: z.number().int().positive() })),
     }),
   ),
@@ -148,11 +149,25 @@ export const stockSearchResponseSchema = z.object({
 export type StockSearchResponse = z.infer<typeof stockSearchResponseSchema>;
 
 /**
+ * One material/insulation combination among the sold pairs that match the
+ * scanned tag. The tag carries 3 of the 5 identity fields, so the same
+ * style·color·size can belong to several variants (leather vs suede, fleece vs
+ * none) — the seller narrows it down exactly as on checkout (rule 3.3 #5).
+ */
+export const returnComboSchema = z.object({
+  material: z.enum(MATERIALS).nullable(),
+  season: z.enum(SEASONS),
+});
+export type ReturnCombo = z.infer<typeof returnComboSchema>;
+
+/**
  * Customer return lookup (FR-S-14): the scanned tag finds the most recent
- * sale of a matching sold pair (rule 3.3 #6). Null when no sale matches.
- * No purchase prices here (FR-B-02).
+ * sale of a matching sold pair (rule 3.3 #6). `combos` lists the combinations
+ * that actually have a returnable sale; `sale` stays null while the choice is
+ * ambiguous or nothing matches. No purchase prices here (FR-B-02).
  */
 export const returnLookupResponseSchema = z.object({
+  combos: z.array(returnComboSchema),
   sale: z
     .object({
       operationId: z.string(),
@@ -161,7 +176,7 @@ export const returnLookupResponseSchema = z.object({
       color: tagCodeSchema,
       size: sizeSchema,
       material: z.enum(MATERIALS).nullable(),
-      season: z.enum(SEASONS).nullable(),
+      season: z.enum(SEASONS),
       salePrice: moneySchema,
       paymentMethod: z.enum(PAYMENT_METHODS).nullable(),
       soldAt: z.string(),
@@ -178,6 +193,32 @@ export const returnSchema = z.object({
   operationId: z.string().min(1),
 });
 export type ReturnInput = z.infer<typeof returnSchema>;
+
+/**
+ * Purchase price hint for an intake in progress (FR-D-08, «підказка ціни»).
+ * Keyed by the variant identity the admin is currently filling in, so the query
+ * mirrors the find-or-create that the save will perform: same fields, same
+ * defaults. Admin-only — this carries a purchase price (FR-B-02).
+ */
+export const priceHintQuerySchema = z.object({
+  color: tagCodeSchema,
+  style: tagCodeSchema,
+  material: z.enum(MATERIALS).optional(),
+  season: z.enum(SEASONS).optional(),
+});
+export type PriceHintQuery = z.infer<typeof priceHintQuerySchema>;
+
+/**
+ * `purchasePrice` is the price this exact variant currently carries: a number,
+ * `0` for «без ціни — старий товар», or null when the variant is new or has
+ * never been priced — in which case the form stays empty and the admin decides.
+ */
+export const priceHintResponseSchema = z.object({
+  // Plain number, not moneySchema: 0 is «без ціни — старий товар», and
+  // moneySchema is positive-only (same reason the other read paths do this).
+  purchasePrice: z.number().nullable(),
+});
+export type PriceHintResponse = z.infer<typeof priceHintResponseSchema>;
 
 /** Setting a variant's purchase price from the queue (FR-D-08); null = "no price — old stock". */
 export const setPurchasePriceSchema = z.object({

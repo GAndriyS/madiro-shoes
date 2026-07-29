@@ -163,6 +163,35 @@ describe('Dashboard (e2e, real Postgres)', () => {
     expect(filtered.items[0]!.style).toBe('5211');
   });
 
+  it('склад: пошук, розмір, «залишок ≤ 2», сортування й пагінація — на боці БД', async () => {
+    const list = async (qs: string) =>
+      stockListResponseSchema.parse(
+        (await asAdmin(request(http).get(`/api/stock/variants${qs}`)).expect(200)).body,
+      );
+
+    // Search matches style, colour code and size alike.
+    expect((await list('?search=7645')).items.map((r) => r.style)).toEqual(['7645']);
+    expect((await list('?search=44')).items.map((r) => r.style)).toEqual(['5211']); // colour
+    expect((await list('?search=39')).items.map((r) => r.style)).toEqual(['7645']); // size
+    expect(await list('?search=нема')).toMatchObject({ total: 0, items: [] });
+
+    // Chips: exact size, material, «залишок ≤ 2» (1 and 2 pairs — both qualify).
+    expect((await list('?size=36')).items.map((r) => r.style)).toEqual(['5211']);
+    expect((await list('?material=SUEDE')).items.map((r) => r.style)).toEqual(['5211']);
+    expect((await list('?lowStock=true')).items.map((r) => r.style)).toEqual(['5211', '7645']);
+
+    // Sort direction is applied by Postgres, not by the page slice.
+    expect((await list('?sort=style-asc')).items.map((r) => r.style)).toEqual(['5211', '7645']);
+    expect((await list('?sort=style-desc')).items.map((r) => r.style)).toEqual(['7645', '5211']);
+
+    // A page past the end still reports the real total, so the pager works.
+    const beyond = await list('?page=5');
+    expect(beyond.items).toEqual([]);
+    expect(beyond.total).toBe(2);
+    // The summary spans the whole stock even when a filter narrows the page.
+    expect((await list('?search=7645')).summary.pairsTotal).toBe(3);
+  });
+
   it('деталі варіанта: пари, історія з підписаними сумами, KPI', async () => {
     const res = await asAdmin(request(http).get(`/api/stock/variants/${pricedVariantId}`)).expect(
       200,
@@ -258,5 +287,48 @@ describe('Dashboard (e2e, real Postgres)', () => {
     await asAdmin(request(http).delete(`/api/stock/pairs/${stockPairId}`)).expect(200);
     expect(await prisma.pair.findUnique({ where: { id: stockPairId } })).toBeNull();
     expect(await prisma.operation.findFirst({ where: { pairId: stockPairId } })).toBeNull();
+  });
+  it('скасування продажу: пара на склад, продаж зникає зі статистики (FR-D-07)', async () => {
+    const before = variantDetailSchema.parse(
+      (await asAdmin(request(http).get(`/api/stock/variants/${pricedVariantId}`)).expect(200)).body,
+    );
+    const sale = before.history.find((h) => h.type === 'SALE')!;
+    expect(sale.canCancel).toBe(true);
+    // Intakes are not reversible by decision (§7.2) — the UI never offers it.
+    expect(before.history.filter((h) => h.type === 'INTAKE').every((h) => !h.canCancel)).toBe(true);
+
+    const revenueBefore = overviewResponseSchema.parse(
+      (await asAdmin(request(http).get('/api/stats/overview?period=today')).expect(200)).body,
+    ).revenue;
+
+    await asAdmin(request(http).post(`/api/stock/operations/${sale.id}/cancel`)).expect(200);
+
+    const cancelled = await prisma.operation.findUniqueOrThrow({ where: { id: sale.id } });
+    expect(cancelled.cancelledAt).not.toBeNull();
+
+    const after = variantDetailSchema.parse(
+      (await asAdmin(request(http).get(`/api/stock/variants/${pricedVariantId}`)).expect(200)).body,
+    );
+    // The pair is back on the shelf and the cancelled sale left the history.
+    expect(after.pairs).toHaveLength(before.pairs.length + 1);
+    expect(after.history.some((h) => h.id === sale.id)).toBe(false);
+
+    const revenueAfter = overviewResponseSchema.parse(
+      (await asAdmin(request(http).get('/api/stats/overview?period=today')).expect(200)).body,
+    ).revenue;
+    expect(revenueAfter).toBe(revenueBefore - (sale.amount ?? 0));
+
+    // Cancelling twice is a conflict, not a second reversal.
+    await asAdmin(request(http).post(`/api/stock/operations/${sale.id}/cancel`)).expect(409);
+  });
+
+  it('скасування: тільки продаж або списання, тільки адмін', async () => {
+    const intake = await prisma.operation.findFirstOrThrow({ where: { type: 'INTAKE' } });
+    await asAdmin(request(http).post(`/api/stock/operations/${intake.id}/cancel`)).expect(400);
+    await asAdmin(request(http).post('/api/stock/operations/ghost/cancel')).expect(404);
+    await request(http)
+      .post(`/api/stock/operations/${intake.id}/cancel`)
+      .set('Authorization', `Bearer ${sellerToken}`)
+      .expect(403);
   });
 });
