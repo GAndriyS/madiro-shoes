@@ -236,6 +236,18 @@ describe('ConfirmForm', () => {
       );
     });
 
+    it('ролі в ручному режимі: продавець без секції ціни, адмін — з нею', () => {
+      asSeller();
+      const { unmount } = renderForm({ recognition: null });
+      expect(screen.queryByText('ЦІНА ЗАКУПКИ')).not.toBeInTheDocument();
+      expect(screen.getByText(/Ціну закупки додасть адміністратор/)).toBeInTheDocument();
+      unmount();
+
+      asAdmin();
+      renderForm({ recognition: null });
+      expect(screen.getByText('ЦІНА ЗАКУПКИ')).toBeInTheDocument();
+    });
+
     it('розмір поза межами 16–50 блокує збереження', async () => {
       asSeller();
       renderForm({ recognition: null });

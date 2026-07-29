@@ -69,9 +69,17 @@ function IntakePage() {
     onError: () => setToast(t('intake.saveError')),
   });
 
-  const goManual = () => void navigate({ to: '/manual' });
+  // Manual entry stays INSIDE the intake flow (S-1.2/S-1.3): an empty confirm
+  // form, not /manual — that route is the checkout flow and selling a pair is
+  // the opposite of receiving one.
+  const goManual = () => {
+    recognize.reset();
+    setRecognition(null);
+    setStep('confirm');
+  };
   const rescan = () => {
     recognize.reset();
+    setRecognition(null);
     setStep('capture');
   };
 
@@ -86,9 +94,9 @@ function IntakePage() {
           {toast}
         </div>
       )}
-      {step === 'confirm' && recognition ? (
+      {step === 'confirm' ? (
         <ConfirmForm
-          recognition={recognition}
+          {...(recognition ? { recognition } : {})}
           saving={save.isPending}
           onSave={onSave}
           onRescan={rescan}
