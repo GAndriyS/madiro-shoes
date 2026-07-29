@@ -207,5 +207,6 @@ export const uk = {
     awaitingPrice_few: '{{count}} очікують ціни',
     awaitingPrice_many: '{{count}} очікують ціни',
     awaitingPrice_other: '{{count}} очікує ціни',
+    truncated: 'Показано перші {{count}} — уточніть запит, щоб побачити решту',
   },
 };

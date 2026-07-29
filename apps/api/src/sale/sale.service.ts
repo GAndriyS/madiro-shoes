@@ -131,19 +131,24 @@ export class SaleService {
    * pairs and per-size counts. No prices of any kind — seller-safe (FR-B-02).
    */
   async search(stylePrefix: string): Promise<StockSearchResponse> {
-    const variants = await this.prisma.variant.findMany({
+    const PAGE = 20;
+    // One extra row is the cheapest honest "there was more" signal (S-13).
+    const rows = await this.prisma.variant.findMany({
       where: {
         style: { startsWith: stylePrefix },
         pairs: { some: { status: 'IN_STOCK' } },
       },
       orderBy: [{ style: 'asc' }, { color: 'asc' }],
-      take: 20,
+      take: PAGE + 1,
       include: {
         pairs: { where: { status: 'IN_STOCK' }, select: { size: true, awaitingPrice: true } },
       },
     });
+    const truncated = rows.length > PAGE;
+    const variants = truncated ? rows.slice(0, PAGE) : rows;
 
     return {
+      truncated,
       items: variants.map((v) => {
         const counts = new Map<number, number>();
         let awaitingPriceCount = 0;

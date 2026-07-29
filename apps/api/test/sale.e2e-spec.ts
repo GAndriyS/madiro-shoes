@@ -209,6 +209,32 @@ describe('Sale (e2e, real Postgres)', () => {
     await prisma.pair.delete({ where: { id: draft.id } });
   });
 
+  // S-13: a page-limited search must SAY it was cut, not pose as complete.
+  it('search: понад 20 варіантів → truncated=true і рівно 20 позицій', async () => {
+    const created: string[] = [];
+    for (let i = 0; i < 21; i += 1) {
+      const v = await prisma.variant.create({
+        data: { style: '5500', color: String(100 + i), season: 'NONE' },
+      });
+      const p = await prisma.pair.create({
+        data: { variantId: v.id, size: 40, createdById: sellerId },
+      });
+      created.push(p.id);
+    }
+
+    const res = await request(http)
+      .get('/api/sale/search')
+      .query({ style: '55' })
+      .set('Authorization', `Bearer ${sellerToken}`)
+      .expect(200);
+    const parsed = stockSearchResponseSchema.parse(res.body);
+    expect(parsed.truncated).toBe(true);
+    expect(parsed.items).toHaveLength(20);
+
+    await prisma.pair.deleteMany({ where: { id: { in: created } } });
+    await prisma.variant.deleteMany({ where: { style: '5500' } });
+  });
+
   it('без токена → 401', async () => {
     await request(http)
       .post('/api/sale/lookup')

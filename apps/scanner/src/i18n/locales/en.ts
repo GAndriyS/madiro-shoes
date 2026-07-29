@@ -206,5 +206,6 @@ export const en: Messages = {
     empty: 'No variants in stock with style {{style}}…',
     awaitingPrice_one: '{{count}} awaiting price',
     awaitingPrice_other: '{{count}} awaiting price',
+    truncated: 'Showing the first {{count}} — narrow the search to see the rest',
   },
 };

@@ -7,12 +7,24 @@ import {
 import { ChevronRightIcon, QueryBoundary, SearchIcon, api } from '@madiro/web-core';
 import { useQuery } from '@tanstack/react-query';
 import { Link, createFileRoute } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export const Route = createFileRoute('/_app/search')({
   component: SearchPage,
 });
+
+/** Wait for the typing to settle — one request per pause, not per digit (S-13). */
+const DEBOUNCE_MS = 300;
+
+function useDebounced<T>(value: T, delayMs: number): T {
+  const [settled, setSettled] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(value), delayMs);
+    return () => clearTimeout(timer);
+  }, [value, delayMs]);
+  return settled;
+}
 
 /**
  * Reference stock search by style (FR-S-16): type the style code, see the
@@ -22,14 +34,15 @@ export const Route = createFileRoute('/_app/search')({
 function SearchPage() {
   const { t } = useTranslation();
   const [style, setStyle] = useState('');
-  const enabled = style.length >= 2;
+  const settledStyle = useDebounced(style, DEBOUNCE_MS);
+  const enabled = style.length >= 2 && settledStyle === style;
 
   const results = useQuery({
-    queryKey: ['stock', 'search', style],
+    queryKey: ['stock', 'search', settledStyle],
     enabled,
     queryFn: async () =>
       stockSearchResponseSchema.parse(
-        await api.get<StockSearchResponse>(`/sale/search?style=${style}`),
+        await api.get<StockSearchResponse>(`/sale/search?style=${settledStyle}`),
       ),
   });
 
@@ -84,6 +97,11 @@ function SearchPage() {
               </div>
             ) : (
               <div className="flex flex-col gap-2.5">
+                {results.data.truncated && (
+                  <div className="rounded-xl border border-dashed border-border-input bg-surface px-4 py-3 text-[12.5px] text-text-secondary">
+                    {t('search.truncated', { count: results.data.items.length })}
+                  </div>
+                )}
                 {results.data.items.map((item) => {
                   const traits = [
                     item.material ? materialLabels[item.material] : null,

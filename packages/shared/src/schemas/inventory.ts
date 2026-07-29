@@ -147,6 +147,9 @@ export const stockSearchResponseSchema = z.object({
       awaitingPriceCount: z.number().int().min(0),
     }),
   ),
+  /** True when more variants matched than the page returned (S-13): the UI
+   * must say «showing first N», never silently pretend this is everything. */
+  truncated: z.boolean(),
 });
 export type StockSearchResponse = z.infer<typeof stockSearchResponseSchema>;
 
