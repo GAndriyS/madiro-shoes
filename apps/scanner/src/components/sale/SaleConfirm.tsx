@@ -21,6 +21,9 @@ interface SaleConfirmProps {
   onFieldChange: (field: 'size' | 'color' | 'style', value: string) => void;
   lookup: SaleLookupResponse | undefined;
   loading: boolean;
+  /** The lookup request itself failed — show a retry, not «не знайдено». */
+  lookupError?: boolean;
+  onRetry?: () => void;
   /** Explicit narrowing choice; undefined = not narrowed yet. */
   selectedCombo: ComboChoice | undefined;
   onComboSelect: (combo: ComboChoice) => void;
@@ -49,6 +52,8 @@ export function SaleConfirm({
   onFieldChange,
   lookup,
   loading,
+  lookupError = false,
+  onRetry,
   selectedCombo,
   onComboSelect,
   onSizeSelect,
@@ -89,6 +94,7 @@ export function SaleConfirm({
   // Not-found is an error only once the choice is unambiguous (or empty stock).
   const notFound =
     !loading &&
+    !lookupError &&
     fieldsValid &&
     lookup != null &&
     lookup.pair == null &&
@@ -199,6 +205,31 @@ export function SaleConfirm({
               );
             })}
           </div>
+        </div>
+      )}
+
+      {lookupError && (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-start gap-3 rounded-xl border border-[#d4a08a] bg-[#f5e5dc] px-4 py-3.5">
+            <AlertIcon size={20} className="mt-0.5 flex-none text-[#a05c3b]" />
+            <div className="flex flex-col gap-1">
+              <span className="text-[13.5px] font-bold text-[#a05c3b]">
+                {t('sale.lookupErrorTitle')}
+              </span>
+              <span className="text-[12.5px] leading-snug text-[#a05c3b]">
+                {t('sale.lookupErrorBody')}
+              </span>
+            </div>
+          </div>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="rounded-[14px] bg-ink p-[15px] text-center text-[15px] font-bold text-page"
+            >
+              {t('sale.lookupRetry')}
+            </button>
+          )}
         </div>
       )}
 

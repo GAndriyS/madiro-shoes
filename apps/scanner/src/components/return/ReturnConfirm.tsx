@@ -19,6 +19,9 @@ interface ReturnConfirmProps {
   lookup: ReturnLookupResponse | undefined;
   loading: boolean;
   saving: boolean;
+  /** The lookup request itself failed — show a retry, not «не знайдено». */
+  lookupError?: boolean;
+  onRetry?: () => void;
   /** Explicit narrowing choice; undefined = not narrowed yet. */
   selectedCombo?: ComboChoice | undefined;
   onComboSelect?: (combo: ComboChoice) => void;
@@ -43,6 +46,8 @@ export function ReturnConfirm({
   lookup,
   loading,
   saving,
+  lookupError = false,
+  onRetry,
   selectedCombo,
   onComboSelect,
   onConfirm,
@@ -76,9 +81,11 @@ export function ReturnConfirm({
     selectedCombo ?? (combos.length === 1 ? combos[0] : undefined);
   // Several returnable variants share this tag and none is picked yet: ask
   // instead of reversing an arbitrary sale.
-  const ambiguous = !loading && sale == null && combos.length > 1 && effectiveCombo == null;
+  const ambiguous =
+    !loading && !lookupError && sale == null && combos.length > 1 && effectiveCombo == null;
   const fieldsValid = size.length > 0 && color.length > 0 && style.length > 0;
-  const notFound = !loading && fieldsValid && lookup != null && sale == null && !ambiguous;
+  const notFound =
+    !loading && !lookupError && fieldsValid && lookup != null && sale == null && !ambiguous;
 
   const soldLine = () => {
     if (!sale) return '';
@@ -208,6 +215,31 @@ export function ReturnConfirm({
             {t('return.note')}
           </div>
         </>
+      )}
+
+      {lookupError && (
+        <div className="flex flex-col gap-3">
+          <div className="flex items-start gap-3 rounded-xl border border-[#d4a08a] bg-[#f5e5dc] px-4 py-3.5">
+            <AlertIcon size={20} className="mt-0.5 flex-none text-[#a05c3b]" />
+            <div className="flex flex-col gap-1">
+              <span className="text-[13.5px] font-bold text-[#a05c3b]">
+                {t('return.lookupErrorTitle')}
+              </span>
+              <span className="text-[12.5px] leading-snug text-[#a05c3b]">
+                {t('return.lookupErrorBody')}
+              </span>
+            </div>
+          </div>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="rounded-[14px] bg-ink p-[15px] text-center text-[15px] font-bold text-page"
+            >
+              {t('sale.lookupRetry')}
+            </button>
+          )}
+        </div>
       )}
 
       {notFound && (

@@ -132,4 +132,36 @@ describe('SaleConfirm', () => {
     expect(screen.getByText('2 пари')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Пошук по складу вручну' })).toBeInTheDocument();
   });
+
+  // S-3.1: a failed lookup request is a connectivity problem, not «не знайдено».
+  it('збій lookup: повідомлення і «Спробувати ще раз», без хибного «не знайдено»', async () => {
+    const onRetry = vi.fn();
+    render(
+      <SaleConfirm
+        photoUrl={null}
+        size="38"
+        color="36"
+        style="7645"
+        onFieldChange={() => {}}
+        lookup={undefined}
+        loading={false}
+        lookupError
+        onRetry={onRetry}
+        selectedCombo={undefined}
+        onComboSelect={() => {}}
+        onSizeSelect={() => {}}
+        onNext={() => {}}
+        onRescan={() => {}}
+        onManualSearch={() => {}}
+        onBack={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('Не вдалося перевірити склад')).toBeInTheDocument();
+    expect(screen.queryByText('Пару не знайдено на складі')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Далі — деталі виходу' })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Спробувати ще раз' }));
+    expect(onRetry).toHaveBeenCalled();
+  });
 });

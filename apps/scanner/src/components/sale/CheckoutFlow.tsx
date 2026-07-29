@@ -179,6 +179,8 @@ export function CheckoutFlow({ manual = false }: CheckoutFlowProps) {
           onFieldChange={onFieldChange}
           lookup={lookup.data}
           loading={lookup.isFetching}
+          lookupError={lookup.isError}
+          onRetry={() => void lookup.refetch()}
           selectedCombo={combo}
           onComboSelect={setCombo}
           onSizeSelect={(s) => setFields((f) => ({ ...f, size: String(s) }))}

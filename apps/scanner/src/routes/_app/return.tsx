@@ -135,6 +135,8 @@ function ReturnPage() {
           }}
           lookup={lookup.data}
           loading={lookup.isFetching}
+          lookupError={lookup.isError}
+          onRetry={() => void lookup.refetch()}
           saving={register.isPending}
           selectedCombo={combo}
           onComboSelect={setCombo}

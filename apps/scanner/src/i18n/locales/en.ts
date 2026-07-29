@@ -136,6 +136,9 @@ export const en: Messages = {
     writtenOffToast: 'Write-off registered',
     conflict: 'The pair was already sold or written off — stock refreshed',
     saveError: 'Could not save. Please try again.',
+    lookupErrorTitle: 'Could not check the stock',
+    lookupErrorBody: 'Looks like a connection problem. Stock data did not load.',
+    lookupRetry: 'Try again',
   },
   return: {
     title: 'Customer return',
@@ -158,6 +161,8 @@ export const en: Messages = {
     registeredToast: 'Return registered',
     conflict: 'This pair was already returned or written off',
     saveError: 'Could not save. Please try again.',
+    lookupErrorTitle: 'Could not check the sales',
+    lookupErrorBody: 'Looks like a connection problem. Sales data did not load.',
   },
   mySales: {
     title: 'My sales',
