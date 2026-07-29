@@ -85,6 +85,7 @@ export const en: Messages = {
     rescan: 'Scan again',
     priceLabel: 'PURCHASE PRICE',
     pricePlaceholder: 'Price',
+    priceHintNote: "Prefilled with this variant's price — change it if needed",
     noPriceToggle: 'No price — old stock',
     withPriceToggle: 'Set a price',
     sellerDraftNote:
@@ -164,6 +165,8 @@ export const en: Messages = {
     pairsLabel: 'pairs sold',
     totalToday: 'total for the day',
     totalMonth: 'total for the month',
+    previousMonth: 'Previous month',
+    nextMonth: 'Next month',
     returnTag: 'return',
     returnNote: 'pair is back in stock',
     empty: 'No sales for this period yet.',

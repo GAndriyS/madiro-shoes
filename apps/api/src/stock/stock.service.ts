@@ -42,7 +42,7 @@ interface StockRowSql {
   style: string;
   color: string;
   material: 'LEATHER' | 'SUEDE' | null;
-  season: 'NONE' | 'BAIKA' | 'SHEEPSKIN' | null;
+  season: 'NONE' | 'BAIKA' | 'SHEEPSKIN';
   purchase_price: number | null;
   pairs_count: number;
   awaiting_count: number;

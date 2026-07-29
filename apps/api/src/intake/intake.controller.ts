@@ -12,11 +12,13 @@ import {
 import {
   draftUpdateSchema,
   intakeSchema,
+  priceHintQuerySchema,
   type AuthUser,
   type IntakeHistoryResponse,
   type IntakeQueueResponse,
   type IntakeResult,
   type MyDraft,
+  type PriceHintResponse,
 } from '@madiro/shared';
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
@@ -35,6 +37,21 @@ export class IntakeController {
       throw new BadRequestException(parsed.error.issues);
     }
     return this.intake.create(parsed.data, user);
+  }
+
+  /**
+   * Purchase price hint while filling in an intake (FR-D-08). ADMIN only, and
+   * not merely because the dashboard is: this returns a purchase price, which
+   * FR-B-02 keeps away from sellers on every endpoint without exception.
+   */
+  @Get('price-hint')
+  @Roles('ADMIN')
+  priceHint(@Query() query: Record<string, string>): Promise<PriceHintResponse> {
+    const parsed = priceHintQuerySchema.safeParse(query);
+    if (!parsed.success) {
+      throw new BadRequestException(parsed.error.issues);
+    }
+    return this.intake.priceHint(parsed.data);
   }
 
   // Dashboard queue/history are admin-only (method-level @Roles overrides the class).

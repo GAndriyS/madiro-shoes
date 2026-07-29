@@ -5,6 +5,8 @@ import { Link, createFileRoute } from '@tanstack/react-router';
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { currentMonthKey, monthLabel, shiftMonth } from '../../lib/months';
+
 export const Route = createFileRoute('/_app/my-sales')({
   component: MySalesPage,
 });
@@ -17,17 +19,22 @@ export const Route = createFileRoute('/_app/my-sales')({
 function MySalesPage() {
   const { t, i18n } = useTranslation();
   const [period, setPeriod] = useState<MySalesPeriod>('today');
+  const thisMonth = currentMonthKey();
+  const [month, setMonth] = useState(thisMonth);
 
   const sales = useQuery({
-    queryKey: ['me', 'sales', period],
+    queryKey: ['me', 'sales', period, period === 'month' ? month : null],
     queryFn: async () =>
-      mySalesResponseSchema.parse(await api.get<MySalesResponse>(`/me/sales?period=${period}`)),
+      mySalesResponseSchema.parse(
+        await api.get<MySalesResponse>(
+          period === 'month' ? `/me/sales?period=month&month=${month}` : '/me/sales?period=today',
+        ),
+      ),
   });
 
-  const monthName = new Date().toLocaleDateString(i18n.language === 'uk' ? 'uk-UA' : 'en-GB', {
-    month: 'long',
-  });
-  const monthLabel = monthName.charAt(0).toUpperCase() + monthName.slice(1);
+  const selectedMonthLabel = monthLabel(month, i18n.language);
+  // Nothing can be sold in a month that has not started.
+  const atCurrentMonth = month >= thisMonth;
 
   const paymentWord = (method: 'CASH' | 'CARD' | null) =>
     method === 'CARD'
@@ -53,14 +60,19 @@ function MySalesPage() {
         {(
           [
             { value: 'today', label: t('mySales.today') },
-            { value: 'month', label: monthLabel },
+            { value: 'month', label: selectedMonthLabel },
           ] as const
         ).map(({ value, label }) => (
           <button
             key={value}
             type="button"
             aria-pressed={period === value}
-            onClick={() => setPeriod(value)}
+            onClick={() => {
+              // Coming back to the month tab always lands on the current month,
+              // so a seller cannot mistake an old month's total for today's work.
+              if (value === 'month' && period !== 'month') setMonth(thisMonth);
+              setPeriod(value);
+            }}
             className={cn(
               'flex-1 rounded-[9px] p-[9px] text-center text-[13.5px]',
               period === value
@@ -72,6 +84,29 @@ function MySalesPage() {
           </button>
         ))}
       </div>
+
+      {period === 'month' && (
+        <div className="flex items-center justify-between rounded-xl border border-border bg-surface px-2 py-1.5">
+          <button
+            type="button"
+            aria-label={t('mySales.previousMonth')}
+            onClick={() => setMonth(shiftMonth(month, -1))}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-text-secondary"
+          >
+            <ChevronRightIcon size={16} className="rotate-180" />
+          </button>
+          <span className="text-[13.5px] font-bold text-ink">{selectedMonthLabel}</span>
+          <button
+            type="button"
+            aria-label={t('mySales.nextMonth')}
+            disabled={atCurrentMonth}
+            onClick={() => setMonth(shiftMonth(month, 1))}
+            className="flex h-9 w-9 items-center justify-center rounded-full text-text-secondary disabled:opacity-30"
+          >
+            <ChevronRightIcon size={16} />
+          </button>
+        </div>
+      )}
 
       <QueryBoundary
         isPending={sales.isPending}

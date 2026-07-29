@@ -126,6 +126,47 @@ describe('My sales & drafts (e2e, real Postgres)', () => {
     expect(mySalesResponseSchema.parse(res.body).items).toHaveLength(1);
   });
 
+  it('/me/sales: явний поточний місяць бачить той самий продаж', async () => {
+    // The seeded sale happened "now", so the store's current month must contain it.
+    const month = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Europe/Kyiv',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    })
+      .format(new Date())
+      .slice(0, 7);
+
+    const res = await request(http)
+      .get('/api/me/sales')
+      .query({ period: 'month', month })
+      .set('Authorization', `Bearer ${oliaToken}`)
+      .expect(200);
+    expect(mySalesResponseSchema.parse(res.body).items).toHaveLength(1);
+  });
+
+  // The bounded range is the whole point: an old month must not sweep in later sales.
+  it('/me/sales: минулий місяць порожній, а не «все від тієї дати»', async () => {
+    const res = await request(http)
+      .get('/api/me/sales')
+      .query({ period: 'month', month: '2020-01' })
+      .set('Authorization', `Bearer ${oliaToken}`)
+      .expect(200);
+
+    const parsed = mySalesResponseSchema.parse(res.body);
+    expect(parsed.items).toHaveLength(0);
+    expect(parsed.pairs).toBe(0);
+    expect(parsed.total).toBe(0);
+  });
+
+  it('/me/sales: некоректний формат місяця → 400', async () => {
+    await request(http)
+      .get('/api/me/sales')
+      .query({ period: 'month', month: '2026-13' })
+      .set('Authorization', `Bearer ${oliaToken}`)
+      .expect(400);
+  });
+
   it('/me/drafts: власні пари на складі зі статусом awaitingPrice', async () => {
     const res = await request(http)
       .get('/api/me/drafts')

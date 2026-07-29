@@ -1,11 +1,20 @@
 import type { IntakeInput } from '@madiro/shared';
 import { useAuthStore } from '@madiro/web-core';
-import { cleanup, render, screen } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { ConfirmForm, type SaveMode } from '../src/components/intake/ConfirmForm';
 import { initI18n } from '../src/i18n';
+
+// The form asks the API for a purchase price hint; the network is not the
+// subject here, so only that one call is stubbed.
+const apiGet = vi.fn();
+vi.mock('@madiro/web-core', async () => {
+  const actual = await vi.importActual<typeof import('@madiro/web-core')>('@madiro/web-core');
+  return { ...actual, api: { ...actual.api, get: (path: string) => apiGet(path) } };
+});
 
 const recognition = { size: 38, color: '36', style: '7645', confidence: 0.97 };
 const seller = { id: 'u1', name: 'Оля', login: 'olia', role: 'SELLER' as const };
@@ -19,6 +28,12 @@ describe('ConfirmForm', () => {
     initI18n();
   });
 
+  beforeEach(() => {
+    // Default: nothing known about this variant, so no hint interferes.
+    apiGet.mockReset();
+    apiGet.mockResolvedValue({ purchasePrice: null });
+  });
+
   afterEach(() => {
     cleanup();
     useAuthStore.getState().clearSession();
@@ -29,16 +44,22 @@ describe('ConfirmForm', () => {
       overrides?: Partial<typeof recognition>;
       onSave?: (input: IntakeInput, mode: SaveMode) => void;
     } = {},
-  ) =>
-    render(
-      <ConfirmForm
-        recognition={{ ...recognition, ...opts.overrides }}
-        saving={false}
-        onSave={opts.onSave ?? (() => {})}
-        onRescan={() => {}}
-        onBack={() => {}}
-      />,
+  ) => {
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, gcTime: 0 } },
+    });
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <ConfirmForm
+          recognition={{ ...recognition, ...opts.overrides }}
+          saving={false}
+          onSave={opts.onSave ?? (() => {})}
+          onRescan={() => {}}
+          onBack={() => {}}
+        />
+      </QueryClientProvider>,
     );
+  };
 
   it('префілить SIZE/COLOR/STYLE з результату розпізнавання', () => {
     asSeller();
@@ -122,6 +143,55 @@ describe('ConfirmForm', () => {
       { size: 38, color: '36', style: '7645', season: 'NONE', purchasePrice: null },
       'finish',
     );
+  });
+
+  describe('підказка ціни закупки (FR-D-08)', () => {
+    it('адмін: ціна відомого варіанта підставляється у поле', async () => {
+      asAdmin();
+      apiGet.mockResolvedValue({ purchasePrice: 1750 });
+      renderForm();
+
+      await waitFor(() => expect(screen.getByPlaceholderText('Ціна')).toHaveValue('1750'));
+      expect(screen.getByText(/Підставлено ціну цього варіанта/)).toBeInTheDocument();
+    });
+
+    // A suggestion must never overwrite what a person just typed.
+    it('введена вручну ціна не перезаписується підказкою', async () => {
+      asAdmin();
+      let resolveHint: (value: { purchasePrice: number }) => void = () => {};
+      apiGet.mockReturnValue(
+        new Promise<{ purchasePrice: number }>((resolve) => {
+          resolveHint = resolve;
+        }),
+      );
+      renderForm();
+
+      await userEvent.type(screen.getByPlaceholderText('Ціна'), '999');
+      resolveHint({ purchasePrice: 1750 });
+
+      await waitFor(() => expect(apiGet).toHaveBeenCalled());
+      expect(screen.getByPlaceholderText('Ціна')).toHaveValue('999');
+      expect(screen.queryByText(/Підставлено ціну цього варіанта/)).not.toBeInTheDocument();
+    });
+
+    it('варіант «без ціни — старий товар» (0) відкриває той самий режим', async () => {
+      asAdmin();
+      apiGet.mockResolvedValue({ purchasePrice: 0 });
+      renderForm();
+
+      await waitFor(() =>
+        expect(screen.getByRole('button', { name: 'Вказати ціну' })).toBeInTheDocument(),
+      );
+    });
+
+    // FR-B-02: the endpoint is admin-only, so a seller must not even call it.
+    it('продавець не запитує підказку взагалі', async () => {
+      asSeller();
+      renderForm();
+
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      expect(apiGet).not.toHaveBeenCalled();
+    });
   });
 
   it('бейдж ролі: ПРОДАВЕЦЬ для продавця, АДМІН для адміна', () => {

@@ -84,6 +84,7 @@ export const uk = {
     rescan: 'Сканувати ще раз',
     priceLabel: 'ЦІНА ЗАКУПКИ',
     pricePlaceholder: 'Ціна',
+    priceHintNote: 'Підставлено ціну цього варіанта — змініть, якщо потрібно',
     noPriceToggle: 'Без ціни — старий товар',
     withPriceToggle: 'Вказати ціну',
     sellerDraftNote:
@@ -163,6 +164,8 @@ export const uk = {
     pairsLabel: 'пар продано',
     totalToday: 'сума за день',
     totalMonth: 'сума за місяць',
+    previousMonth: 'Попередній місяць',
+    nextMonth: 'Наступний місяць',
     returnTag: 'повернення',
     returnNote: 'пара знову на складі',
     empty: 'Поки немає продажів за цей період.',
