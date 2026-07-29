@@ -7,7 +7,7 @@ import {
 import { api } from '@madiro/web-core';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { createFileRoute, useNavigate } from '@tanstack/react-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { CameraScreen } from '../../components/intake/CameraScreen';
@@ -31,6 +31,20 @@ function IntakePage() {
   const [step, setStep] = useState<'capture' | 'error' | 'confirm'>('capture');
   const [recognition, setRecognition] = useState<TagRecognition | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Every toast self-dismisses; a new one restarts the clock (S-9).
+  const showToast = (message: string, ms: number) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setToast(message);
+    toastTimer.current = setTimeout(() => setToast(null), ms);
+  };
+  useEffect(
+    () => () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    },
+    [],
+  );
 
   const recognize = useMutation({
     mutationFn: async (photo: Blob) => {
@@ -60,13 +74,12 @@ function IntakePage() {
         return;
       }
       // Batch: confirm briefly, then back to the camera for the next pair.
-      setToast(result.awaitingPrice ? t('intake.savedDraft') : t('intake.savedToStock'));
+      showToast(result.awaitingPrice ? t('intake.savedDraft') : t('intake.savedToStock'), 2500);
       recognize.reset();
       setRecognition(null);
       setStep('capture');
-      setTimeout(() => setToast(null), 2500);
     },
-    onError: () => setToast(t('intake.saveError')),
+    onError: () => showToast(t('intake.saveError'), 3500),
   });
 
   // Manual entry stays INSIDE the intake flow (S-1.2/S-1.3): an empty confirm
