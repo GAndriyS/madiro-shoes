@@ -101,9 +101,18 @@ function ReturnPage() {
     },
   });
 
-  const goManual = () => void navigate({ to: '/manual' });
+  // Manual entry stays INSIDE the return flow (S-2.1): empty editable fields
+  // above the same lookup — /manual is the checkout flow, and dropping a
+  // return there was two taps away from selling the pair instead.
+  const goManual = () => {
+    recognize.reset();
+    setFields({ size: '', color: '', style: '' });
+    setCombo(undefined);
+    setStep('confirm');
+  };
   const rescan = () => {
     recognize.reset();
+    setCombo(undefined);
     setStep('capture');
   };
 
