@@ -1,13 +1,14 @@
 # Deployment (Railway)
 
-Madiro runs as **three services** in one Railway project plus a managed Postgres:
+Madiro runs as **three services** in the Railway project
+`splendid-youthfulness` (environment `production`) plus a managed Postgres:
 
-| Service     | Source                      | Public domain (example)           |
-| ----------- | --------------------------- | --------------------------------- |
-| `api`       | `apps/api/Dockerfile`       | `madiro-api.up.railway.app`       |
-| `scanner`   | `apps/scanner/Dockerfile`   | `madiro-scanner.up.railway.app`   |
-| `dashboard` | `apps/dashboard/Dockerfile` | `madiro-dashboard.up.railway.app` |
-| Postgres    | Railway plugin              | (internal)                        |
+| Service     | Source                      | Public domain                                |
+| ----------- | --------------------------- | -------------------------------------------- |
+| `api`       | `apps/api/Dockerfile`       | `madiro-shoes-production.up.railway.app`     |
+| `scanner`   | `apps/scanner/Dockerfile`   | `keen-warmth-production-8537.up.railway.app` |
+| `dashboard` | `apps/dashboard/Dockerfile` | `dashboard-production-2dab.up.railway.app`   |
+| Postgres    | Railway plugin              | (internal)                                   |
 
 The frontends and API live on separate origins. Each frontend is built with
 `VITE_API_URL` pointing at the API; the API allows those origins via
@@ -105,13 +106,25 @@ migration drift) before merge; Railway builds the same Dockerfiles you can build
 locally:
 
 ```sh
+API=https://madiro-shoes-production.up.railway.app
 docker build -f apps/api/Dockerfile -t madiro-api .
-docker build -f apps/scanner/Dockerfile --build-arg VITE_API_URL=https://your-api . -t madiro-scanner
+docker build -f apps/scanner/Dockerfile --build-arg VITE_API_URL=$API -t madiro-scanner .
+docker build -f apps/dashboard/Dockerfile --build-arg VITE_API_URL=$API -t madiro-dashboard .
 ```
 
 ## Admin & seller accounts
 
 - The **admin** is seeded on the api's first boot from `ADMIN_LOGIN` /
-  `ADMIN_PASSWORD`. To change the password later, run
-  `pnpm --filter @madiro/api admin:reset-password` in a Railway shell.
+  `ADMIN_PASSWORD`. The seed is idempotent: once the admin exists it never
+  rewrites the password, so `ADMIN_PASSWORD` only matters on a fresh database.
+  To change the password later, open a shell on the running api and run the
+  reset CLI there (it prompts for the new password):
+
+  ```sh
+  railway ssh --service api --environment production
+  pnpm --filter @madiro/api admin:reset-password
+  ```
+
+  It bumps `tokenVersion`, so every existing admin session is revoked at once.
+
 - **Sellers** are created from the dashboard (admin → users), not by seeding.
