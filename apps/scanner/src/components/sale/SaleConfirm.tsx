@@ -5,8 +5,10 @@ import { useTranslation } from 'react-i18next';
 import { FieldCard } from '../scan/fields';
 
 export interface ComboChoice {
+  /** null = the combination with no material specified — a real thing to pick. */
   material: Material | null;
-  season: Season | null;
+  /** «Без утеплення» is the NONE value, so there is no absent case here. */
+  season: Season;
 }
 
 interface SaleConfirmProps {

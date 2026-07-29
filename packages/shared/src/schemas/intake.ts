@@ -17,7 +17,7 @@ export const intakeQueueItemSchema = z.object({
   style: z.string(),
   color: z.string(),
   material: z.enum(MATERIALS).nullable(),
-  season: z.enum(SEASONS).nullable(),
+  season: z.enum(SEASONS),
   sellerName: z.string(),
   createdAt: z.string(),
   /** Hint: this variant last came in at this price; null if never priced. */
@@ -45,7 +45,7 @@ export const intakeHistoryEntrySchema = z.object({
   date: z.string(),
   actorName: z.string(),
   material: z.enum(MATERIALS).nullable(),
-  season: z.enum(SEASONS).nullable(),
+  season: z.enum(SEASONS),
   /** Historical purchase price; null means confirmed as "no price — old stock". */
   purchasePrice: z.number().nullable(),
 });

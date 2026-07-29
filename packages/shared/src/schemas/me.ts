@@ -17,9 +17,23 @@ export const meSummarySchema = z.object({
 });
 export type MeSummary = z.infer<typeof meSummarySchema>;
 
-/** GET /me/sales period — today or the current month (FR-S-17). */
+/** GET /me/sales period — today or a whole month (FR-S-17). */
 export const mySalesPeriodSchema = z.enum(['today', 'month']);
 export type MySalesPeriod = z.infer<typeof mySalesPeriodSchema>;
+
+/** A calendar month as `YYYY-MM`, interpreted in the store timezone. */
+export const monthKeySchema = z.string().regex(/^\d{4}-(0[1-9]|1[0-2])$/);
+
+/**
+ * GET /me/sales query. `month` applies only to `period=month`: absent it means
+ * the current month (the original behaviour), present it selects that calendar
+ * month and bounds the range on both sides.
+ */
+export const mySalesQuerySchema = z.object({
+  period: mySalesPeriodSchema,
+  month: monthKeySchema.optional(),
+});
+export type MySalesQuery = z.infer<typeof mySalesQuerySchema>;
 
 /** One row of the seller's own sales list. Informational only — no margins. */
 export const mySaleRowSchema = z.object({
@@ -51,7 +65,7 @@ export const myDraftSchema = z.object({
   color: tagCodeSchema,
   size: sizeSchema,
   material: z.enum(MATERIALS).nullable(),
-  season: z.enum(SEASONS).nullable(),
+  season: z.enum(SEASONS),
   createdAt: z.string(),
   /** true → «очікує ціни» (editable/deletable); false → «на складі». */
   awaitingPrice: z.boolean(),

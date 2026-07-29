@@ -24,7 +24,7 @@ export const stockVariantRowSchema = z.object({
   style: z.string(),
   color: z.string(),
   material: z.enum(MATERIALS).nullable(),
-  season: z.enum(SEASONS).nullable(),
+  season: z.enum(SEASONS),
   /** Distinct sizes currently in stock (chips). */
   sizes: z.array(z.number().int()),
   /** Pairs in the "awaiting price" queue for this variant (amber chip). */
@@ -84,7 +84,7 @@ export const variantDetailSchema = z.object({
   style: z.string(),
   color: z.string(),
   material: z.enum(MATERIALS).nullable(),
-  season: z.enum(SEASONS).nullable(),
+  season: z.enum(SEASONS),
   purchasePrice: z.number().nullable(),
   lastSalePrice: z.number().nullable(),
   soldLast30Days: z.number().int(),

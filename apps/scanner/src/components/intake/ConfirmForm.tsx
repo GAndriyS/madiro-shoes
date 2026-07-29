@@ -7,9 +7,10 @@ import {
   type TagRecognition,
 } from '@madiro/shared';
 import { AlertIcon, ChevronRightIcon, cn, useAuthStore } from '@madiro/web-core';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { usePriceHint } from '../../lib/usePriceHint';
 import { FieldCard, PillGroup } from '../scan/fields';
 
 /** Recognitions below this read as "double-check me" in the UI (heuristic). */
@@ -41,6 +42,19 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
   const [material, setMaterial] = useState<Material | null>(null);
   const [priceMode, setPriceMode] = useState<'set' | 'none'>('set');
   const [price, setPrice] = useState('');
+  // Once the admin types, the hint stops writing into the field — a suggestion
+  // must never overwrite what a person has just entered.
+  const [priceTouched, setPriceTouched] = useState(false);
+
+  const hint = usePriceHint(isAdmin ? { style, color, material, season } : null);
+
+  useEffect(() => {
+    if (priceTouched || hint == null) return;
+    setPrice(hint > 0 ? String(hint) : '');
+    // A variant confirmed as «без ціни — старий товар» (0) arrives here as the
+    // same decision, pre-selected rather than silently turned into an empty field.
+    setPriceMode(hint === 0 ? 'none' : 'set');
+  }, [hint, priceTouched]);
 
   const seasonLabels: Record<Season, string> = {
     NONE: t('intake.seasonNone'),
@@ -131,7 +145,10 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
             </span>
             <button
               type="button"
-              onClick={() => setPriceMode((m) => (m === 'set' ? 'none' : 'set'))}
+              onClick={() => {
+                setPriceTouched(true);
+                setPriceMode((m) => (m === 'set' ? 'none' : 'set'));
+              }}
               className="text-[12.5px] font-semibold text-accent-hover"
             >
               {priceMode === 'set' ? t('intake.noPriceToggle') : t('intake.withPriceToggle')}
@@ -143,7 +160,10 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
                 inputMode="numeric"
                 value={price}
                 placeholder={t('intake.pricePlaceholder')}
-                onChange={(e) => setPrice(e.target.value.replace(/\D/g, ''))}
+                onChange={(e) => {
+                  setPriceTouched(true);
+                  setPrice(e.target.value.replace(/\D/g, ''));
+                }}
                 className="w-full bg-transparent font-display text-[34px] font-semibold text-ink outline-none placeholder:text-text-faint"
               />
               <span className="text-base text-text-muted">₴</span>
@@ -152,6 +172,10 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
             <div className="rounded-[14px] border-[1.5px] border-dashed border-border-input bg-surface px-[18px] py-4 text-[13px] text-text-secondary">
               {t('common.noPrice')}
             </div>
+          )}
+          {/* Say where the number came from, so a suggestion never reads as a fact. */}
+          {hint != null && !priceTouched && (
+            <span className="text-[11.5px] text-text-muted">{t('intake.priceHintNote')}</span>
           )}
         </div>
       ) : (

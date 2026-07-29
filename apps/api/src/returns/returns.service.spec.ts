@@ -124,9 +124,11 @@ describe('ReturnsService', () => {
     expect(operationFindFirst.mock.calls[0][0].where.pair.variantId).toBe('v2');
   });
 
-  it('lookup: явний null означає комбінацію «без значення», а не «будь-яку»', async () => {
-    const noTraits = { id: 'v3', material: null, season: null };
-    variantFindMany.mockResolvedValue([leatherSheepskin, noTraits]);
+  // Material keeps the explicit-null case («матеріал не вказано» is a real
+  // combination); insulation does not — «без утеплення» is the NONE value.
+  it('lookup: явний null для матеріалу означає комбінацію «без значення», а не «будь-яку»', async () => {
+    const noMaterial = { id: 'v3', material: null, season: 'NONE' };
+    variantFindMany.mockResolvedValue([leatherSheepskin, noMaterial]);
     operationFindFirst.mockResolvedValue(saleOp);
 
     await service.lookup({
@@ -134,7 +136,7 @@ describe('ReturnsService', () => {
       color: '36',
       style: '7645',
       material: null,
-      season: null,
+      season: 'NONE',
     });
 
     expect(operationFindFirst.mock.calls[0][0].where.pair.variantId).toBe('v3');

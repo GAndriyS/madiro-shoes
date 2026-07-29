@@ -125,4 +125,74 @@ describe('IntakeService', () => {
       tx.variant.findFirst.mock.invocationCallOrder[0]!,
     );
   });
+
+  // «Без утеплення» is a value, so an omitted insulation must resolve to the
+  // same variant as an explicit NONE — otherwise one shoe splits in two.
+  it('пропущене утеплення означає NONE, а не «без значення»', async () => {
+    tx.variant.findFirst.mockResolvedValue(null);
+
+    await service.create(input, { id: 'u1', role: 'SELLER' });
+
+    expect(tx.variant.findFirst.mock.calls[0][0].where).toEqual({
+      style: '7645',
+      color: '36',
+      material: null,
+      season: 'NONE',
+    });
+  });
+});
+
+describe('IntakeService.priceHint', () => {
+  const variantFindFirst = jest.fn();
+  let service: IntakeService;
+
+  beforeEach(async () => {
+    jest.resetAllMocks();
+    const moduleRef = await Test.createTestingModule({
+      providers: [
+        IntakeService,
+        { provide: RealtimeGateway, useValue: { emit: jest.fn() } },
+        {
+          provide: PrismaService,
+          useValue: { variant: { findFirst: variantFindFirst } },
+        },
+      ],
+    }).compile();
+    service = moduleRef.get(IntakeService);
+  });
+
+  const query = { style: '7645', color: '36', material: 'LEATHER' as const };
+
+  it('шукає за тією самою ідентичністю, що й поступлення (утеплення → NONE)', async () => {
+    variantFindFirst.mockResolvedValue({ purchasePrice: 1400 });
+
+    const res = await service.priceHint(query);
+
+    expect(variantFindFirst.mock.calls[0][0].where).toEqual({
+      style: '7645',
+      color: '36',
+      material: 'LEATHER',
+      season: 'NONE',
+    });
+    expect(res).toEqual({ purchasePrice: 1400 });
+  });
+
+  it('невідомий варіант — підказки немає', async () => {
+    variantFindFirst.mockResolvedValue(null);
+
+    expect(await service.priceHint(query)).toEqual({ purchasePrice: null });
+  });
+
+  it('варіант без ціни — підказки немає', async () => {
+    variantFindFirst.mockResolvedValue({ purchasePrice: null });
+
+    expect(await service.priceHint(query)).toEqual({ purchasePrice: null });
+  });
+
+  // 0 is «без ціни — старий товар»: a real decision, distinct from "not set yet".
+  it('«без ціни — старий товар» (0) — це підказка, а не порожнеча', async () => {
+    variantFindFirst.mockResolvedValue({ purchasePrice: 0 });
+
+    expect(await service.priceHint(query)).toEqual({ purchasePrice: 0 });
+  });
 });
