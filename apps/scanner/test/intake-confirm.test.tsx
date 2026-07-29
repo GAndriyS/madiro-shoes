@@ -42,6 +42,8 @@ describe('ConfirmForm', () => {
   const renderForm = (
     opts: {
       overrides?: Partial<typeof recognition>;
+      /** null renders the manual-entry mode: no recognition at all. */
+      recognition?: null;
       onSave?: (input: IntakeInput, mode: SaveMode) => void;
     } = {},
   ) => {
@@ -51,7 +53,9 @@ describe('ConfirmForm', () => {
     return render(
       <QueryClientProvider client={queryClient}>
         <ConfirmForm
-          recognition={{ ...recognition, ...opts.overrides }}
+          {...(opts.recognition === null
+            ? {}
+            : { recognition: { ...recognition, ...opts.overrides } })}
           saving={false}
           onSave={opts.onSave ?? (() => {})}
           onRescan={() => {}}
@@ -191,6 +195,60 @@ describe('ConfirmForm', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 600));
       expect(apiGet).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('ручний ввід (без розпізнавання)', () => {
+    it('рендерить порожні поля і не показує банер впевненості', () => {
+      asSeller();
+      renderForm({ recognition: null });
+
+      const inputs = [
+        screen.getByText('SIZE').parentElement!.querySelector('input')!,
+        screen.getByText('COLOR').parentElement!.querySelector('input')!,
+        screen.getByText('STYLE').parentElement!.querySelector('input')!,
+      ];
+      for (const input of inputs) {
+        expect(input).toHaveValue('');
+      }
+      expect(screen.queryByText(/звірте цифри з біркою/)).not.toBeInTheDocument();
+    });
+
+    it('порожня форма не зберігається; заповнена вручну — зберігається з введеним', async () => {
+      asSeller();
+      const onSave = vi.fn();
+      renderForm({ recognition: null, onSave });
+
+      const next = screen.getByRole('button', { name: 'У чернетки і сканувати наступну' });
+      expect(next).toBeDisabled();
+
+      await userEvent.type(screen.getByText('SIZE').parentElement!.querySelector('input')!, '41');
+      await userEvent.type(screen.getByText('COLOR').parentElement!.querySelector('input')!, '12');
+      await userEvent.type(
+        screen.getByText('STYLE').parentElement!.querySelector('input')!,
+        '9031',
+      );
+      expect(next).toBeEnabled();
+      await userEvent.click(next);
+      expect(onSave).toHaveBeenCalledWith(
+        { size: 41, color: '12', style: '9031', season: 'NONE' },
+        'next',
+      );
+    });
+
+    it('розмір поза межами 16–50 блокує збереження', async () => {
+      asSeller();
+      renderForm({ recognition: null });
+
+      await userEvent.type(screen.getByText('SIZE').parentElement!.querySelector('input')!, '7');
+      await userEvent.type(screen.getByText('COLOR').parentElement!.querySelector('input')!, '12');
+      await userEvent.type(
+        screen.getByText('STYLE').parentElement!.querySelector('input')!,
+        '9031',
+      );
+      expect(
+        screen.getByRole('button', { name: 'У чернетки і сканувати наступну' }),
+      ).toBeDisabled();
     });
   });
 

@@ -19,7 +19,7 @@ Madiro — прогрес спринту доведення сканера
       "Відрендерити ConfirmForm без recognition у тесті — форма порожня, без банера"
     ],
     "success": "ConfirmForm рендериться і зберігає пару без recognition; поведінка зі сканом не змінилася",
-    "passes": false
+    "passes": true
   },
   {
     "id": "S-1.2",
