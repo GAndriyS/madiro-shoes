@@ -23,7 +23,14 @@ const envSchema = z.object({
 export type Env = z.infer<typeof envSchema>;
 
 export function validateEnv(config: Record<string, unknown>): Env {
-  const result = envSchema.safeParse(config);
+  // A variable left blank in .env (`LOG_LEVEL=""`, as .env.example ships it)
+  // arrives as an empty string, which is not the same thing as unset: an
+  // optional enum rejects '' and the API refuses to boot. Blank means "not
+  // configured" for every variable here, so drop those before validating —
+  // otherwise every future optional field inherits the same trap.
+  const provided = Object.fromEntries(Object.entries(config).filter(([, value]) => value !== ''));
+
+  const result = envSchema.safeParse(provided);
   if (!result.success) {
     throw new Error(`Некоректна конфігурація env:\n${result.error.message}`);
   }
