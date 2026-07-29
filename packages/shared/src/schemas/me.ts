@@ -35,10 +35,15 @@ export const mySalesQuerySchema = z.object({
 });
 export type MySalesQuery = z.infer<typeof mySalesQuerySchema>;
 
-/** One row of the seller's own sales list. Informational only — no margins. */
+/**
+ * One row of the seller's own sales list. Informational only — no margins.
+ * WRITEOFF rows are informational too (S-5): they carry no amount and never
+ * count towards the period totals — the list stays about money, but a seller
+ * can spot an accidental write-off and tell the admin.
+ */
 export const mySaleRowSchema = z.object({
   id: z.string(),
-  type: z.enum(['SALE', 'RETURN']),
+  type: z.enum(['SALE', 'RETURN', 'WRITEOFF']),
   style: tagCodeSchema,
   color: tagCodeSchema,
   size: sizeSchema,

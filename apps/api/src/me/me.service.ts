@@ -68,7 +68,9 @@ export class MeService {
     const ops = await this.prisma.operation.findMany({
       where: {
         userId,
-        type: { in: ['SALE', 'RETURN'] },
+        // Write-offs ride along informationally (S-5): a seller must be able
+        // to spot an accidental one. They never touch the totals below.
+        type: { in: ['SALE', 'RETURN', 'WRITEOFF'] },
         cancelledAt: null,
         createdAt,
       },
@@ -83,17 +85,21 @@ export class MeService {
     const items = ops.map((op) => {
       const price = op.salePrice != null ? Number(op.salePrice) : null;
       const sale = op.type === 'SALE';
-      pairs += sale ? 1 : -1;
-      total += (price ?? 0) * (sale ? 1 : -1);
+      if (op.type !== 'WRITEOFF') {
+        pairs += sale ? 1 : -1;
+        total += (price ?? 0) * (sale ? 1 : -1);
+      }
       return {
         id: op.id,
-        type: op.type as 'SALE' | 'RETURN',
+        type: op.type as 'SALE' | 'RETURN' | 'WRITEOFF',
         style: op.pair.variant.style,
         color: op.pair.variant.color,
         size: op.pair.size,
         at: op.createdAt.toISOString(),
-        paymentMethod: op.paymentMethod,
-        amount: price != null ? (sale ? price : -price) : null,
+        // A write-off has no money on it by domain rule; null keeps it that way
+        // even if a stray salePrice ever appeared on the row.
+        paymentMethod: op.type === 'WRITEOFF' ? null : op.paymentMethod,
+        amount: op.type === 'WRITEOFF' || price == null ? null : sale ? price : -price,
       };
     });
 
