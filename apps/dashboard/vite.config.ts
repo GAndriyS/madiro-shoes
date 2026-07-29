@@ -13,6 +13,14 @@ export default defineConfig({
       '/socket.io': { target: 'http://localhost:3000', ws: true },
     },
   },
+  // vite preview serves the built app for browser e2e — same proxy story.
+  preview: {
+    port: 5173,
+    proxy: {
+      '/api': 'http://localhost:3000',
+      '/socket.io': { target: 'http://localhost:3000', ws: true },
+    },
+  },
   test: {
     environment: 'jsdom',
     setupFiles: ['./test/setup.ts'],
