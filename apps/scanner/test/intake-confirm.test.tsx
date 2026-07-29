@@ -188,6 +188,53 @@ describe('ConfirmForm', () => {
       );
     });
 
+    // S-4: a hint must not survive an identity change — otherwise a batch gets
+    // received at a price that belongs to a different model.
+    it('зміна style на невідомий варіант очищає підставлену ціну', async () => {
+      asAdmin();
+      apiGet.mockImplementation((path: string) =>
+        Promise.resolve(
+          path.includes('style=7645') ? { purchasePrice: 1750 } : { purchasePrice: null },
+        ),
+      );
+      renderForm();
+
+      await waitFor(() => expect(screen.getByPlaceholderText('Ціна')).toHaveValue('1750'));
+
+      const styleInput = screen.getByText('STYLE').parentElement!.querySelector('input')!;
+      await userEvent.clear(styleInput);
+      await userEvent.type(styleInput, '9999');
+
+      await waitFor(
+        () => expect(screen.getByPlaceholderText('Ціна')).toHaveValue(''),
+        { timeout: 2000 }, // debounce 400ms + query round-trip
+      );
+      expect(screen.queryByText(/Підставлено ціну цього варіанта/)).not.toBeInTheDocument();
+    });
+
+    it('власноруч введена ціна переживає зміну style', async () => {
+      asAdmin();
+      apiGet.mockImplementation((path: string) =>
+        Promise.resolve(
+          path.includes('style=7645') ? { purchasePrice: 1750 } : { purchasePrice: null },
+        ),
+      );
+      renderForm();
+
+      const priceInput = screen.getByPlaceholderText('Ціна');
+      // Let the hint land first — the realistic order: suggestion, then override.
+      await waitFor(() => expect(priceInput).toHaveValue('1750'));
+      await userEvent.clear(priceInput);
+      await userEvent.type(priceInput, '999');
+
+      const styleInput = screen.getByText('STYLE').parentElement!.querySelector('input')!;
+      await userEvent.clear(styleInput);
+      await userEvent.type(styleInput, '9999');
+
+      await new Promise((resolve) => setTimeout(resolve, 700)); // let the debounce settle
+      expect(screen.getByPlaceholderText('Ціна')).toHaveValue('999');
+    });
+
     // FR-B-02: the endpoint is admin-only, so a seller must not even call it.
     it('продавець не запитує підказку взагалі', async () => {
       asSeller();

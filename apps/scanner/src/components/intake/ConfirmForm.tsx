@@ -50,7 +50,15 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
   const hint = usePriceHint(isAdmin ? { style, color, material, season } : null);
 
   useEffect(() => {
-    if (priceTouched || hint == null) return;
+    if (priceTouched) return;
+    // The identity changed and the new variant has no hint: clear the field.
+    // Leaving the previous variant's price here would let a batch be received
+    // at a price that belongs to a different model (S-4).
+    if (hint == null) {
+      setPrice('');
+      setPriceMode('set');
+      return;
+    }
     setPrice(hint > 0 ? String(hint) : '');
     // A variant confirmed as «без ціни — старий товар» (0) arrives here as the
     // same decision, pre-selected rather than silently turned into an empty field.
