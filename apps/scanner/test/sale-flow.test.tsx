@@ -37,6 +37,44 @@ describe('SaleDetails', () => {
       />,
     );
 
+  // S-11: after a 409 the lookup refetches and may carry a fresh hint.
+  it('свіжа підказка після рефетчу оновлює поле, поки продавець його не чіпав', async () => {
+    const { rerender } = render(
+      <SaleDetails
+        pair={pair}
+        salePriceHint={2850}
+        saving={false}
+        onConfirm={() => {}}
+        onBack={() => {}}
+      />,
+    );
+    expect(screen.getByDisplayValue('2850')).toBeInTheDocument();
+
+    rerender(
+      <SaleDetails
+        pair={pair}
+        salePriceHint={2700}
+        saving={false}
+        onConfirm={() => {}}
+        onBack={() => {}}
+      />,
+    );
+    expect(screen.getByDisplayValue('2700')).toBeInTheDocument();
+
+    await userEvent.clear(screen.getByPlaceholderText('Ціна'));
+    await userEvent.type(screen.getByPlaceholderText('Ціна'), '3000');
+    rerender(
+      <SaleDetails
+        pair={pair}
+        salePriceHint={2500}
+        saving={false}
+        onConfirm={() => {}}
+        onBack={() => {}}
+      />,
+    );
+    expect(screen.getByDisplayValue('3000')).toBeInTheDocument();
+  });
+
   it('картка пари: стиль · колір · розмір, матеріал/утеплення і дата', () => {
     renderDetails();
     expect(screen.getByText('7645 · колір 36 · р. 38')).toBeInTheDocument();

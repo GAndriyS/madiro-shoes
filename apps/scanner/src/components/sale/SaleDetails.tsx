@@ -1,6 +1,6 @@
 import type { FoundPair, Material, PaymentMethod, Season } from '@madiro/shared';
 import { ChevronRightIcon, cn, money } from '@madiro/web-core';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 export type CheckoutPayload =
@@ -59,6 +59,13 @@ export function SaleDetails({ pair, salePriceHint, saving, onConfirm, onBack }: 
   const [price, setPrice] = useState(salePriceHint != null ? String(salePriceHint) : '');
   const [payment, setPayment] = useState<PaymentMethod>('CASH');
   const [comment, setComment] = useState('');
+  // The lookup can refetch underneath (409 conflict, reconnect) and bring a
+  // fresh hint — follow it until the seller types a price of their own (S-11).
+  const [priceTouched, setPriceTouched] = useState(false);
+  useEffect(() => {
+    if (priceTouched) return;
+    setPrice(salePriceHint != null ? String(salePriceHint) : '');
+  }, [salePriceHint, priceTouched]);
 
   const materialLabels: Record<Material, string> = {
     LEATHER: t('intake.materialLeather'),
@@ -140,7 +147,10 @@ export function SaleDetails({ pair, salePriceHint, saving, onConfirm, onBack }: 
                 inputMode="numeric"
                 value={price}
                 placeholder={t('intake.pricePlaceholder')}
-                onChange={(e) => setPrice(e.target.value.replace(/\D/g, ''))}
+                onChange={(e) => {
+                  setPriceTouched(true);
+                  setPrice(e.target.value.replace(/\D/g, ''));
+                }}
                 className="w-full bg-transparent font-display text-[34px] font-semibold text-ink outline-none placeholder:text-text-faint"
               />
               <span className="text-base text-text-muted">₴</span>
