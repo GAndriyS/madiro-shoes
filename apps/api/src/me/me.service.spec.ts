@@ -114,13 +114,40 @@ describe('MeService', () => {
       expect(res.items.map((i) => i.amount)).toEqual([2850, -2850]);
     });
 
-    it('лише свої нескасовані продажі та повернення', async () => {
+    it('лише свої нескасовані операції; списання їдуть інформаційно (S-5)', async () => {
       await service.sales('u42', { period: 'month', month: '2026-03' });
 
       const where = whereOfLastCall();
       expect(where.userId).toBe('u42');
       expect(where.cancelledAt).toBeNull();
-      expect(where.type).toEqual({ in: ['SALE', 'RETURN'] });
+      expect(where.type).toEqual({ in: ['SALE', 'RETURN', 'WRITEOFF'] });
+    });
+
+    it('списання: рядок без суми й оплати, підсумки без нього', async () => {
+      findMany.mockResolvedValueOnce([
+        {
+          id: 'o1',
+          type: 'SALE',
+          salePrice: 2850,
+          paymentMethod: 'CARD',
+          createdAt: new Date('2026-03-04T10:00:00.000Z'),
+          pair: { size: 38, variant: { style: '7645', color: '36' } },
+        },
+        {
+          id: 'o3',
+          type: 'WRITEOFF',
+          salePrice: null,
+          paymentMethod: null,
+          createdAt: new Date('2026-03-04T11:00:00.000Z'),
+          pair: { size: 39, variant: { style: '7645', color: '36' } },
+        },
+      ]);
+
+      const res = await service.sales('u1', { period: 'month', month: '2026-03' });
+
+      expect(res.pairs).toBe(1);
+      expect(res.total).toBe(2850);
+      expect(res.items[1]).toMatchObject({ type: 'WRITEOFF', amount: null, paymentMethod: null });
     });
   });
 });

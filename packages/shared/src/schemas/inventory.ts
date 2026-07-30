@@ -143,8 +143,13 @@ export const stockSearchResponseSchema = z.object({
       material: z.enum(MATERIALS).nullable(),
       season: z.enum(SEASONS),
       sizes: z.array(z.object({ size: sizeSchema, count: z.number().int().positive() })),
+      /** In-stock pairs of this variant still awaiting a price (FR-S-16 badge). */
+      awaitingPriceCount: z.number().int().min(0),
     }),
   ),
+  /** True when more variants matched than the page returned (S-13): the UI
+   * must say «showing first N», never silently pretend this is everything. */
+  truncated: z.boolean(),
 });
 export type StockSearchResponse = z.infer<typeof stockSearchResponseSchema>;
 

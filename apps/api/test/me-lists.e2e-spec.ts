@@ -84,6 +84,13 @@ describe('My sales & drafts (e2e, real Postgres)', () => {
     await prisma.pair.create({
       data: { variantId: variant.id, size: 37, awaitingPrice: true, createdById: olia.id },
     });
+    // Olia also wrote a pair off (S-5): visible in her list, absent from totals.
+    const writtenOffPair = await prisma.pair.create({
+      data: { variantId: variant.id, size: 39, status: 'WRITTEN_OFF', createdById: olia.id },
+    });
+    await prisma.operation.create({
+      data: { type: 'WRITEOFF', pairId: writtenOffPair.id, userId: olia.id, comment: 'дефект' },
+    });
 
     oliaToken = await login('olia-e2e');
   });
@@ -104,17 +111,28 @@ describe('My sales & drafts (e2e, real Postgres)', () => {
       .expect(200);
     const parsed = mySalesResponseSchema.parse(res.body);
 
+    // The write-off shows as a row but never counts: totals stay 1 pair / 2850.
     expect(parsed.pairs).toBe(1);
     expect(parsed.total).toBe(2850);
-    expect(parsed.items).toHaveLength(1); // Iryna's sale is not visible
-    expect(parsed.items[0]).toMatchObject({
-      type: 'SALE',
-      style: '7645',
-      color: '36',
-      size: 38,
-      paymentMethod: 'CARD',
-      amount: 2850,
-    });
+    expect(parsed.items).toHaveLength(2); // Olia's sale + write-off; Iryna's sale is not visible
+    expect(parsed.items).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          type: 'SALE',
+          style: '7645',
+          color: '36',
+          size: 38,
+          paymentMethod: 'CARD',
+          amount: 2850,
+        }),
+        expect.objectContaining({
+          type: 'WRITEOFF',
+          size: 39,
+          paymentMethod: null,
+          amount: null,
+        }),
+      ]),
+    );
   });
 
   it('/me/sales: period=month теж повертає продаж', async () => {
@@ -123,7 +141,7 @@ describe('My sales & drafts (e2e, real Postgres)', () => {
       .query({ period: 'month' })
       .set('Authorization', `Bearer ${oliaToken}`)
       .expect(200);
-    expect(mySalesResponseSchema.parse(res.body).items).toHaveLength(1);
+    expect(mySalesResponseSchema.parse(res.body).items).toHaveLength(2);
   });
 
   it('/me/sales: явний поточний місяць бачить той самий продаж', async () => {
@@ -142,7 +160,7 @@ describe('My sales & drafts (e2e, real Postgres)', () => {
       .query({ period: 'month', month })
       .set('Authorization', `Bearer ${oliaToken}`)
       .expect(200);
-    expect(mySalesResponseSchema.parse(res.body).items).toHaveLength(1);
+    expect(mySalesResponseSchema.parse(res.body).items).toHaveLength(2);
   });
 
   // The bounded range is the whole point: an old month must not sweep in later sales.

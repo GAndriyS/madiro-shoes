@@ -36,8 +36,28 @@ export default defineConfig({
         navigateFallbackDenylist: [/^\/api/],
         runtimeCaching: [
           {
-            urlPattern: /^\/api\//,
+            // Match by pathname, not the full URL (S-14): in production the
+            // API lives on its own origin, and the old /^\/api\// regex never
+            // matched a full URL — the rule was dead, right by accident.
+            urlPattern: ({ url }) => url.pathname.startsWith('/api'),
             handler: 'NetworkOnly',
+          },
+          {
+            // Fonts come from Google CDN; without caching the offline shell
+            // renders in fallback fonts. Stylesheets change rarely — SWR.
+            urlPattern: ({ url }) => url.origin === 'https://fonts.googleapis.com',
+            handler: 'StaleWhileRevalidate',
+            options: { cacheName: 'google-fonts-stylesheets' },
+          },
+          {
+            // Font binaries are immutable — cache-first for a year.
+            urlPattern: ({ url }) => url.origin === 'https://fonts.gstatic.com',
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'google-fonts-webfonts',
+              expiration: { maxEntries: 20, maxAgeSeconds: 365 * 24 * 60 * 60 },
+              cacheableResponse: { statuses: [0, 200] },
+            },
           },
         ],
       },

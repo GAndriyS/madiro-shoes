@@ -58,6 +58,8 @@ export const en: Messages = {
     torch: 'Torch',
     shutter: 'Take photo',
     manual: 'Enter manually',
+    gallery: 'Pick a photo from the gallery',
+    cameraPending: 'Requesting camera access…',
     cameraUnavailableTitle: 'Camera unavailable',
     cameraUnavailableBody:
       'Could not access the camera. Pick a tag photo from the gallery or take one with the system camera.',
@@ -136,6 +138,9 @@ export const en: Messages = {
     writtenOffToast: 'Write-off registered',
     conflict: 'The pair was already sold or written off — stock refreshed',
     saveError: 'Could not save. Please try again.',
+    lookupErrorTitle: 'Could not check the stock',
+    lookupErrorBody: 'Looks like a connection problem. Stock data did not load.',
+    lookupRetry: 'Try again',
   },
   return: {
     title: 'Customer return',
@@ -158,6 +163,8 @@ export const en: Messages = {
     registeredToast: 'Return registered',
     conflict: 'This pair was already returned or written off',
     saveError: 'Could not save. Please try again.',
+    lookupErrorTitle: 'Could not check the sales',
+    lookupErrorBody: 'Looks like a connection problem. Sales data did not load.',
   },
   mySales: {
     title: 'My sales',
@@ -169,6 +176,8 @@ export const en: Messages = {
     nextMonth: 'Next month',
     returnTag: 'return',
     returnNote: 'pair is back in stock',
+    writeoffTag: 'write-off',
+    writeoffNote: 'no amount — pair written off from stock',
     empty: 'No sales for this period yet.',
   },
   myDrafts: {
@@ -195,5 +204,8 @@ export const en: Messages = {
     placeholder: 'Style — e.g. 7645',
     hint: 'Type at least 2 digits of the style',
     empty: 'No variants in stock with style {{style}}…',
+    awaitingPrice_one: '{{count}} awaiting price',
+    awaitingPrice_other: '{{count}} awaiting price',
+    truncated: 'Showing the first {{count}} — narrow the search to see the rest',
   },
 };

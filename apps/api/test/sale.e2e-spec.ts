@@ -23,6 +23,7 @@ describe('Sale (e2e, real Postgres)', () => {
   let prisma: PrismaService;
   let http: Server;
   let sellerToken: string;
+  let sellerId: string;
   const sellerPassword = 'seller-e2e-pass';
 
   beforeAll(async () => {
@@ -46,6 +47,7 @@ describe('Sale (e2e, real Postgres)', () => {
         passwordHash: await argon2.hash(sellerPassword),
       },
     });
+    sellerId = seller.id;
 
     // One variant with a purchase price, two same-size pairs (FIFO check) and
     // an already-recorded sale for the price hint.
@@ -183,6 +185,54 @@ describe('Sale (e2e, real Postgres)', () => {
     for (const item of parsed.items) {
       expect(item.style.startsWith('76')).toBe(true);
     }
+  });
+
+  // FR-S-16: the reference search marks pairs still awaiting a price (S-7.1).
+  it('search: чернетка на складі дає awaitingPriceCount > 0', async () => {
+    const variant = await prisma.variant.findFirstOrThrow({ where: { style: '7645' } });
+    const draft = await prisma.pair.create({
+      data: { variantId: variant.id, size: 44, awaitingPrice: true, createdById: sellerId },
+    });
+
+    const res = await request(http)
+      .get('/api/sale/search')
+      .query({ style: '7645' })
+      .set('Authorization', `Bearer ${sellerToken}`)
+      .expect(200);
+    const parsed = stockSearchResponseSchema.parse(res.body);
+    const item = parsed.items.find((i) => i.sizes.some((s) => s.size === 44));
+    expect(item).toBeDefined();
+    expect(item!.awaitingPriceCount).toBeGreaterThan(0);
+    expect(JSON.stringify(res.body)).not.toContain('1400'); // FR-B-02 still holds
+
+    await prisma.operation.deleteMany({ where: { pairId: draft.id } });
+    await prisma.pair.delete({ where: { id: draft.id } });
+  });
+
+  // S-13: a page-limited search must SAY it was cut, not pose as complete.
+  it('search: понад 20 варіантів → truncated=true і рівно 20 позицій', async () => {
+    const created: string[] = [];
+    for (let i = 0; i < 21; i += 1) {
+      const v = await prisma.variant.create({
+        data: { style: '5500', color: String(100 + i), season: 'NONE' },
+      });
+      const p = await prisma.pair.create({
+        data: { variantId: v.id, size: 40, createdById: sellerId },
+      });
+      created.push(p.id);
+    }
+
+    const res = await request(http)
+      .get('/api/sale/search')
+      .query({ style: '55' })
+      .set('Authorization', `Bearer ${sellerToken}`)
+      .expect(200);
+    const parsed = stockSearchResponseSchema.parse(res.body);
+    expect(parsed.truncated).toBe(true);
+    expect(parsed.items).toHaveLength(20);
+
+    await prisma.pair.deleteMany({ where: { id: { in: created } } });
+    await prisma.variant.deleteMany({ where: { style: '5500' } });
   });
 
   it('без токена → 401', async () => {

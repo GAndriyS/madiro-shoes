@@ -1,0 +1,13 @@
+{
+  "name": "@madiro/e2e",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Browser e2e (Playwright) over the real api + built scanner and dashboard",
+  "scripts": {
+    "test:pw": "playwright test"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.49.0",
+    "typescript": "^5.7.0"
+  }
+}

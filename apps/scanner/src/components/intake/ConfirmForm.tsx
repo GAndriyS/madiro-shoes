@@ -19,7 +19,8 @@ const LOW_CONFIDENCE_THRESHOLD = 0.8;
 export type SaveMode = 'next' | 'finish';
 
 interface ConfirmFormProps {
-  recognition: TagRecognition;
+  /** Absent in manual entry — the form starts empty, no confidence banner. */
+  recognition?: TagRecognition;
   saving: boolean;
   onSave: (input: IntakeInput, mode: SaveMode) => void;
   onRescan: () => void;
@@ -35,9 +36,9 @@ interface ConfirmFormProps {
 export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: ConfirmFormProps) {
   const { t } = useTranslation();
   const isAdmin = useAuthStore((s) => s.user?.role) === 'ADMIN';
-  const [size, setSize] = useState(String(recognition.size));
-  const [color, setColor] = useState(recognition.color);
-  const [style, setStyle] = useState(recognition.style);
+  const [size, setSize] = useState(recognition ? String(recognition.size) : '');
+  const [color, setColor] = useState(recognition?.color ?? '');
+  const [style, setStyle] = useState(recognition?.style ?? '');
   const [season, setSeason] = useState<Season>('NONE');
   const [material, setMaterial] = useState<Material | null>(null);
   const [priceMode, setPriceMode] = useState<'set' | 'none'>('set');
@@ -49,7 +50,15 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
   const hint = usePriceHint(isAdmin ? { style, color, material, season } : null);
 
   useEffect(() => {
-    if (priceTouched || hint == null) return;
+    if (priceTouched) return;
+    // The identity changed and the new variant has no hint: clear the field.
+    // Leaving the previous variant's price here would let a batch be received
+    // at a price that belongs to a different model (S-4).
+    if (hint == null) {
+      setPrice('');
+      setPriceMode('set');
+      return;
+    }
     setPrice(hint > 0 ? String(hint) : '');
     // A variant confirmed as «без ціни — старий товар» (0) arrives here as the
     // same decision, pre-selected rather than silently turned into an empty field.
@@ -68,8 +77,12 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
 
   const priceValue = Number(price);
   const priceEntered = price.length > 0 && priceValue > 0;
+  // Same size bounds as the checkout flows — manual entry must not discover
+  // them as an unexplained 400 from the server.
+  const sizeNum = Number(size);
+  const sizeValid = Number.isInteger(sizeNum) && sizeNum >= 16 && sizeNum <= 50;
   // Admin must decide: a price or the explicit "no price" toggle.
-  const canSave = size.length > 0 && color.length > 0 && style.length > 0 && !saving;
+  const canSave = sizeValid && color.length > 0 && style.length > 0 && !saving;
   const adminNeedsPrice = isAdmin && priceMode === 'set' && !priceEntered;
 
   const submit = (mode: SaveMode) => {
@@ -77,7 +90,7 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
     const purchasePrice = isAdmin ? (priceMode === 'none' ? null : priceValue) : undefined;
     onSave(
       {
-        size: Number(size),
+        size: sizeNum,
         color,
         style,
         ...(material ? { material } : {}),
@@ -107,7 +120,7 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
         </span>
       </div>
 
-      {recognition.confidence < LOW_CONFIDENCE_THRESHOLD && (
+      {recognition != null && recognition.confidence < LOW_CONFIDENCE_THRESHOLD && (
         <div className="flex items-center gap-3 rounded-xl border border-dashed border-amber-border bg-amber-bg px-4 py-3">
           <AlertIcon size={18} className="flex-none text-amber-text" />
           <div className="text-[12.5px] leading-snug text-amber-text">

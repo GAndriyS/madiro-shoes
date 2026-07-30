@@ -70,3 +70,32 @@ jobs:
 
       - name: API integration tests
         run: pnpm --filter @madiro/api test:e2e
+
+      # Browser e2e (S-15): Playwright drives the built scanner + dashboard
+      # over the real api. The api seeds its admin from the env the Playwright
+      # config passes to its webServer, and reuses the job's Postgres.
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "version=$(node -p "require('e2e/node_modules/@playwright/test/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.playwright-version.outputs.version }}
+
+      - name: Install Playwright browsers
+        run: pnpm --filter @madiro/e2e exec playwright install --with-deps chromium
+
+      - name: Browser e2e (Playwright)
+        run: pnpm e2e:pw
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report
+          path: |
+            e2e/playwright-report/
+            e2e/test-results/
+          retention-days: 7

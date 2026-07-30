@@ -37,6 +37,44 @@ describe('SaleDetails', () => {
       />,
     );
 
+  // S-11: after a 409 the lookup refetches and may carry a fresh hint.
+  it('свіжа підказка після рефетчу оновлює поле, поки продавець його не чіпав', async () => {
+    const { rerender } = render(
+      <SaleDetails
+        pair={pair}
+        salePriceHint={2850}
+        saving={false}
+        onConfirm={() => {}}
+        onBack={() => {}}
+      />,
+    );
+    expect(screen.getByDisplayValue('2850')).toBeInTheDocument();
+
+    rerender(
+      <SaleDetails
+        pair={pair}
+        salePriceHint={2700}
+        saving={false}
+        onConfirm={() => {}}
+        onBack={() => {}}
+      />,
+    );
+    expect(screen.getByDisplayValue('2700')).toBeInTheDocument();
+
+    await userEvent.clear(screen.getByPlaceholderText('Ціна'));
+    await userEvent.type(screen.getByPlaceholderText('Ціна'), '3000');
+    rerender(
+      <SaleDetails
+        pair={pair}
+        salePriceHint={2500}
+        saving={false}
+        onConfirm={() => {}}
+        onBack={() => {}}
+      />,
+    );
+    expect(screen.getByDisplayValue('3000')).toBeInTheDocument();
+  });
+
   it('картка пари: стиль · колір · розмір, матеріал/утеплення і дата', () => {
     renderDetails();
     expect(screen.getByText('7645 · колір 36 · р. 38')).toBeInTheDocument();
@@ -131,5 +169,37 @@ describe('SaleConfirm', () => {
     expect(screen.getByText('9031 · 41 · р. 39')).toBeInTheDocument();
     expect(screen.getByText('2 пари')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Пошук по складу вручну' })).toBeInTheDocument();
+  });
+
+  // S-3.1: a failed lookup request is a connectivity problem, not «не знайдено».
+  it('збій lookup: повідомлення і «Спробувати ще раз», без хибного «не знайдено»', async () => {
+    const onRetry = vi.fn();
+    render(
+      <SaleConfirm
+        photoUrl={null}
+        size="38"
+        color="36"
+        style="7645"
+        onFieldChange={() => {}}
+        lookup={undefined}
+        loading={false}
+        lookupError
+        onRetry={onRetry}
+        selectedCombo={undefined}
+        onComboSelect={() => {}}
+        onSizeSelect={() => {}}
+        onNext={() => {}}
+        onRescan={() => {}}
+        onManualSearch={() => {}}
+        onBack={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('Не вдалося перевірити склад')).toBeInTheDocument();
+    expect(screen.queryByText('Пару не знайдено на складі')).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Далі — деталі виходу' })).toBeDisabled();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Спробувати ще раз' }));
+    expect(onRetry).toHaveBeenCalled();
   });
 });

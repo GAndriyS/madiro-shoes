@@ -42,6 +42,8 @@ describe('ConfirmForm', () => {
   const renderForm = (
     opts: {
       overrides?: Partial<typeof recognition>;
+      /** null renders the manual-entry mode: no recognition at all. */
+      recognition?: null;
       onSave?: (input: IntakeInput, mode: SaveMode) => void;
     } = {},
   ) => {
@@ -51,7 +53,9 @@ describe('ConfirmForm', () => {
     return render(
       <QueryClientProvider client={queryClient}>
         <ConfirmForm
-          recognition={{ ...recognition, ...opts.overrides }}
+          {...(opts.recognition === null
+            ? {}
+            : { recognition: { ...recognition, ...opts.overrides } })}
           saving={false}
           onSave={opts.onSave ?? (() => {})}
           onRescan={() => {}}
@@ -184,6 +188,53 @@ describe('ConfirmForm', () => {
       );
     });
 
+    // S-4: a hint must not survive an identity change — otherwise a batch gets
+    // received at a price that belongs to a different model.
+    it('зміна style на невідомий варіант очищає підставлену ціну', async () => {
+      asAdmin();
+      apiGet.mockImplementation((path: string) =>
+        Promise.resolve(
+          path.includes('style=7645') ? { purchasePrice: 1750 } : { purchasePrice: null },
+        ),
+      );
+      renderForm();
+
+      await waitFor(() => expect(screen.getByPlaceholderText('Ціна')).toHaveValue('1750'));
+
+      const styleInput = screen.getByText('STYLE').parentElement!.querySelector('input')!;
+      await userEvent.clear(styleInput);
+      await userEvent.type(styleInput, '9999');
+
+      await waitFor(
+        () => expect(screen.getByPlaceholderText('Ціна')).toHaveValue(''),
+        { timeout: 2000 }, // debounce 400ms + query round-trip
+      );
+      expect(screen.queryByText(/Підставлено ціну цього варіанта/)).not.toBeInTheDocument();
+    });
+
+    it('власноруч введена ціна переживає зміну style', async () => {
+      asAdmin();
+      apiGet.mockImplementation((path: string) =>
+        Promise.resolve(
+          path.includes('style=7645') ? { purchasePrice: 1750 } : { purchasePrice: null },
+        ),
+      );
+      renderForm();
+
+      const priceInput = screen.getByPlaceholderText('Ціна');
+      // Let the hint land first — the realistic order: suggestion, then override.
+      await waitFor(() => expect(priceInput).toHaveValue('1750'));
+      await userEvent.clear(priceInput);
+      await userEvent.type(priceInput, '999');
+
+      const styleInput = screen.getByText('STYLE').parentElement!.querySelector('input')!;
+      await userEvent.clear(styleInput);
+      await userEvent.type(styleInput, '9999');
+
+      await new Promise((resolve) => setTimeout(resolve, 700)); // let the debounce settle
+      expect(screen.getByPlaceholderText('Ціна')).toHaveValue('999');
+    });
+
     // FR-B-02: the endpoint is admin-only, so a seller must not even call it.
     it('продавець не запитує підказку взагалі', async () => {
       asSeller();
@@ -191,6 +242,72 @@ describe('ConfirmForm', () => {
 
       await new Promise((resolve) => setTimeout(resolve, 600));
       expect(apiGet).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('ручний ввід (без розпізнавання)', () => {
+    it('рендерить порожні поля і не показує банер впевненості', () => {
+      asSeller();
+      renderForm({ recognition: null });
+
+      const inputs = [
+        screen.getByText('SIZE').parentElement!.querySelector('input')!,
+        screen.getByText('COLOR').parentElement!.querySelector('input')!,
+        screen.getByText('STYLE').parentElement!.querySelector('input')!,
+      ];
+      for (const input of inputs) {
+        expect(input).toHaveValue('');
+      }
+      expect(screen.queryByText(/звірте цифри з біркою/)).not.toBeInTheDocument();
+    });
+
+    it('порожня форма не зберігається; заповнена вручну — зберігається з введеним', async () => {
+      asSeller();
+      const onSave = vi.fn();
+      renderForm({ recognition: null, onSave });
+
+      const next = screen.getByRole('button', { name: 'У чернетки і сканувати наступну' });
+      expect(next).toBeDisabled();
+
+      await userEvent.type(screen.getByText('SIZE').parentElement!.querySelector('input')!, '41');
+      await userEvent.type(screen.getByText('COLOR').parentElement!.querySelector('input')!, '12');
+      await userEvent.type(
+        screen.getByText('STYLE').parentElement!.querySelector('input')!,
+        '9031',
+      );
+      expect(next).toBeEnabled();
+      await userEvent.click(next);
+      expect(onSave).toHaveBeenCalledWith(
+        { size: 41, color: '12', style: '9031', season: 'NONE' },
+        'next',
+      );
+    });
+
+    it('ролі в ручному режимі: продавець без секції ціни, адмін — з нею', () => {
+      asSeller();
+      const { unmount } = renderForm({ recognition: null });
+      expect(screen.queryByText('ЦІНА ЗАКУПКИ')).not.toBeInTheDocument();
+      expect(screen.getByText(/Ціну закупки додасть адміністратор/)).toBeInTheDocument();
+      unmount();
+
+      asAdmin();
+      renderForm({ recognition: null });
+      expect(screen.getByText('ЦІНА ЗАКУПКИ')).toBeInTheDocument();
+    });
+
+    it('розмір поза межами 16–50 блокує збереження', async () => {
+      asSeller();
+      renderForm({ recognition: null });
+
+      await userEvent.type(screen.getByText('SIZE').parentElement!.querySelector('input')!, '7');
+      await userEvent.type(screen.getByText('COLOR').parentElement!.querySelector('input')!, '12');
+      await userEvent.type(
+        screen.getByText('STYLE').parentElement!.querySelector('input')!,
+        '9031',
+      );
+      expect(
+        screen.getByRole('button', { name: 'У чернетки і сканувати наступну' }),
+      ).toBeDisabled();
     });
   });
 

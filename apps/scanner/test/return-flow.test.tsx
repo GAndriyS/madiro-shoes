@@ -110,6 +110,61 @@ describe('ReturnConfirm', () => {
     expect(onComboSelect).toHaveBeenCalledWith({ material: 'SUEDE', season: 'NONE' });
   });
 
+  // Manual entry (S-2.1): the confirm step opens with empty fields and no
+  // lookup yet — that must read as "type the tag", not as "sale not found".
+  it('ручний ввід: порожні поля без помилки і без CTA, поля редаговані', async () => {
+    const onFieldChange = vi.fn();
+    render(
+      <ReturnConfirm
+        size=""
+        color=""
+        style=""
+        onFieldChange={onFieldChange}
+        lookup={undefined}
+        loading={false}
+        saving={false}
+        onConfirm={() => {}}
+        onRescan={() => {}}
+        onBack={() => {}}
+      />,
+    );
+
+    expect(screen.queryByText('Продаж не знайдено')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Повернути на склад/ })).not.toBeInTheDocument();
+
+    const sizeInput = screen.getByText('SIZE').parentElement!.querySelector('input')!;
+    await userEvent.type(sizeInput, '3');
+    expect(onFieldChange).toHaveBeenCalledWith('size', '3');
+  });
+
+  // S-3.2: a failed lookup request is a connectivity problem, not «не знайдено».
+  it('збій lookup: повідомлення і retry, без хибного «Продаж не знайдено»', async () => {
+    const onRetry = vi.fn();
+    render(
+      <ReturnConfirm
+        size="38"
+        color="36"
+        style="7645"
+        onFieldChange={() => {}}
+        lookup={undefined}
+        loading={false}
+        saving={false}
+        lookupError
+        onRetry={onRetry}
+        onConfirm={() => {}}
+        onRescan={() => {}}
+        onBack={() => {}}
+      />,
+    );
+
+    expect(screen.getByText('Не вдалося перевірити продажі')).toBeInTheDocument();
+    expect(screen.queryByText('Продаж не знайдено')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Повернути на склад/ })).not.toBeInTheDocument();
+
+    await userEvent.click(screen.getByRole('button', { name: 'Спробувати ще раз' }));
+    expect(onRetry).toHaveBeenCalled();
+  });
+
   it('продаж не знайдено: червона картка, CTA відсутня', () => {
     renderConfirm(notFound);
     expect(screen.getByText('Продаж не знайдено')).toBeInTheDocument();

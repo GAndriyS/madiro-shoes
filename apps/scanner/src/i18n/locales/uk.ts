@@ -57,6 +57,8 @@ export const uk = {
     torch: 'Ліхтарик',
     shutter: 'Зробити фото',
     manual: 'Ввести вручну',
+    gallery: 'Обрати фото з галереї',
+    cameraPending: 'Запитуємо доступ до камери…',
     cameraUnavailableTitle: 'Камера недоступна',
     cameraUnavailableBody:
       'Не вдалося отримати доступ до камери. Оберіть фото бірки з галереї або зробіть знімок системною камерою.',
@@ -135,6 +137,9 @@ export const uk = {
     writtenOffToast: 'Списання зареєстровано',
     conflict: 'Пара вже продана або списана — оновили дані складу',
     saveError: 'Не вдалося зберегти. Спробуйте ще раз.',
+    lookupErrorTitle: 'Не вдалося перевірити склад',
+    lookupErrorBody: 'Схоже, проблема зі зʼєднанням. Дані складу не завантажилися.',
+    lookupRetry: 'Спробувати ще раз',
   },
   return: {
     title: 'Повернення від покупця',
@@ -157,6 +162,8 @@ export const uk = {
     registeredToast: 'Повернення зареєстровано',
     conflict: 'Цю пару вже повернено або списано',
     saveError: 'Не вдалося зберегти. Спробуйте ще раз.',
+    lookupErrorTitle: 'Не вдалося перевірити продажі',
+    lookupErrorBody: 'Схоже, проблема зі зʼєднанням. Дані про продажі не завантажилися.',
   },
   mySales: {
     title: 'Мої продажі',
@@ -168,6 +175,8 @@ export const uk = {
     nextMonth: 'Наступний місяць',
     returnTag: 'повернення',
     returnNote: 'пара знову на складі',
+    writeoffTag: 'списання',
+    writeoffNote: 'без суми — пара списана зі складу',
     empty: 'Поки немає продажів за цей період.',
   },
   myDrafts: {
@@ -194,5 +203,10 @@ export const uk = {
     placeholder: 'Style — наприклад 7645',
     hint: 'Введіть щонайменше 2 цифри стилю',
     empty: 'На складі немає варіантів зі стилем {{style}}…',
+    awaitingPrice_one: '{{count}} очікує ціни',
+    awaitingPrice_few: '{{count}} очікують ціни',
+    awaitingPrice_many: '{{count}} очікують ціни',
+    awaitingPrice_other: '{{count}} очікує ціни',
+    truncated: 'Показано перші {{count}} — уточніть запит, щоб побачити решту',
   },
 };
