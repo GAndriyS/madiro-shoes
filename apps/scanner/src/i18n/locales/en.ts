@@ -55,6 +55,7 @@ export const en: Messages = {
   intake: {
     title: 'Intake',
     aimHint: 'Point the frame at the box tag',
+    captureFailed: 'The camera is not ready yet — wait a moment and tap again',
     torch: 'Torch',
     shutter: 'Take photo',
     manual: 'Enter manually',

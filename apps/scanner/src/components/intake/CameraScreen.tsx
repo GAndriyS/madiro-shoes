@@ -1,6 +1,6 @@
 import { BoltIcon, CameraIcon, ChevronRightIcon, ImageIcon, cn } from '@madiro/web-core';
 import { Link } from '@tanstack/react-router';
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { normalizePhoto } from '../../lib/normalizePhoto';
@@ -21,12 +21,20 @@ interface CameraScreenProps {
  */
 export function CameraScreen({ title, processing, onCapture, onManual }: CameraScreenProps) {
   const { t } = useTranslation();
-  const { videoRef, status, torchSupported, torchOn, toggleTorch, captureFrame } = useCamera();
+  const { setVideoRef, status, torchSupported, torchOn, toggleTorch, captureFrame } = useCamera();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [captureFailed, setCaptureFailed] = useState(false);
 
   const shoot = async () => {
     const frame = await captureFrame();
-    if (frame) onCapture(frame);
+    if (frame) {
+      setCaptureFailed(false);
+      onCapture(frame);
+      return;
+    }
+    // No frame means the stream has no dimensions yet. Say so — a shutter that
+    // does nothing at all reads as a broken app.
+    setCaptureFailed(true);
   };
 
   const pickFile = async (file: File | null) => {
@@ -85,7 +93,8 @@ export function CameraScreen({ title, processing, onCapture, onManual }: CameraS
         ) : (
           <>
             <video
-              ref={videoRef}
+              ref={setVideoRef}
+              data-testid="camera-video"
               autoPlay
               playsInline
               muted
@@ -97,8 +106,16 @@ export function CameraScreen({ title, processing, onCapture, onManual }: CameraS
               <div className="absolute bottom-0 left-0 h-7 w-7 rounded-bl-md border-b-[2.5px] border-l-[2.5px] border-queue-badge" />
               <div className="absolute right-0 bottom-0 h-7 w-7 rounded-br-md border-r-[2.5px] border-b-[2.5px] border-queue-badge" />
             </div>
-            <div className="absolute bottom-[18px] rounded-[18px] bg-[rgba(0,0,0,.35)] px-3.5 py-[7px] text-[12.5px] text-[rgba(232,223,208,.75)]">
-              {t('intake.aimHint')}
+            <div
+              className={cn(
+                'absolute bottom-[18px] mx-6 rounded-[18px] px-3.5 py-[7px] text-center text-[12.5px]',
+                captureFailed
+                  ? 'bg-[rgba(0,0,0,.55)] text-queue-badge'
+                  : 'bg-[rgba(0,0,0,.35)] text-[rgba(232,223,208,.75)]',
+              )}
+              role={captureFailed ? 'alert' : undefined}
+            >
+              {captureFailed ? t('intake.captureFailed') : t('intake.aimHint')}
             </div>
           </>
         )}

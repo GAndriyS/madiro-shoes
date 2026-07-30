@@ -16,11 +16,39 @@ interface TorchConstraintSet extends MediaTrackConstraintSet {
  * to a file input. Torch is Android-Chrome-only; `torchSupported` gates the UI.
  */
 export function useCamera() {
-  const videoRef = useRef<HTMLVideoElement>(null);
+  const videoRef = useRef<HTMLVideoElement | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const [status, setStatus] = useState<CameraStatus>('pending');
   const [torchSupported, setTorchSupported] = useState(false);
   const [torchOn, setTorchOn] = useState(false);
+
+  /**
+   * Wires the stream into the <video> whenever both exist. Both orderings are
+   * real: on first mount the stream wins the race (the element only renders
+   * once status flips to 'streaming'), on a rescan the element is already
+   * there. Attaching from one place is what fixes the black viewfinder — the
+   * old code assigned srcObject before the element existed and never retried.
+   * play() is explicit because iOS Safari in a standalone PWA does not
+   * reliably honour `autoPlay` for a srcObject attached after mount.
+   */
+  const attach = useCallback(() => {
+    const video = videoRef.current;
+    const stream = streamRef.current;
+    if (!video || !stream || video.srcObject === stream) return;
+    video.srcObject = stream;
+    void video.play?.().catch(() => {
+      // AbortError when the element unmounts mid-play — the next mount re-attaches.
+    });
+  }, []);
+
+  /** Callback ref: fires on mount, so the stream lands even if it arrived first. */
+  const setVideoRef = useCallback(
+    (video: HTMLVideoElement | null) => {
+      videoRef.current = video;
+      attach();
+    },
+    [attach],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -39,9 +67,7 @@ export function useCamera() {
           return;
         }
         streamRef.current = stream;
-        if (videoRef.current) {
-          videoRef.current.srcObject = stream;
-        }
+        attach();
         const [track] = stream.getVideoTracks();
         const capabilities = track?.getCapabilities?.() as TorchCapabilities | undefined;
         setTorchSupported(capabilities?.torch === true);
@@ -59,7 +85,7 @@ export function useCamera() {
       streamRef.current?.getTracks().forEach((track) => track.stop());
       streamRef.current = null;
     };
-  }, []);
+  }, [attach]);
 
   const toggleTorch = useCallback(async () => {
     const track = streamRef.current?.getVideoTracks()[0];
@@ -84,5 +110,5 @@ export function useCamera() {
     return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
   }, []);
 
-  return { videoRef, status, torchSupported, torchOn, toggleTorch, captureFrame };
+  return { setVideoRef, status, torchSupported, torchOn, toggleTorch, captureFrame };
 }
