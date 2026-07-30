@@ -40,7 +40,7 @@ export const uk = {
     from: 'з',
     to: 'по',
     kpiRevenue: 'ВИРУЧКА',
-    kpiRevenueDelta: '+{{pct}}% до вчора',
+    kpiRevenueDelta: '{{pct}}% до вчора',
     kpiSold: 'ПРОДАНО',
     sales_one: '{{count}} продаж',
     sales_few: '{{count}} продажі',
@@ -190,7 +190,7 @@ export const uk = {
     lastPriceHint: 'минулого разу цей варіант заходив по {{price}}',
     sizeShort: 'р. {{size}}',
     soldChip: 'р. {{size}} · продана',
-    soldHint: 'продано за {{price}} — маржа не рахується, поки нема вхідної ціни',
+    soldHint: 'продано за {{price}} — маржа порахується, щойно вкажете ціну',
     queueFootnote:
       'Чернетка вже на складі й доступна для продажу. «Без ціни» лишає пару в обліку без маржі — статистика веде такий товар окремо.',
     emptyTitle: 'Черга порожня',

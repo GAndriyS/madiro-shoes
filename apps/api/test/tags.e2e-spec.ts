@@ -3,7 +3,7 @@ import type { Server } from 'node:http';
 
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { tagRecognitionSchema } from '@madiro/shared';
+import { CLIENT_HEADER, tagRecognitionSchema } from '@madiro/shared';
 import * as argon2 from 'argon2';
 import request from 'supertest';
 
@@ -59,6 +59,7 @@ describe('Tags (e2e, real Postgres)', () => {
   const login = async () => {
     const res = await request(http)
       .post('/api/auth/login')
+      .set(CLIENT_HEADER, 'scanner')
       .send({ login: 'seller-tags', password: sellerPassword })
       .expect(200);
     return res.body.accessToken as string;

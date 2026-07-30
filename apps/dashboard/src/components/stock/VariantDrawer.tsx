@@ -57,6 +57,7 @@ function MiniKpi({
       <span className="font-display text-[22px] font-semibold text-ink">{value}</span>
       {onEdit && (
         <button
+          data-testid="drawer-edit-price"
           type="button"
           aria-label={editLabel}
           onClick={onEdit}
@@ -177,6 +178,7 @@ export function VariantDrawer({
                       {t('stock.inStockSince', { date: shortDM(p.intakeDate) })}
                     </span>
                     <button
+                      data-testid="drawer-delete-pair"
                       type="button"
                       aria-label={t('stock.deleteConfirm')}
                       onClick={() => onDeletePair(data, p)}
@@ -217,6 +219,7 @@ export function VariantDrawer({
                       </span>
                       {h.canCancel && (
                         <button
+                          data-testid="drawer-cancel-operation"
                           type="button"
                           aria-label={t('stock.cancelOperation')}
                           title={t('stock.cancelOperation')}

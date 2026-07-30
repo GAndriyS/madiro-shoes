@@ -13,6 +13,36 @@
   </head>
   <body>
     <div id="root"></div>
+    <!-- Boot guard — see apps/scanner/index.html for the why. Must stay inline
+         and import nothing: it has to run before the module that breaks. -->
+    <script>
+      (function () {
+        function report(reason) {
+          var root = document.getElementById('root');
+          if (!root || root.childElementCount > 0) return; // React mounted — not our business
+          var box = document.createElement('div');
+          box.setAttribute('role', 'alert');
+          box.setAttribute('data-testid', 'boot-error');
+          box.style.cssText =
+            'margin:0 auto;max-width:40rem;padding:2rem 1.5rem;font:14px/1.6 system-ui,sans-serif';
+          box.innerHTML =
+            '<h1 style="margin:0 0 .5rem;font-size:1.25rem">Застосунок не запустився</h1>' +
+            '<p style="margin:0 0 1rem;color:#6b6156">Найчастіша причина — застаріла збірка. Виконайте: <code>pnpm build</code></p>';
+          var pre = document.createElement('pre');
+          pre.style.cssText =
+            'margin:0;padding:.75rem;border-radius:.5rem;background:#f3efe9;white-space:pre-wrap;word-break:break-word;font-size:12px';
+          pre.textContent = reason && reason.message ? reason.message : String(reason);
+          box.appendChild(pre);
+          root.appendChild(box);
+        }
+        addEventListener('error', function (e) {
+          report(e.error || e.message);
+        });
+        addEventListener('unhandledrejection', function (e) {
+          report(e.reason);
+        });
+      })();
+    </script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -57,6 +57,7 @@ export function ProfileSheet({ open, onClose, summary }: Props) {
 
         <div className="rounded-[14px] border border-border bg-surface px-[18px] py-1">
           <Link
+            data-testid="profile-my-sales"
             to="/my-sales"
             onClick={onClose}
             className="flex items-center justify-between border-b border-border-row py-3.5"
@@ -66,6 +67,7 @@ export function ProfileSheet({ open, onClose, summary }: Props) {
           </Link>
           {isSeller && (
             <Link
+              data-testid="profile-my-drafts"
               to="/my-drafts"
               onClick={onClose}
               className="flex items-center justify-between py-3.5"
@@ -84,6 +86,7 @@ export function ProfileSheet({ open, onClose, summary }: Props) {
         </div>
 
         <button
+          data-testid="profile-logout"
           type="button"
           onClick={() => void signOut()}
           className="flex items-center justify-center gap-2.5 rounded-[14px] border-[1.5px] border-[#d4a08a] bg-surface p-[15px] text-[15px] font-bold text-danger"

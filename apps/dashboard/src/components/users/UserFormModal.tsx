@@ -118,6 +118,7 @@ export function UserFormModal({ target, onClose, onDeleteRequest }: Props) {
         <form onSubmit={onSubmit} className="flex flex-col gap-[18px]">
           <Field label={t('users.nameLabel')}>
             <input
+              data-testid="user-name-input"
               value={name}
               onChange={(e) => setName(e.target.value)}
               autoFocus
@@ -128,6 +129,7 @@ export function UserFormModal({ target, onClose, onDeleteRequest }: Props) {
           <div className={isEdit ? 'flex flex-col gap-[18px]' : 'grid grid-cols-2 gap-2.5'}>
             <Field label={t('users.loginLabel')}>
               <input
+                data-testid="user-login-input"
                 value={login}
                 onChange={(e) => setLogin(e.target.value)}
                 autoComplete="off"
@@ -137,6 +139,7 @@ export function UserFormModal({ target, onClose, onDeleteRequest }: Props) {
             <Field label={isEdit ? t('users.newPasswordLabel') : t('users.passwordLabel')}>
               <div className="flex items-center rounded-xl border-[1.5px] border-border-input bg-surface focus-within:border-ink">
                 <input
+                  data-testid="user-password-input"
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
@@ -163,10 +166,15 @@ export function UserFormModal({ target, onClose, onDeleteRequest }: Props) {
             </div>
           )}
 
-          {error && <div className="text-[13px] text-danger">{error}</div>}
+          {error && (
+            <div data-testid="user-form-error" className="text-[13px] text-danger">
+              {error}
+            </div>
+          )}
 
           <div className="flex gap-2.5">
             <button
+              data-testid="user-submit"
               type="submit"
               disabled={!valid || mutation.isPending}
               className="flex-1 rounded-xl bg-ink p-3.5 text-center text-[14.5px] font-bold text-page disabled:opacity-60"

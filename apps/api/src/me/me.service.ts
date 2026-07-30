@@ -9,6 +9,20 @@ function rangeFilter(range: { start: Date; end: Date }): { gte: Date; lt: Date }
   return { gte: range.start, lt: range.end };
 }
 
+/**
+ * «Мої продажі» is about a seller's own money, so ownership follows the
+ * figures, not the hands: a SALE or WRITEOFF belongs to whoever performed it,
+ * while a RETURN belongs to the seller whose sale it reverses
+ * (`attributedToId`). Whoever is at the counter may process a colleague's
+ * return; their own day must not go negative for it.
+ */
+function ownedBy(userId: string, types: ('SALE' | 'WRITEOFF')[]) {
+  return [
+    { type: { in: types }, userId },
+    { type: 'RETURN' as const, attributedToId: userId },
+  ];
+}
+
 @Injectable()
 export class MeService {
   constructor(private readonly prisma: PrismaService) {}
@@ -20,8 +34,7 @@ export class MeService {
     const [todayOps, draftsInQueue] = await Promise.all([
       this.prisma.operation.findMany({
         where: {
-          userId,
-          type: { in: ['SALE', 'RETURN'] },
+          OR: ownedBy(userId, ['SALE']),
           cancelledAt: null,
           createdAt: { gte: dayStart },
         },
@@ -67,10 +80,9 @@ export class MeService {
 
     const ops = await this.prisma.operation.findMany({
       where: {
-        userId,
         // Write-offs ride along informationally (S-5): a seller must be able
         // to spot an accidental one. They never touch the totals below.
-        type: { in: ['SALE', 'RETURN', 'WRITEOFF'] },
+        OR: ownedBy(userId, ['SALE', 'WRITEOFF']),
         cancelledAt: null,
         createdAt,
       },

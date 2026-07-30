@@ -142,6 +142,7 @@ export function PriceModal({ target, onClose }: Props) {
           </span>
           <label className="flex items-baseline gap-2 rounded-[14px] border-[1.5px] border-ink bg-surface px-[18px] py-4 focus-within:border-accent">
             <input
+              data-testid="price-modal-input"
               value={value}
               onChange={(e) => setValue(e.target.value.replace(/[^\d.]/g, ''))}
               inputMode="decimal"
@@ -166,6 +167,7 @@ export function PriceModal({ target, onClose }: Props) {
         <div className="flex flex-col gap-2.5">
           <div className="flex gap-2.5">
             <button
+              data-testid="price-modal-save"
               type="button"
               disabled={!valid || mutation.isPending}
               onClick={() => mutation.mutate(parsedValue)}

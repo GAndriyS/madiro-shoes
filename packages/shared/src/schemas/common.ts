@@ -15,3 +15,11 @@ export const tagCodeSchema = z
 
 /** Money amount in hryvnias: positive, up to two decimal places. */
 export const moneySchema = z.number().positive().max(1_000_000).multipleOf(0.01);
+
+/**
+ * A purchase price, where **0 is a real answer**: «без ціни — старий товар» is
+ * a deliberate decision of the admin, distinct from null «ще не вказана»
+ * (spec §2.2 #4). Sale prices keep `moneySchema` — selling for 0 ₴ is not a
+ * decision, it is a typo.
+ */
+export const purchasePriceSchema = z.number().min(0).max(1_000_000).multipleOf(0.01);

@@ -14,10 +14,12 @@ test('продаж через ручний ввід: пара залишає с�
 
   // The pair is findable before the sale…
   await page.goto('/search');
-  await page.getByPlaceholder(/Style/).fill(tag.style);
-  await expect(page.getByText(`${tag.style} · колір ${tag.color}`)).toBeVisible();
+  await page.getByTestId('stock-search-input').fill(tag.style);
+  await expect(page.getByTestId('stock-search-result')).toContainText(
+    `${tag.style} · колір ${tag.color}`,
+  );
 
-  await manualSale(page, tag, '2850', 'Картка');
+  await manualSale(page, tag, '2850', 'CARD');
 
   // …the toast names the pair and the payment…
   await expect(
@@ -26,6 +28,6 @@ test('продаж через ручний ввід: пара залишає с�
 
   // …and afterwards the stock search comes back empty: the pair is SOLD.
   await page.goto('/search');
-  await page.getByPlaceholder(/Style/).fill(tag.style);
-  await expect(page.getByText(/На складі немає варіантів/)).toBeVisible();
+  await page.getByTestId('stock-search-input').fill(tag.style);
+  await expect(page.getByTestId('stock-search-result')).toHaveCount(0);
 });

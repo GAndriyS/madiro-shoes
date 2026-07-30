@@ -36,7 +36,10 @@ function QueueBadge({ count }: { count: number }) {
     return null;
   }
   return (
-    <span className="rounded-[9px] bg-queue-badge px-2 py-0.5 text-[11px] font-extrabold text-ink">
+    <span
+      data-testid="nav-queue-badge"
+      className="rounded-[9px] bg-queue-badge px-2 py-0.5 text-[11px] font-extrabold text-ink"
+    >
       {count}
     </span>
   );
@@ -68,6 +71,7 @@ export function Sidebar({ queueVariants }: { queueVariants: number }) {
         {items.map(({ to, labelKey, Icon, badge }) => (
           <Link
             key={to}
+            data-testid={`nav-${to.slice(1)}`}
             to={to}
             className="flex items-center justify-center gap-[11px] rounded-[10px] px-3.5 py-[11px] text-[13.5px] text-sidebar-muted lg:justify-between"
             activeProps={{ className: 'bg-[rgba(245,241,234,.12)] font-bold !text-page' }}
@@ -75,7 +79,10 @@ export function Sidebar({ queueVariants }: { queueVariants: number }) {
             <span className="relative flex items-center gap-[11px]">
               <Icon size={16} />
               {badge != null && badge > 0 && (
-                <span className="absolute -top-2 -right-3.5 rounded-lg bg-queue-badge px-[5px] text-[10px] font-extrabold text-ink lg:hidden">
+                <span
+                  data-testid="nav-queue-badge"
+                  className="absolute -top-2 -right-3.5 rounded-lg bg-queue-badge px-[5px] text-[10px] font-extrabold text-ink lg:hidden"
+                >
                   {badge}
                 </span>
               )}
@@ -99,6 +106,7 @@ export function Sidebar({ queueVariants }: { queueVariants: number }) {
           </div>
         </div>
         <button
+          data-testid="logout"
           type="button"
           onClick={() => void signOut()}
           className="flex items-center justify-center gap-[9px] py-1 text-xs text-sidebar-muted hover:text-page lg:justify-start"

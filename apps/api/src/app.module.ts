@@ -34,7 +34,13 @@ import { UsersModule } from './users/users.module';
     }),
     // Generous global rate limit (one store, one admin); login/refresh tighten
     // it via @Throttle. In-memory store — swap for Redis if the API ever scales out.
-    ThrottlerModule.forRoot([{ name: 'default', ttl: 60_000, limit: 300 }]),
+    ThrottlerModule.forRoot([
+      {
+        name: 'default',
+        ttl: 60_000,
+        limit: Number(process.env.GLOBAL_RATE_LIMIT ?? 300),
+      },
+    ]),
     PrismaModule,
     RealtimeModule,
     AuthModule,

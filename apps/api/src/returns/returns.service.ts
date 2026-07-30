@@ -114,6 +114,10 @@ export class ReturnsService {
    * 3.3 #7). The RETURN operation copies the sale's price/payment/purchase
    * basis — stored positive, read paths subtract it. Row-locked like a sale,
    * so a double return loses with a 409.
+   *
+   * `userId` is whoever is at the counter; the money comes off the seller who
+   * made the sale (`attributedToId`). Whoever happens to serve the customer
+   * must not have their own day go negative for a colleague's sale.
    */
   async register(operationId: string, userId: string): Promise<CheckoutResult> {
     const result = await this.prisma.$transaction(async (tx) => {
@@ -146,6 +150,7 @@ export class ReturnsService {
           type: 'RETURN',
           pairId: pair.id,
           userId,
+          attributedToId: sale.userId,
           salePrice: sale.salePrice,
           paymentMethod: sale.paymentMethod,
           // Mirror the sale's frozen margin basis so the reversal is symmetric.

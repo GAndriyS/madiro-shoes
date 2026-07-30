@@ -3,6 +3,7 @@ import type { Server } from 'node:http';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import {
+  CLIENT_HEADER,
   intakeHistoryResponseSchema,
   intakeQueueResponseSchema,
   overviewResponseSchema,
@@ -113,8 +114,13 @@ describe('Dashboard (e2e, real Postgres)', () => {
     });
 
     const login = async (loginName: string) =>
-      (await request(http).post('/api/auth/login').send({ login: loginName, password }).expect(200))
-        .body.accessToken as string;
+      (
+        await request(http)
+          .post('/api/auth/login')
+          .set(CLIENT_HEADER, 'dashboard')
+          .send({ login: loginName, password })
+          .expect(200)
+      ).body.accessToken as string;
     adminToken = await login('admin-dash');
     sellerToken = await login('seller-dash');
   });
@@ -219,7 +225,7 @@ describe('Dashboard (e2e, real Postgres)', () => {
     expect(soldSize.soldPrice).toBe(4100);
   });
 
-  it('встановлення ціни: знімає очікування, бекфілить basis INTAKE, історія поповнюється', async () => {
+  it('встановлення ціни: знімає очікування, бекфілить basis усіх операцій, історія поповнюється', async () => {
     await asAdmin(request(http).patch(`/api/stock/variants/${draftVariantId}/price`))
       .send({ purchasePrice: 900 })
       .expect(200);
@@ -235,6 +241,14 @@ describe('Dashboard (e2e, real Postgres)', () => {
     for (const op of intakes) {
       expect(Number(op.purchasePriceAtTime)).toBe(900);
     }
+    // BUG-3: the pair sold before it had a price gets the basis too — otherwise
+    // its margin would stay uncounted forever, though the shop now knows the
+    // cost. The queue promises exactly this («маржа порахується, щойно
+    // вкажете ціну»).
+    const soldBeforePricing = await prisma.operation.findFirstOrThrow({
+      where: { type: 'SALE', pair: { variantId: draftVariantId } },
+    });
+    expect(Number(soldBeforePricing.purchasePriceAtTime)).toBe(900);
 
     const queue = intakeQueueResponseSchema.parse(
       (await asAdmin(request(http).get('/api/intake/queue')).expect(200)).body,
@@ -257,8 +271,9 @@ describe('Dashboard (e2e, real Postgres)', () => {
     expect(parsed.sales).toBe(2);
     expect(parsed.returns).toBe(0);
     expect(parsed.netPairs).toBe(2);
-    // Margin counts only ops with a frozen basis: 2850−1400 (the draft sale had none).
-    expect(parsed.margin).toBe(1450);
+    // Both sales now have a basis: 2850−1400 plus the once-priceless 4100−900,
+    // backfilled when the draft was confirmed in the previous test (BUG-3).
+    expect(parsed.margin).toBe(1450 + 3200);
     expect(parsed.revenueSeries.granularity).toBe('hour');
     expect(parsed.revenueSeries.points.reduce((s, p) => s + p.revenue, 0)).toBe(6950);
     expect(parsed.awaitingPrice.pairs).toBe(0);

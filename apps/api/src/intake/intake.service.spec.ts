@@ -85,14 +85,25 @@ describe('IntakeService', () => {
     expect(Number(tx.operation.create.mock.calls[0][0].data.purchasePriceAtTime)).toBe(1400);
   });
 
-  it('адмін "без ціни — старий товар" (null): pair на складі, ціна не оновлюється', async () => {
+  // «Без ціни — старий товар» is the price 0 — the same value the dashboard's
+  // no-price action writes. Recording null here would leave the pair
+  // indistinguishable from one nobody has priced yet (BUG-2, run 30.07.2026).
+  it('адмін "без ціни — старий товар" (0): ціна варіанта стає 0, pair на складі', async () => {
+    tx.variant.findFirst.mockResolvedValue({ id: 'v1' });
+
+    await service.create({ ...input, purchasePrice: 0 }, { id: 'admin', role: 'ADMIN' });
+
+    expect(Number(tx.variant.update.mock.calls[0][0].data.purchasePrice)).toBe(0);
+    expect(tx.pair.create.mock.calls[0][0].data.awaitingPrice).toBe(false);
+    expect(Number(tx.operation.create.mock.calls[0][0].data.purchasePriceAtTime)).toBe(0);
+  });
+
+  it('адмін без рішення щодо ціни (null): ціна варіанта лишається недоторканою', async () => {
     tx.variant.findFirst.mockResolvedValue({ id: 'v1' });
 
     await service.create({ ...input, purchasePrice: null }, { id: 'admin', role: 'ADMIN' });
 
-    expect(tx.variant.create).not.toHaveBeenCalled();
     expect(tx.variant.update).not.toHaveBeenCalled();
-    expect(tx.pair.create.mock.calls[0][0].data.awaitingPrice).toBe(false);
     expect(tx.operation.create.mock.calls[0][0].data.purchasePriceAtTime).toBeNull();
   });
 

@@ -129,16 +129,19 @@ export function ReturnConfirm({
 
       <div className="grid grid-cols-3 gap-2.5">
         <FieldCard
+          testId="field-size"
           label={t('intake.fieldSize')}
           value={size}
           onChange={(v) => onFieldChange('size', v)}
         />
         <FieldCard
+          testId="field-color"
           label={t('intake.fieldColor')}
           value={color}
           onChange={(v) => onFieldChange('color', v)}
         />
         <FieldCard
+          testId="field-style"
           label={t('intake.fieldStyle')}
           value={style}
           onChange={(v) => onFieldChange('style', v)}
@@ -243,7 +246,10 @@ export function ReturnConfirm({
       )}
 
       {notFound && (
-        <div className="flex items-start gap-3 rounded-xl border border-[#d4a08a] bg-[#f5e5dc] px-4 py-3.5">
+        <div
+          data-testid="return-not-found"
+          className="flex items-start gap-3 rounded-xl border border-[#d4a08a] bg-[#f5e5dc] px-4 py-3.5"
+        >
           <AlertIcon size={20} className="mt-0.5 flex-none text-[#a05c3b]" />
           <div className="flex flex-col gap-1">
             <span className="text-[13.5px] font-bold text-[#a05c3b]">
@@ -259,6 +265,7 @@ export function ReturnConfirm({
       <div className="mt-auto flex flex-col gap-2.5 pt-2">
         {sale && (
           <button
+            data-testid="return-confirm"
             type="button"
             disabled={saving || loading}
             onClick={() => onConfirm(sale.operationId)}

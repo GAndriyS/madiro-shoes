@@ -2,7 +2,12 @@ import type { OverviewResponse } from '@madiro/shared';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
-import { money } from '@madiro/web-core';
+import { cn, money } from '@madiro/web-core';
+
+/** «+12%» / «−4%»: the sign is part of the value, never part of the sentence. */
+function signed(pct: number): string {
+  return pct > 0 ? `+${pct}` : String(pct);
+}
 
 function Card({
   label,
@@ -10,15 +15,20 @@ function Card({
   value,
   sub,
   subOnMobile = false,
+  testId,
 }: {
   label: string;
   shortLabel?: string;
   value: string;
   sub?: string | null;
   subOnMobile?: boolean;
+  testId?: string;
 }) {
   return (
-    <div className="flex flex-col gap-1 rounded-[14px] border border-border bg-surface px-4 py-3.5 md:px-5 md:py-[18px]">
+    <div
+      data-testid={testId}
+      className="flex flex-col gap-1 rounded-[14px] border border-border bg-surface px-4 py-3.5 md:px-5 md:py-[18px]"
+    >
       <span className="text-[10px] font-bold tracking-[1px] text-text-muted md:text-[11px] md:tracking-[1.2px]">
         {shortLabel ? (
           <>
@@ -49,7 +59,10 @@ export function KpiCards({ data, isToday }: { data: OverviewResponse; isToday: b
 
   return (
     <div className="grid grid-cols-2 gap-2.5 md:gap-3.5 lg:grid-cols-4">
-      <div className="flex flex-col gap-1 rounded-[14px] border border-border bg-surface px-4 py-3.5 md:px-5 md:py-[18px]">
+      <div
+        data-testid="kpi-revenue"
+        className="flex flex-col gap-1 rounded-[14px] border border-border bg-surface px-4 py-3.5 md:px-5 md:py-[18px]"
+      >
         <span className="text-[10px] font-bold tracking-[1px] text-text-muted md:text-[11px]">
           {t('overview.kpiRevenue')}
         </span>
@@ -57,19 +70,29 @@ export function KpiCards({ data, isToday }: { data: OverviewResponse; isToday: b
           {money(data.revenue)}
         </span>
         {data.revenueDeltaPct != null && (
-          <span className="hidden text-[11.5px] text-success md:block">
-            {t('overview.kpiRevenueDelta', { pct: data.revenueDeltaPct })}
+          <span
+            data-testid="kpi-revenue-delta"
+            className={cn(
+              'hidden text-[11.5px] md:block',
+              data.revenueDeltaPct < 0 ? 'text-danger' : 'text-success',
+            )}
+          >
+            {/* The sign belongs to the number: a template that hardcodes «+»
+                renders a drop as «+-100%», in green. */}
+            {t('overview.kpiRevenueDelta', { pct: signed(data.revenueDeltaPct) })}
           </span>
         )}
       </div>
 
       <Card
+        testId="kpi-sold"
         label={t('overview.kpiSold')}
         value={t('overview.sales', { count: data.sales })}
         sub={soldSub}
         subOnMobile
       />
       <Card
+        testId="kpi-margin"
         label={isToday ? t('overview.kpiMargin') : t('overview.kpiMarginShort')}
         shortLabel={t('overview.kpiMarginShort')}
         value={money(data.margin)}
@@ -82,6 +105,7 @@ export function KpiCards({ data, isToday }: { data: OverviewResponse; isToday: b
 
       {/* Dark accent card — links to the intake queue (FR-D-02) */}
       <Link
+        data-testid="kpi-awaiting"
         to="/intake"
         className="flex flex-col gap-1 rounded-[14px] bg-ink px-4 py-3.5 md:px-5 md:py-[18px]"
       >

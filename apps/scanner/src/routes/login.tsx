@@ -95,6 +95,7 @@ function LoginPage() {
               {t('login.loginLabel')}
             </span>
             <input
+              data-testid="login-input"
               value={login}
               onChange={(e) => setLogin(e.target.value)}
               autoComplete="username"
@@ -108,6 +109,7 @@ function LoginPage() {
             </span>
             <div className="flex items-center rounded-[14px] border-[1.5px] border-border-input bg-surface focus-within:border-accent">
               <input
+                data-testid="password-input"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -126,9 +128,14 @@ function LoginPage() {
           </label>
         </div>
 
-        {error && <div className="text-center text-[13px] text-danger">{error}</div>}
+        {error && (
+          <div data-testid="login-error" className="text-center text-[13px] text-danger">
+            {error}
+          </div>
+        )}
 
         <button
+          data-testid="login-submit"
           type="submit"
           disabled={mutation.isPending || login.length === 0 || password.length === 0}
           className="rounded-[14px] bg-ink p-[17px] text-center text-base font-bold text-page disabled:opacity-60"

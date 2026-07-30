@@ -44,7 +44,7 @@ export const en: Messages = {
     from: 'from',
     to: 'to',
     kpiRevenue: 'REVENUE',
-    kpiRevenueDelta: '+{{pct}}% vs yesterday',
+    kpiRevenueDelta: '{{pct}}% vs yesterday',
     kpiSold: 'SOLD',
     sales_one: '{{count}} sale',
     sales_other: '{{count}} sales',
@@ -174,7 +174,7 @@ export const en: Messages = {
     lastPriceHint: 'last time this variant came in at {{price}}',
     sizeShort: 'sz {{size}}',
     soldChip: 'sz {{size}} · sold',
-    soldHint: 'sold for {{price}} — margin is not counted until a purchase price is set',
+    soldHint: 'sold for {{price}} — the margin is counted as soon as you set the price',
     queueFootnote:
       'A draft is already in stock and sellable. “No price” keeps the pair in records without margin — such stock is tracked separately.',
     emptyTitle: 'The queue is empty',

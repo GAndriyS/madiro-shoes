@@ -50,9 +50,13 @@ describe('MeService', () => {
     await service.summary('u42');
 
     const where = findMany.mock.calls[0][0].where;
-    expect(where.userId).toBe('u42');
+    // Own sales, plus the returns that reverse them — a return processed for a
+    // colleague belongs to the colleague's day, not to the person at the till.
+    expect(where.OR).toEqual([
+      { type: { in: ['SALE'] }, userId: 'u42' },
+      { type: 'RETURN', attributedToId: 'u42' },
+    ]);
     expect(where.cancelledAt).toBeNull();
-    expect(where.type).toEqual({ in: ['SALE', 'RETURN'] });
     expect(where.createdAt.gte).toBeInstanceOf(Date);
     expect(count.mock.calls[0][0].where).toEqual({ createdById: 'u42', awaitingPrice: true });
   });
@@ -118,9 +122,11 @@ describe('MeService', () => {
       await service.sales('u42', { period: 'month', month: '2026-03' });
 
       const where = whereOfLastCall();
-      expect(where.userId).toBe('u42');
+      expect(where.OR).toEqual([
+        { type: { in: ['SALE', 'WRITEOFF'] }, userId: 'u42' },
+        { type: 'RETURN', attributedToId: 'u42' },
+      ]);
       expect(where.cancelledAt).toBeNull();
-      expect(where.type).toEqual({ in: ['SALE', 'RETURN', 'WRITEOFF'] });
     });
 
     it('списання: рядок без суми й оплати, підсумки без нього', async () => {

@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { api } from '../src/lib/api';
+import { api, setClientId } from '../src/lib/api';
 import { useAuthStore } from '../src/stores/auth';
 
 const admin = { id: 'u', name: 'A', login: 'admin', role: 'ADMIN' as const };
@@ -14,6 +14,9 @@ function jsonResponse(status: number, body: unknown): Response {
 
 describe('api client', () => {
   beforeEach(() => {
+    // Every request names its app; without it the client refuses to call out
+    // rather than share a refresh cookie with the other app.
+    setClientId('scanner');
     useAuthStore.getState().setSession({ accessToken: 'old', user: admin });
   });
 

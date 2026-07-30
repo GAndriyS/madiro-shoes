@@ -47,6 +47,7 @@ export function PeriodSwitcher({ value, onChange }: Props) {
         {PRESETS.map(({ period, key }) => (
           <button
             key={period}
+            data-testid={`period-${period}`}
             type="button"
             onClick={() => {
               setRangeOpen(false);
@@ -62,6 +63,7 @@ export function PeriodSwitcher({ value, onChange }: Props) {
           </button>
         ))}
         <button
+          data-testid="period-custom"
           type="button"
           onClick={() => setRangeOpen((v) => !v)}
           className={`ml-[3px] flex items-center gap-1.5 border-l border-border-input px-3 py-1.5 text-xs ${

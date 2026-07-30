@@ -52,6 +52,7 @@ function HomePage() {
       <div className="flex items-center justify-between">
         <div className="font-display text-[17px] tracking-[3px] text-accent">MADIRO</div>
         <button
+          data-testid="profile-open"
           type="button"
           aria-label={t('profile.open')}
           onClick={() => setProfileOpen(true)}
@@ -62,14 +63,18 @@ function HomePage() {
       </div>
 
       <div className="flex flex-col gap-1">
-        <h1 className="font-display text-[32px] font-semibold text-ink">
+        <h1 data-testid="home-greeting" className="font-display text-[32px] font-semibold text-ink">
           {t('home.greeting', { name: firstName })}
         </h1>
         <div className="text-[13px] text-text-muted">{homeDate(i18n.language)}</div>
       </div>
 
       <div className="flex flex-col gap-3">
-        <Link to="/sale" className="flex items-center gap-4 rounded-2xl bg-ink px-[22px] py-6">
+        <Link
+          data-testid="action-sale"
+          to="/sale"
+          className="flex items-center gap-4 rounded-2xl bg-ink px-[22px] py-6"
+        >
           <span className="flex h-[46px] w-[46px] flex-none items-center justify-center rounded-xl bg-[rgba(245,241,234,.12)] text-page">
             <ScanFrameIcon size={24} />
           </span>
@@ -80,6 +85,7 @@ function HomePage() {
         </Link>
 
         <Link
+          data-testid="action-intake"
           to="/intake"
           className="flex items-center gap-4 rounded-2xl border border-border bg-surface px-[22px] py-6"
         >
@@ -93,6 +99,7 @@ function HomePage() {
         </Link>
 
         <Link
+          data-testid="action-return"
           to="/return"
           className="flex items-center gap-4 rounded-2xl border border-border bg-surface px-[22px] py-[18px]"
         >
@@ -104,6 +111,7 @@ function HomePage() {
 
         <div className="flex gap-3">
           <Link
+            data-testid="action-manual"
             to="/manual"
             className="flex flex-1 items-center gap-2.5 rounded-2xl border border-border bg-surface px-4 py-3.5"
           >
@@ -111,6 +119,7 @@ function HomePage() {
             <span className="text-[13.5px] font-bold text-ink">{t('home.manual')}</span>
           </Link>
           <Link
+            data-testid="action-search"
             to="/search"
             className="flex flex-1 items-center gap-2.5 rounded-2xl border border-border bg-surface px-4 py-3.5"
           >
@@ -120,7 +129,10 @@ function HomePage() {
         </div>
       </div>
 
-      <div className="mt-auto flex flex-col gap-3 rounded-2xl border border-border bg-surface px-[22px] py-[18px]">
+      <div
+        data-testid="today-summary"
+        className="mt-auto flex flex-col gap-3 rounded-2xl border border-border bg-surface px-[22px] py-[18px]"
+      >
         <div className="flex items-baseline justify-between">
           <span className="text-xs font-bold tracking-[1.5px] text-text-muted">
             {t('home.summaryLabel')}
@@ -131,7 +143,10 @@ function HomePage() {
         </div>
         <div className="flex gap-6">
           <div className="flex flex-col">
-            <span className="font-display text-[30px] font-semibold text-ink">
+            <span
+              data-testid="today-pairs"
+              className="font-display text-[30px] font-semibold text-ink"
+            >
               {summary?.todaySalesPairs ?? '—'}
             </span>
             <span className="text-[11.5px] text-text-muted">
@@ -139,7 +154,10 @@ function HomePage() {
             </span>
           </div>
           <div className="flex flex-col">
-            <span className="font-display text-[30px] font-semibold text-ink">
+            <span
+              data-testid="today-total"
+              className="font-display text-[30px] font-semibold text-ink"
+            >
               {summary != null ? money(summary.todaySalesTotal) : '—'}
             </span>
             <span className="text-[11.5px] text-text-muted">{t('home.summaryTotal')}</span>
@@ -148,7 +166,10 @@ function HomePage() {
       </div>
 
       {flash && (
-        <div className="fixed inset-x-5 bottom-6 z-30 mx-auto flex max-w-[390px] items-center gap-3 rounded-2xl bg-[#e2ecdc] px-4 py-3.5 shadow-modal">
+        <div
+          data-testid="toast-success"
+          className="fixed inset-x-5 bottom-6 z-30 mx-auto flex max-w-[390px] items-center gap-3 rounded-2xl bg-[#e2ecdc] px-4 py-3.5 shadow-modal"
+        >
           <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#3c5c34] text-page">
             <CheckIcon size={16} />
           </span>

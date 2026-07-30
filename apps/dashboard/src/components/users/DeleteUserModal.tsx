@@ -65,6 +65,7 @@ export function DeleteUserModal({ seller, onClose }: Props) {
         {mutation.isError && <p className="text-[13px] text-danger">{t('common.actionError')}</p>}
         <div className="flex gap-2.5">
           <button
+            data-testid="user-delete-confirm"
             type="button"
             disabled={mutation.isPending}
             onClick={() => mutation.mutate()}

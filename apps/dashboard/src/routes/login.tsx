@@ -101,6 +101,7 @@ function LoginPage() {
             <input
               value={login}
               onChange={(e) => setLogin(e.target.value)}
+              data-testid="login-input"
               autoComplete="username"
               autoFocus
               className="rounded-xl border-[1.5px] border-border-input bg-white px-4 py-3.5 text-[15px] text-ink outline-none focus:border-accent"
@@ -112,6 +113,7 @@ function LoginPage() {
             </span>
             <div className="flex items-center rounded-xl border-[1.5px] border-border-input bg-white focus-within:border-accent">
               <input
+                data-testid="password-input"
                 type={showPassword ? 'text' : 'password'}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
@@ -129,9 +131,14 @@ function LoginPage() {
             </div>
           </label>
 
-          {error && <div className="text-[13px] text-danger">{error}</div>}
+          {error && (
+            <div data-testid="login-error" className="text-[13px] text-danger">
+              {error}
+            </div>
+          )}
 
           <button
+            data-testid="login-submit"
             type="submit"
             disabled={mutation.isPending || login.length === 0 || password.length === 0}
             className="mt-1 rounded-xl bg-ink p-[15px] text-center text-[15px] font-bold text-page disabled:opacity-60"

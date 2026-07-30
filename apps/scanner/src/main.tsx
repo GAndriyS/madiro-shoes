@@ -1,4 +1,4 @@
-import { restoreSession } from '@madiro/web-core';
+import { restoreSession, setClientId } from '@madiro/web-core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createRouter } from '@tanstack/react-router';
 import { StrictMode } from 'react';
@@ -8,6 +8,10 @@ import { initI18n } from './i18n';
 import { routeTree } from './routeTree.gen';
 import './styles.css';
 
+// Name this app to the API before any request: each client gets its own
+// refresh cookie, so the scanner and the dashboard keep separate sessions
+// in one browser.
+setClientId('scanner');
 initI18n();
 
 export const queryClient = new QueryClient({

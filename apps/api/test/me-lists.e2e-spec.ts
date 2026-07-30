@@ -2,7 +2,12 @@ import type { Server } from 'node:http';
 
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { myDraftSchema, myDraftsResponseSchema, mySalesResponseSchema } from '@madiro/shared';
+import {
+  CLIENT_HEADER,
+  myDraftSchema,
+  myDraftsResponseSchema,
+  mySalesResponseSchema,
+} from '@madiro/shared';
 import * as argon2 from 'argon2';
 import request from 'supertest';
 
@@ -25,6 +30,7 @@ describe('My sales & drafts (e2e, real Postgres)', () => {
   const login = async (loginName: string) => {
     const res = await request(http)
       .post('/api/auth/login')
+      .set(CLIENT_HEADER, 'scanner')
       .send({ login: loginName, password })
       .expect(200);
     return res.body.accessToken as string;

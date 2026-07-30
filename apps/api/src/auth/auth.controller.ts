@@ -13,10 +13,14 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { Throttle } from '@nestjs/throttler';
 import {
-  REFRESH_COOKIE,
+  CLIENT_HEADER,
+  REFRESH_COOKIE_NAMES,
   loginRequestSchema,
+  parseClientId,
+  refreshCookieName,
   type AuthResponse,
   type AuthUser,
+  type ClientId,
 } from '@madiro/shared';
 import type { CookieOptions, Request, Response } from 'express';
 
@@ -28,6 +32,14 @@ import { Roles } from './decorators/roles.decorator';
 import { ClientHeaderGuard } from './guards/client-header.guard';
 import { refreshCookieOptions } from './refresh-cookie';
 
+/**
+ * Rate limits are read here, not injected: a decorator runs at class-definition
+ * time, long before the DI container exists. `env.validation` still declares
+ * and validates both variables — this is the same value, read earlier.
+ */
+const LOGIN_LIMIT = Number(process.env.AUTH_LOGIN_RATE_LIMIT ?? 10);
+const REFRESH_LIMIT = Number(process.env.AUTH_REFRESH_RATE_LIMIT ?? 20);
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -35,12 +47,21 @@ export class AuthController {
     private readonly config: ConfigService<Env, true>,
   ) {}
 
+  /**
+   * The client header is required here too — not for CSRF (a login carries no
+   * cookie to abuse) but because it names the app whose refresh cookie is
+   * being issued. Defaulting it would put the scanner and the dashboard back
+   * on one shared session; refusing it fails loudly instead of handing out a
+   * cookie the client will never find again.
+   */
   @Public()
+  @UseGuards(ClientHeaderGuard)
   @Post('login')
   @HttpCode(200)
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle({ default: { limit: LOGIN_LIMIT, ttl: 60_000 } })
   async login(
     @Body() body: unknown,
+    @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponse> {
     const parsed = loginRequestSchema.safeParse(body);
@@ -51,7 +72,7 @@ export class AuthController {
       parsed.data.login,
       parsed.data.password,
     );
-    res.cookie(REFRESH_COOKIE, refreshToken, this.cookieOptions());
+    res.cookie(refreshCookieName(this.clientOf(req)), refreshToken, this.cookieOptions());
     return session;
   }
 
@@ -65,19 +86,20 @@ export class AuthController {
   @UseGuards(ClientHeaderGuard)
   @Post('refresh')
   @HttpCode(200)
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Throttle({ default: { limit: REFRESH_LIMIT, ttl: 60_000 } })
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
   ): Promise<AuthResponse> {
+    const client = this.clientOf(req);
     const cookie = (req.cookies as Record<string, string | undefined> | undefined)?.[
-      REFRESH_COOKIE
+      refreshCookieName(client)
     ];
     if (!cookie) {
       throw new UnauthorizedException('Сесію не знайдено');
     }
     const { session, refreshToken } = await this.auth.refresh(cookie);
-    res.cookie(REFRESH_COOKIE, refreshToken, this.cookieOptions());
+    res.cookie(refreshCookieName(client), refreshToken, this.cookieOptions());
     return session;
   }
 
@@ -91,7 +113,12 @@ export class AuthController {
   @HttpCode(204)
   logout(@Res({ passthrough: true }) res: Response): void {
     const { maxAge: _maxAge, ...options } = this.cookieOptions();
-    res.clearCookie(REFRESH_COOKIE, options);
+    // Clear every client's cookie, not just the caller's: a session left
+    // behind by an earlier single-cookie build would otherwise outlive a
+    // deliberate logout, and clearing an absent cookie costs nothing.
+    for (const name of REFRESH_COOKIE_NAMES) {
+      res.clearCookie(name, options);
+    }
   }
 
   // Any authenticated user (admin or seller) may read their own profile.
@@ -99,6 +126,11 @@ export class AuthController {
   @Get('me')
   me(@CurrentUser() user: AuthUser): AuthUser {
     return user;
+  }
+
+  /** Guaranteed by ClientHeaderGuard on every route that calls this. */
+  private clientOf(req: Request): ClientId {
+    return parseClientId(req.headers[CLIENT_HEADER])!;
   }
 
   private cookieOptions(): CookieOptions {

@@ -19,17 +19,20 @@ interface SegmentedProps<T extends string> {
   options: readonly { value: T; label: string }[];
   selected: T;
   onSelect: (value: T) => void;
+  /** Each option becomes `${testId}-${value}` — a stable, untranslated hook. */
+  testId?: string;
 }
 
 /** Two-column segmented toggle (design 2a-2: «ТИП ВИХОДУ», «ОПЛАТА»). */
-function Segmented<T extends string>({ options, selected, onSelect }: SegmentedProps<T>) {
+function Segmented<T extends string>({ options, selected, onSelect, testId }: SegmentedProps<T>) {
   return (
-    <div className="grid grid-cols-2 gap-2">
+    <div className="grid grid-cols-2 gap-2" data-testid={testId}>
       {options.map((option) => {
         const active = option.value === selected;
         return (
           <button
             key={option.value}
+            data-testid={testId ? `${testId}-${option.value}` : undefined}
             type="button"
             aria-pressed={active}
             onClick={() => onSelect(option.value)}
@@ -127,6 +130,7 @@ export function SaleDetails({ pair, salePriceHint, saving, onConfirm, onBack }: 
           {t('sale.typeLabel')}
         </div>
         <Segmented
+          testId="checkout-type"
           options={[
             { value: 'SALE', label: t('sale.typeSale') },
             { value: 'WRITEOFF', label: t('sale.typeWriteoff') },
@@ -144,6 +148,7 @@ export function SaleDetails({ pair, salePriceHint, saving, onConfirm, onBack }: 
             </div>
             <div className="flex items-baseline gap-2 rounded-[14px] border-[1.5px] border-ink bg-surface px-[18px] py-4">
               <input
+                data-testid="sale-price-input"
                 inputMode="numeric"
                 value={price}
                 placeholder={t('intake.pricePlaceholder')}
@@ -165,6 +170,7 @@ export function SaleDetails({ pair, salePriceHint, saving, onConfirm, onBack }: 
               {t('sale.paymentLabel')}
             </div>
             <Segmented
+              testId="payment"
               options={[
                 { value: 'CASH', label: t('sale.paymentCash') },
                 { value: 'CARD', label: t('sale.paymentCard') },
@@ -181,6 +187,7 @@ export function SaleDetails({ pair, salePriceHint, saving, onConfirm, onBack }: 
               {t('sale.commentLabel')}
             </div>
             <textarea
+              data-testid="writeoff-comment"
               value={comment}
               onChange={(e) => setComment(e.target.value)}
               rows={3}
@@ -193,6 +200,7 @@ export function SaleDetails({ pair, salePriceHint, saving, onConfirm, onBack }: 
 
       <div className="mt-auto flex flex-col gap-2.5 pt-2">
         <button
+          data-testid="checkout-confirm"
           type="button"
           disabled={!canConfirm}
           onClick={confirm}

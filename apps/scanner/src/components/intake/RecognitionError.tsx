@@ -23,6 +23,7 @@ export function RecognitionError({ onRetry, onManual }: RecognitionErrorProps) {
         </div>
         <div className="flex flex-col gap-2.5">
           <button
+            data-testid="recognition-error-retry"
             type="button"
             onClick={onRetry}
             className="rounded-[14px] bg-ink p-4 text-center text-[15px] font-bold text-page"
@@ -30,6 +31,7 @@ export function RecognitionError({ onRetry, onManual }: RecognitionErrorProps) {
             {t('intake.errorRetry')}
           </button>
           <button
+            data-testid="recognition-error-manual"
             type="button"
             onClick={onManual}
             className="text-center text-[13px] font-semibold text-text-secondary"

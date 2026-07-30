@@ -72,6 +72,7 @@ function MySalesPage() {
         ).map(({ value, label }) => (
           <button
             key={value}
+            data-testid={`my-sales-period-${value}`}
             type="button"
             aria-pressed={period === value}
             onClick={() => {
@@ -181,6 +182,7 @@ function MySalesPage() {
                       return (
                         <div
                           key={row.id}
+                          data-testid={`my-sales-row-${row.type}`}
                           className={cn(
                             'flex items-baseline justify-between px-0.5 py-3.5',
                             index < group.items.length - 1 && 'border-b border-border',

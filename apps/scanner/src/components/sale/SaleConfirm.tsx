@@ -134,16 +134,19 @@ export function SaleConfirm({
 
       <div className="grid grid-cols-3 gap-2.5">
         <FieldCard
+          testId="field-size"
           label={t('intake.fieldSize')}
           value={size}
           onChange={(v) => onFieldChange('size', v)}
         />
         <FieldCard
+          testId="field-color"
           label={t('intake.fieldColor')}
           value={color}
           onChange={(v) => onFieldChange('color', v)}
         />
         <FieldCard
+          testId="field-style"
           label={t('intake.fieldStyle')}
           value={style}
           onChange={(v) => onFieldChange('style', v)}
@@ -161,6 +164,7 @@ export function SaleConfirm({
               return (
                 <button
                   key={`${combo.material ?? '-'}·${combo.season ?? '-'}`}
+                  data-testid={`combo-${combo.material ?? 'ANY'}-${combo.season ?? 'ANY'}`}
                   type="button"
                   aria-pressed={active}
                   onClick={() => onComboSelect({ material: combo.material, season: combo.season })}
@@ -234,7 +238,7 @@ export function SaleConfirm({
       )}
 
       {notFound && (
-        <div className="flex flex-col gap-3">
+        <div data-testid="sale-not-found" className="flex flex-col gap-3">
           <div className="flex items-start gap-3 rounded-xl border border-[#d4a08a] bg-[#f5e5dc] px-4 py-3.5">
             <AlertIcon size={20} className="mt-0.5 flex-none text-[#a05c3b]" />
             <div className="flex flex-col gap-1">
@@ -256,6 +260,7 @@ export function SaleConfirm({
                 {lookup.similar.map((row) => (
                   <button
                     key={`${row.style}·${row.color}·${row.size}`}
+                    data-testid="similar-pair"
                     type="button"
                     onClick={() => {
                       onFieldChange('style', row.style);
@@ -282,6 +287,7 @@ export function SaleConfirm({
         {notFound ? (
           <>
             <button
+              data-testid="sale-manual-search"
               type="button"
               onClick={onManualSearch}
               className="rounded-[14px] bg-ink p-[17px] text-center text-base font-bold text-page"
@@ -301,6 +307,7 @@ export function SaleConfirm({
         ) : (
           <>
             <button
+              data-testid="sale-next"
               type="button"
               disabled={loading || lookup?.pair == null}
               onClick={onNext}

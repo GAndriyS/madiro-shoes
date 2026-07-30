@@ -132,6 +132,7 @@ function MyDraftsPage() {
                   return (
                     <div
                       key={draft.pairId}
+                      data-testid="draft-row"
                       className="flex items-center justify-between rounded-[14px] border border-border bg-surface px-[18px] py-[15px]"
                     >
                       <div className="flex flex-col gap-[3px]">
@@ -154,6 +155,7 @@ function MyDraftsPage() {
                         {draft.awaitingPrice && (
                           <>
                             <button
+                              data-testid="draft-edit"
                               type="button"
                               aria-label={t('myDrafts.edit')}
                               onClick={() => setEditing(draft)}
@@ -162,6 +164,7 @@ function MyDraftsPage() {
                               <PencilIcon size={16} />
                             </button>
                             <button
+                              data-testid="draft-delete"
                               type="button"
                               aria-label={t('myDrafts.delete')}
                               onClick={() => setDeleting(draft)}
@@ -275,11 +278,27 @@ function DraftEditForm({
         {t('myDrafts.editTitle')}
       </DialogTitle>
       <div className="grid grid-cols-3 gap-2.5">
-        <FieldCard label={t('intake.fieldSize')} value={size} onChange={setSize} />
-        <FieldCard label={t('intake.fieldColor')} value={color} onChange={setColor} />
-        <FieldCard label={t('intake.fieldStyle')} value={style} onChange={setStyle} />
+        <FieldCard
+          testId="field-size"
+          label={t('intake.fieldSize')}
+          value={size}
+          onChange={setSize}
+        />
+        <FieldCard
+          testId="field-color"
+          label={t('intake.fieldColor')}
+          value={color}
+          onChange={setColor}
+        />
+        <FieldCard
+          testId="field-style"
+          label={t('intake.fieldStyle')}
+          value={style}
+          onChange={setStyle}
+        />
       </div>
       <PillGroup
+        testId="season"
         label={t('intake.seasonLabel')}
         options={SEASONS}
         selected={season}
@@ -287,6 +306,7 @@ function DraftEditForm({
         onSelect={setSeason}
       />
       <PillGroup
+        testId="material"
         label={t('intake.materialLabel')}
         options={MATERIALS}
         selected={material}
