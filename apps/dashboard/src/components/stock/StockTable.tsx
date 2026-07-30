@@ -168,6 +168,7 @@ export function StockTable({ rows, sort, onSortToggle, onRowClick, onSetPrice }:
       {table.getRowModel().rows.map((row, i, all) => (
         <div
           key={row.id}
+          data-testid="stock-row"
           onClick={() => onRowClick(row.original)}
           className={cn(
             GRID,

@@ -2,7 +2,7 @@ import type { Server } from 'node:http';
 
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { checkoutResultSchema, returnLookupResponseSchema } from '@madiro/shared';
+import { CLIENT_HEADER, checkoutResultSchema, returnLookupResponseSchema } from '@madiro/shared';
 import * as argon2 from 'argon2';
 import request from 'supertest';
 
@@ -82,6 +82,7 @@ describe('Returns (e2e, real Postgres)', () => {
 
     const login = await request(http)
       .post('/api/auth/login')
+      .set(CLIENT_HEADER, 'scanner')
       .send({ login: 'seller-ret', password })
       .expect(200);
     token = login.body.accessToken as string;
@@ -217,6 +218,88 @@ describe('Returns (e2e, real Postgres)', () => {
     );
     expect(suedeFound.sale?.salePrice).toBe(3300);
     expect(suedeFound.sale?.pairId).toBe(suedePair.id);
+  });
+
+  /**
+   * BUG-4 of the 30.07.2026 run: whoever is at the counter processes the
+   * return, but the money must come off the seller who made the sale.
+   * Otherwise a seller who helps a colleague watches their own day go
+   * negative for revenue they never earned.
+   */
+  it('повернення чужого продажу віднімається в автора продажу, не в того, хто оформив', async () => {
+    const [author, clerk] = await Promise.all([
+      prisma.user.create({
+        data: {
+          login: 'seller-author',
+          name: 'Ірина',
+          role: 'SELLER',
+          passwordHash: await argon2.hash(password),
+        },
+      }),
+      prisma.user.create({
+        data: {
+          login: 'seller-clerk',
+          name: 'Оля-каса',
+          role: 'SELLER',
+          passwordHash: await argon2.hash(password),
+        },
+      }),
+    ]);
+
+    const variant = await prisma.variant.findFirstOrThrow({ where: { style: '7645' } });
+    const pair = await prisma.pair.create({
+      data: { variantId: variant.id, size: 41, status: 'SOLD', createdById: author.id },
+    });
+    const sale = await prisma.operation.create({
+      data: {
+        type: 'SALE',
+        pairId: pair.id,
+        userId: author.id,
+        salePrice: 1500,
+        paymentMethod: 'CASH',
+      },
+    });
+
+    const tokenOf = async (login: string): Promise<string> =>
+      (
+        await request(http)
+          .post('/api/auth/login')
+          .set(CLIENT_HEADER, 'scanner')
+          .send({ login, password })
+          .expect(200)
+      ).body.accessToken as string;
+    const [authorToken, clerkToken] = await Promise.all([
+      tokenOf('seller-author'),
+      tokenOf('seller-clerk'),
+    ]);
+
+    await request(http)
+      .post('/api/returns')
+      .set('Authorization', `Bearer ${clerkToken}`)
+      .send({ operationId: sale.id })
+      .expect(201);
+
+    const ret = await prisma.operation.findFirstOrThrow({
+      where: { pairId: pair.id, type: 'RETURN' },
+    });
+    // The journal still records who did it…
+    expect(ret.userId).toBe(clerk.id);
+    // …while the figures follow the sale.
+    expect(ret.attributedToId).toBe(author.id);
+
+    const clerkSummary = await request(http)
+      .get('/api/me/summary')
+      .set('Authorization', `Bearer ${clerkToken}`)
+      .expect(200);
+    expect(clerkSummary.body).toMatchObject({ todaySalesPairs: 0, todaySalesTotal: 0 });
+
+    const authorSales = await request(http)
+      .get('/api/me/sales?period=today')
+      .set('Authorization', `Bearer ${authorToken}`)
+      .expect(200);
+    // Sale +1500 and its reversal −1500 both belong to the author: net zero.
+    expect(authorSales.body).toMatchObject({ pairs: 0, total: 0 });
+    expect(authorSales.body.items.map((i: { amount: number }) => i.amount)).toEqual([-1500, 1500]);
   });
 
   it('без токена → 401; невалідне тіло → 400', async () => {

@@ -30,7 +30,12 @@ function findForbidden(value: unknown, path = ''): string[] {
 }
 
 async function login(ctx: APIRequestContext, login: string, password: string): Promise<string> {
-  const response = await ctx.post(`${API}/auth/login`, { data: { login, password } });
+  // Every auth route requires the client id: it is the CSRF guard and it names
+  // whose refresh cookie is issued.
+  const response = await ctx.post(`${API}/auth/login`, {
+    headers: { 'x-madiro-client': 'scanner' },
+    data: { login, password },
+  });
   expect(response.ok(), `login ${login}: ${response.status()}`).toBeTruthy();
   return ((await response.json()) as { accessToken: string }).accessToken;
 }

@@ -18,10 +18,10 @@ test('чернетка продавця отримує ціну від адмі�
   // 1. Dashboard (desktop): admin creates the seller.
   const dashboard = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   await dashboard.goto(`${DASHBOARD_URL}/login`);
-  await dashboard.getByLabel('ЛОГІН').fill(ADMIN.login);
-  await dashboard.getByRole('textbox', { name: /ПАРОЛЬ/ }).fill(ADMIN.password);
-  await dashboard.getByRole('button', { name: 'Увійти' }).click();
-  await dashboard.getByRole('link', { name: 'Користувачі' }).click();
+  await dashboard.getByTestId('login-input').fill(ADMIN.login);
+  await dashboard.getByTestId('password-input').fill(ADMIN.password);
+  await dashboard.getByTestId('login-submit').click();
+  await dashboard.getByTestId('nav-users').click();
   await dashboard
     .getByRole('button', { name: /Додати/ })
     .first()
@@ -41,17 +41,17 @@ test('чернетка продавця отримує ціну від адмі�
   await expect(scanner.getByText('ОЧІКУЄ ЦІНИ', { exact: true })).toBeVisible();
 
   // 3. Dashboard: the variant sits in the queue; the admin sets the price.
-  await dashboard.getByRole('link', { name: 'Поступлення' }).click();
+  await dashboard.getByTestId('nav-intake').click();
   const card = dashboard
     .locator('div')
     .filter({ hasText: new RegExp(`${tag.style}.*${tag.color}`) })
-    .filter({ has: dashboard.getByRole('button', { name: 'Вказати ціну' }) })
+    .filter({ has: dashboard.getByTestId('queue-set-price') })
     .last();
-  await card.getByRole('button', { name: 'Вказати ціну' }).click();
-  const priceInput = dashboard.getByRole('dialog').locator('input');
+  await card.getByTestId('queue-set-price').click();
+  const priceInput = dashboard.getByTestId('price-modal-input');
   await priceInput.click();
   await priceInput.pressSequentially('1300');
-  const save = dashboard.getByRole('button', { name: 'Зберегти — додати на склад' });
+  const save = dashboard.getByTestId('price-modal-save');
   await expect(save).toBeEnabled();
   await save.click();
 

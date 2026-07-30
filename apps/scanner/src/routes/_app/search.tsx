@@ -72,6 +72,7 @@ function SearchPage() {
       <label className="flex items-center gap-3 rounded-[14px] border-[1.5px] border-border-input bg-surface px-4 py-3.5 focus-within:border-ink">
         <SearchIcon size={18} className="flex-none text-text-muted" strokeWidth={1.8} />
         <input
+          data-testid="stock-search-input"
           inputMode="numeric"
           value={style}
           placeholder={t('search.placeholder')}
@@ -112,6 +113,7 @@ function SearchPage() {
                   return (
                     <div
                       key={`${item.style}·${item.color}·${item.material ?? '-'}·${item.season ?? '-'}`}
+                      data-testid="stock-search-result"
                       className="flex flex-col gap-2.5 rounded-[14px] border border-border bg-surface px-[18px] py-[15px]"
                     >
                       <div className="flex items-start justify-between gap-2">

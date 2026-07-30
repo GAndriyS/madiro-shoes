@@ -132,6 +132,7 @@ function MyDraftsPage() {
                   return (
                     <div
                       key={draft.pairId}
+                      data-testid="draft-row"
                       className="flex items-center justify-between rounded-[14px] border border-border bg-surface px-[18px] py-[15px]"
                     >
                       <div className="flex flex-col gap-[3px]">
@@ -154,6 +155,7 @@ function MyDraftsPage() {
                         {draft.awaitingPrice && (
                           <>
                             <button
+                              data-testid="draft-edit"
                               type="button"
                               aria-label={t('myDrafts.edit')}
                               onClick={() => setEditing(draft)}
@@ -162,6 +164,7 @@ function MyDraftsPage() {
                               <PencilIcon size={16} />
                             </button>
                             <button
+                              data-testid="draft-delete"
                               type="button"
                               aria-label={t('myDrafts.delete')}
                               onClick={() => setDeleting(draft)}

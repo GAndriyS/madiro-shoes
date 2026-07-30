@@ -1,5 +1,5 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
-import { CLIENT_HEADER } from '@madiro/shared';
+import { CLIENT_HEADER, parseClientId } from '@madiro/shared';
 import type { Request } from 'express';
 
 /**
@@ -10,12 +10,15 @@ import type { Request } from 'express';
  * production). Requiring a custom header blocks that: a form post or an <img>
  * from another site cannot set one, and the CORS preflight it triggers only
  * succeeds for our own allowlisted origins.
+ *
+ * The header also names the calling app, which decides whose refresh cookie is
+ * being renewed — so an unknown value is refused rather than defaulted.
  */
 @Injectable()
 export class ClientHeaderGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const request = context.switchToHttp().getRequest<Request>();
-    if (request.headers[CLIENT_HEADER] == null) {
+    if (parseClientId(request.headers[CLIENT_HEADER]) == null) {
       throw new ForbiddenException('Запит без клієнтського заголовка');
     }
     return true;

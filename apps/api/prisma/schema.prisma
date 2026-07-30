@@ -63,8 +63,9 @@ model User {
   lastActiveAt DateTime?
   deletedAt    DateTime?
 
-  pairsCreated Pair[]      @relation("PairCreatedBy")
-  operations   Operation[]
+  pairsCreated        Pair[]      @relation("PairCreatedBy")
+  operations          Operation[]
+  operationsAffecting Operation[] @relation("OperationAttributedTo")
 
   @@map("users")
 }
@@ -123,8 +124,16 @@ model Operation {
   type                OperationType
   pairId              String
   pair                Pair           @relation(fields: [pairId], references: [id])
+  /// Who performed the operation — the journal's actor, always set.
   userId              String
   user                User           @relation(fields: [userId], references: [id])
+  /// Whose figures the operation moves, when that is someone else. A RETURN is
+  /// the case that needs it: whoever is at the counter processes it, but the
+  /// money comes off the seller who made the sale — otherwise a seller who
+  /// handles a colleague's return watches their own day go negative.
+  /// Null everywhere else, which reads as «the actor».
+  attributedToId      String?
+  attributedTo        User?          @relation("OperationAttributedTo", fields: [attributedToId], references: [id])
   purchasePriceAtTime Decimal?       @db.Decimal(10, 2)
   salePrice           Decimal?       @db.Decimal(10, 2)
   paymentMethod       PaymentMethod?
@@ -135,5 +144,6 @@ model Operation {
   @@index([pairId])
   @@index([type, createdAt])
   @@index([userId, createdAt])
+  @@index([attributedToId, createdAt])
   @@map("operations")
 }

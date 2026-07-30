@@ -10,15 +10,20 @@ function Card({
   value,
   sub,
   subOnMobile = false,
+  testId,
 }: {
   label: string;
   shortLabel?: string;
   value: string;
   sub?: string | null;
   subOnMobile?: boolean;
+  testId?: string;
 }) {
   return (
-    <div className="flex flex-col gap-1 rounded-[14px] border border-border bg-surface px-4 py-3.5 md:px-5 md:py-[18px]">
+    <div
+      data-testid={testId}
+      className="flex flex-col gap-1 rounded-[14px] border border-border bg-surface px-4 py-3.5 md:px-5 md:py-[18px]"
+    >
       <span className="text-[10px] font-bold tracking-[1px] text-text-muted md:text-[11px] md:tracking-[1.2px]">
         {shortLabel ? (
           <>
@@ -49,7 +54,10 @@ export function KpiCards({ data, isToday }: { data: OverviewResponse; isToday: b
 
   return (
     <div className="grid grid-cols-2 gap-2.5 md:gap-3.5 lg:grid-cols-4">
-      <div className="flex flex-col gap-1 rounded-[14px] border border-border bg-surface px-4 py-3.5 md:px-5 md:py-[18px]">
+      <div
+        data-testid="kpi-revenue"
+        className="flex flex-col gap-1 rounded-[14px] border border-border bg-surface px-4 py-3.5 md:px-5 md:py-[18px]"
+      >
         <span className="text-[10px] font-bold tracking-[1px] text-text-muted md:text-[11px]">
           {t('overview.kpiRevenue')}
         </span>
@@ -64,12 +72,14 @@ export function KpiCards({ data, isToday }: { data: OverviewResponse; isToday: b
       </div>
 
       <Card
+        testId="kpi-sold"
         label={t('overview.kpiSold')}
         value={t('overview.sales', { count: data.sales })}
         sub={soldSub}
         subOnMobile
       />
       <Card
+        testId="kpi-margin"
         label={isToday ? t('overview.kpiMargin') : t('overview.kpiMarginShort')}
         shortLabel={t('overview.kpiMarginShort')}
         value={money(data.margin)}
@@ -82,6 +92,7 @@ export function KpiCards({ data, isToday }: { data: OverviewResponse; isToday: b
 
       {/* Dark accent card — links to the intake queue (FR-D-02) */}
       <Link
+        data-testid="kpi-awaiting"
         to="/intake"
         className="flex flex-col gap-1 rounded-[14px] bg-ink px-4 py-3.5 md:px-5 md:py-[18px]"
       >

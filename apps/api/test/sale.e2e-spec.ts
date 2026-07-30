@@ -3,6 +3,7 @@ import type { Server } from 'node:http';
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import {
+  CLIENT_HEADER,
   checkoutResultSchema,
   saleLookupResponseSchema,
   stockSearchResponseSchema,
@@ -91,6 +92,7 @@ describe('Sale (e2e, real Postgres)', () => {
 
     const login = await request(http)
       .post('/api/auth/login')
+      .set(CLIENT_HEADER, 'scanner')
       .send({ login: 'seller-sale', password: sellerPassword })
       .expect(200);
     sellerToken = login.body.accessToken as string;

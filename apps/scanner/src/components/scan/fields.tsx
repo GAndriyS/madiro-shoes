@@ -5,13 +5,16 @@ interface FieldCardProps {
   label: string;
   value: string;
   onChange: (value: string) => void;
+  /** Stable hook for tests; the label is translated, this is not. */
+  testId?: string;
 }
 
-export function FieldCard({ label, value, onChange }: FieldCardProps) {
+export function FieldCard({ label, value, onChange, testId }: FieldCardProps) {
   return (
     <label className="flex flex-col gap-1 rounded-xl border-[1.5px] border-border-input bg-surface px-3.5 py-3">
       <span className="text-[10px] font-bold tracking-[1.2px] text-text-muted">{label}</span>
       <input
+        data-testid={testId}
         inputMode="numeric"
         value={value}
         onChange={(e) => onChange(e.target.value.replace(/\D/g, ''))}
@@ -28,6 +31,12 @@ interface PillGroupProps<T extends string> {
   selected: T | null;
   optionLabel: (option: T) => string;
   onSelect: (option: T) => void;
+  /**
+   * Stable hook for tests. Each pill becomes `${testId}-${option}` — the option
+   * is the enum value (`BAIKA`, `LEATHER`), so the selector survives both
+   * translation and copy edits.
+   */
+  testId?: string;
 }
 
 export function PillGroup<T extends string>({
@@ -36,9 +45,10 @@ export function PillGroup<T extends string>({
   selected,
   optionLabel,
   onSelect,
+  testId,
 }: PillGroupProps<T>) {
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex flex-col gap-2" data-testid={testId}>
       <div className="text-[11px] font-bold tracking-[1.5px] text-text-muted">{label}</div>
       <div className="flex gap-2">
         {options.map((option) => {
@@ -46,6 +56,7 @@ export function PillGroup<T extends string>({
           return (
             <button
               key={option}
+              data-testid={testId ? `${testId}-${option}` : undefined}
               type="button"
               aria-pressed={active}
               onClick={() => onSelect(option)}

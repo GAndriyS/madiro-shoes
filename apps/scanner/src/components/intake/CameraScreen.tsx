@@ -72,6 +72,7 @@ export function CameraScreen({ title, processing, onCapture, onManual }: CameraS
               {t('intake.choosePhoto')}
               <input
                 ref={fileInputRef}
+                data-testid="tag-photo-input"
                 type="file"
                 accept="image/*"
                 capture="environment"
@@ -114,6 +115,7 @@ export function CameraScreen({ title, processing, onCapture, onManual }: CameraS
             >
               <ImageIcon size={16} />
               <input
+                data-testid="tag-photo-input"
                 type="file"
                 accept="image/*"
                 className="hidden"
@@ -139,6 +141,7 @@ export function CameraScreen({ title, processing, onCapture, onManual }: CameraS
         </div>
 
         <button
+          data-testid="camera-shutter"
           type="button"
           aria-label={t('intake.shutter')}
           disabled={processing || status !== 'streaming'}
@@ -149,6 +152,7 @@ export function CameraScreen({ title, processing, onCapture, onManual }: CameraS
         </button>
 
         <button
+          data-testid="camera-manual"
           type="button"
           onClick={onManual}
           className="w-[76px] text-center text-[11.5px] leading-snug text-[rgba(232,223,208,.6)]"

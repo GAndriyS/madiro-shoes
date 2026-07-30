@@ -2,7 +2,7 @@ import type { Server } from 'node:http';
 
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { CLIENT_HEADER, REFRESH_COOKIE } from '@madiro/shared';
+import { CLIENT_HEADER, refreshCookieName } from '@madiro/shared';
 import * as argon2 from 'argon2';
 import request from 'supertest';
 
@@ -55,7 +55,10 @@ describe('API (e2e, real Postgres)', () => {
   });
 
   const login = (loginName: string, password: string) =>
-    request(http).post('/api/auth/login').send({ login: loginName, password });
+    request(http)
+      .post('/api/auth/login')
+      .set(CLIENT_HEADER, 'dashboard')
+      .send({ login: loginName, password });
 
   it('runs the full seller lifecycle with role scoping and unique-login enforcement', async () => {
     const adminRes = await login('admin', adminPassword).expect(200);
@@ -171,8 +174,10 @@ describe('API (e2e, real Postgres)', () => {
     expect(res.body.refreshToken).toBeUndefined();
     expect(res.body.accessToken).toBeTruthy();
 
+    // The cookie is named per client app, so the scanner and the dashboard
+    // hold independent sessions in one browser (BUG-5).
     const cookie = (res.headers['set-cookie'] as unknown as string[]).find((c) =>
-      c.startsWith(`${REFRESH_COOKIE}=`),
+      c.startsWith(`${refreshCookieName('dashboard')}=`),
     )!;
     expect(cookie).toContain('HttpOnly');
     expect(cookie).toContain('Path=/api/auth');
@@ -181,7 +186,7 @@ describe('API (e2e, real Postgres)', () => {
     const refreshed = await request(http)
       .post('/api/auth/refresh')
       .set('Cookie', cookie)
-      .set(CLIENT_HEADER, '1')
+      .set(CLIENT_HEADER, 'dashboard')
       .expect(200);
     expect(refreshed.body.accessToken).toBeTruthy();
     expect(refreshed.body.user.login).toBe('admin');
@@ -191,16 +196,29 @@ describe('API (e2e, real Postgres)', () => {
     // A cross-site request cannot set the client header → CSRF is dead on arrival.
     await request(http).post('/api/auth/refresh').set('Cookie', cookie).expect(403);
     // No cookie at all → 401, not 500.
-    await request(http).post('/api/auth/refresh').set(CLIENT_HEADER, '1').expect(401);
+    await request(http).post('/api/auth/refresh').set(CLIENT_HEADER, 'dashboard').expect(401);
+    // An unknown client id is refused outright — the API must never guess
+    // which app's session to renew.
+    await request(http)
+      .post('/api/auth/refresh')
+      .set('Cookie', cookie)
+      .set(CLIENT_HEADER, 'nope')
+      .expect(403);
+    // The dashboard's cookie is not the scanner's session.
+    await request(http)
+      .post('/api/auth/refresh')
+      .set('Cookie', cookie)
+      .set(CLIENT_HEADER, 'scanner')
+      .expect(401);
 
     // Logout drops the cookie server-side instead of only forgetting it client-side.
     const loggedOut = await request(http)
       .post('/api/auth/logout')
       .set('Cookie', cookie)
-      .set(CLIENT_HEADER, '1')
+      .set(CLIENT_HEADER, 'dashboard')
       .expect(204);
-    expect((loggedOut.headers['set-cookie'] as unknown as string[])[0]).toContain(
-      `${REFRESH_COOKIE}=;`,
+    expect((loggedOut.headers['set-cookie'] as unknown as string[]).join(';')).toContain(
+      `${refreshCookieName('dashboard')}=;`,
     );
   });
 

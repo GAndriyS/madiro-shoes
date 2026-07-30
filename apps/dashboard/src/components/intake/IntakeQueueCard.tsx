@@ -70,6 +70,7 @@ export function IntakeQueueCard({ item, onSetPrice, onNoPrice }: Props) {
 
       <div className="flex gap-2">
         <button
+          data-testid="queue-set-price"
           type="button"
           onClick={() => onSetPrice(item)}
           className="rounded-[10px] bg-accent px-[18px] py-2.5 text-[12.5px] font-bold text-white max-md:flex-1"
@@ -77,6 +78,7 @@ export function IntakeQueueCard({ item, onSetPrice, onNoPrice }: Props) {
           {t('intake.setPrice')}
         </button>
         <button
+          data-testid="queue-no-price"
           type="button"
           onClick={() => onNoPrice(item)}
           className="rounded-[10px] border-[1.5px] border-border-input px-[18px] py-2.5 text-[12.5px] font-semibold text-text-secondary max-md:flex-1"

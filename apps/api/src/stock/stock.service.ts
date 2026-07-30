@@ -299,8 +299,9 @@ export class StockService {
 
   /**
    * One purchase price per variant (FR-D-08, rule 3.3 #1): sets the price,
-   * releases every awaiting pair and backfills the draft INTAKE operations'
-   * frozen basis — the batch was accepted at exactly this price.
+   * releases every awaiting pair and backfills the frozen basis of the
+   * operations that were recorded without one — the batch was accepted at
+   * exactly this price.
    */
   setPrice(variantId: string, purchasePrice: number): Promise<{ ok: true }> {
     return this.confirm(variantId, new Prisma.Decimal(purchasePrice));
@@ -328,8 +329,14 @@ export class StockService {
       const ids = awaiting.map((p) => p.id);
       if (ids.length > 0) {
         await tx.pair.updateMany({ where: { id: { in: ids } }, data: { awaitingPrice: false } });
+        // Every operation of these pairs that was recorded without a basis —
+        // the INTAKE itself, and the SALE/RETURN of a pair sold before it was
+        // priced (FR-D-11). Without the sale, the pair's margin would stay
+        // uncounted forever, even though the shop now knows what it paid.
+        // `purchasePriceAtTime: null` guards real history: an operation that
+        // already froze a price keeps it.
         await tx.operation.updateMany({
-          where: { pairId: { in: ids }, type: 'INTAKE' },
+          where: { pairId: { in: ids }, purchasePriceAtTime: null },
           data: { purchasePriceAtTime: price },
         });
       }

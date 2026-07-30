@@ -1,6 +1,27 @@
-import { CLIENT_HEADER, authResponseSchema } from '@madiro/shared';
+import { CLIENT_HEADER, authResponseSchema, type ClientId } from '@madiro/shared';
 
 import { useAuthStore } from '../stores/auth';
+
+/**
+ * Which app this bundle is. The API issues a separate refresh cookie per
+ * client, so the scanner and the dashboard hold independent sessions in one
+ * browser — without this they share a cookie, and signing into one silently
+ * re-authenticates the other as the wrong user on its next reload.
+ *
+ * Each app calls `setClientId` once, before anything can make a request.
+ */
+let clientId: ClientId | null = null;
+
+export function setClientId(id: ClientId): void {
+  clientId = id;
+}
+
+function requireClientId(): ClientId {
+  if (!clientId) {
+    throw new Error('setClientId() не викликано — застосунок не назвав себе API');
+  }
+  return clientId;
+}
 
 export class ApiError extends Error {
   constructor(
@@ -43,9 +64,10 @@ async function request<T>(
   if (accessToken) {
     headers.set('Authorization', `Bearer ${accessToken}`);
   }
-  // Marks the call as coming from our own app: the API requires this header on
-  // the cookie-authenticated auth routes, where it is the CSRF guard.
-  headers.set(CLIENT_HEADER, '1');
+  // Names the calling app: the API requires this header on the
+  // cookie-authenticated auth routes, where it is both the CSRF guard and the
+  // choice of which client's refresh cookie to issue.
+  headers.set(CLIENT_HEADER, requireClientId());
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? REQUEST_TIMEOUT_MS);
@@ -100,7 +122,7 @@ async function doRefresh(): Promise<boolean> {
     // No body: the refresh token rides along as an httpOnly cookie (S-H3).
     const response = await fetch(`${API_BASE}/api/auth/refresh`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', [CLIENT_HEADER]: '1' },
+      headers: { 'Content-Type': 'application/json', [CLIENT_HEADER]: requireClientId() },
       credentials: 'include',
     });
     if (!response.ok) {
@@ -134,7 +156,7 @@ export async function logout(): Promise<void> {
   try {
     await fetch(`${API_BASE}/api/auth/logout`, {
       method: 'POST',
-      headers: { [CLIENT_HEADER]: '1' },
+      headers: { [CLIENT_HEADER]: requireClientId() },
       credentials: 'include',
     });
   } catch {

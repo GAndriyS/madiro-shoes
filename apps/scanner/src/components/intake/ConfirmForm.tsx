@@ -87,7 +87,10 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
 
   const submit = (mode: SaveMode) => {
     if (!canSave || adminNeedsPrice) return;
-    const purchasePrice = isAdmin ? (priceMode === 'none' ? null : priceValue) : undefined;
+    // «Без ціни — старий товар» is the price 0, exactly what the dashboard's
+    // no-price action writes — not null, which would mean «ще не вказана» and
+    // leave the pair looking like a draft nobody had priced yet.
+    const purchasePrice = isAdmin ? (priceMode === 'none' ? 0 : priceValue) : undefined;
     onSave(
       {
         size: sizeNum,
@@ -102,7 +105,7 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
   };
 
   return (
-    <div className="flex flex-1 flex-col gap-[13px] px-5 pt-4 pb-7">
+    <div data-testid="intake-form" className="flex flex-1 flex-col gap-[13px] px-5 pt-4 pb-7">
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2.5">
           <button
@@ -130,12 +133,28 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
       )}
 
       <div className="grid grid-cols-3 gap-2.5">
-        <FieldCard label={t('intake.fieldSize')} value={size} onChange={setSize} />
-        <FieldCard label={t('intake.fieldColor')} value={color} onChange={setColor} />
-        <FieldCard label={t('intake.fieldStyle')} value={style} onChange={setStyle} />
+        <FieldCard
+          testId="field-size"
+          label={t('intake.fieldSize')}
+          value={size}
+          onChange={setSize}
+        />
+        <FieldCard
+          testId="field-color"
+          label={t('intake.fieldColor')}
+          value={color}
+          onChange={setColor}
+        />
+        <FieldCard
+          testId="field-style"
+          label={t('intake.fieldStyle')}
+          value={style}
+          onChange={setStyle}
+        />
       </div>
 
       <PillGroup
+        testId="season"
         label={t('intake.seasonLabel')}
         options={SEASONS}
         selected={season}
@@ -143,6 +162,7 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
         onSelect={setSeason}
       />
       <PillGroup
+        testId="material"
         label={t('intake.materialLabel')}
         options={MATERIALS}
         selected={material}
@@ -157,6 +177,7 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
               {t('intake.priceLabel')}
             </span>
             <button
+              data-testid="no-price-toggle"
               type="button"
               onClick={() => {
                 setPriceTouched(true);
@@ -170,6 +191,7 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
           {priceMode === 'set' ? (
             <div className="flex items-baseline gap-2 rounded-[14px] border-[1.5px] border-ink bg-surface px-[18px] py-4">
               <input
+                data-testid="purchase-price-input"
                 inputMode="numeric"
                 value={price}
                 placeholder={t('intake.pricePlaceholder')}
@@ -188,7 +210,9 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
           )}
           {/* Say where the number came from, so a suggestion never reads as a fact. */}
           {hint != null && !priceTouched && (
-            <span className="text-[11.5px] text-text-muted">{t('intake.priceHintNote')}</span>
+            <span data-testid="price-hint-note" className="text-[11.5px] text-text-muted">
+              {t('intake.priceHintNote')}
+            </span>
           )}
         </div>
       ) : (
@@ -202,6 +226,7 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
 
       <div className="mt-auto flex flex-col gap-2.5 pt-2">
         <button
+          data-testid="intake-save-next"
           type="button"
           disabled={!canSave || adminNeedsPrice}
           onClick={() => submit('next')}
@@ -213,6 +238,7 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
           {isAdmin ? t('intake.saveAndNextAdmin') : t('intake.saveAndNextSeller')}
         </button>
         <button
+          data-testid="intake-save-finish"
           type="button"
           disabled={!canSave || adminNeedsPrice}
           onClick={() => submit('finish')}

@@ -1,6 +1,7 @@
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
 import {
+  CLIENT_HEADER,
   REALTIME_EVENT,
   REALTIME_NAMESPACE,
   realtimeEventSchema,
@@ -62,6 +63,7 @@ describe('Realtime (e2e, real Postgres + socket.io)', () => {
       (
         await request(app.getHttpServer())
           .post('/api/auth/login')
+          .set(CLIENT_HEADER, 'dashboard')
           .send({ login: loginName, password })
           .expect(200)
       ).body.accessToken as string;

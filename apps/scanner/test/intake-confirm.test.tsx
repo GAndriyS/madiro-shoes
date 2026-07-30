@@ -134,7 +134,10 @@ describe('ConfirmForm', () => {
     );
   });
 
-  it('адмін «без ціни — старий товар»: payload з purchasePrice = null', async () => {
+  // 0 is the decision «без ціни — старий товар», the same value the dashboard
+  // writes; null would mean «ще не вказана» and leave the pair looking like an
+  // unpriced draft (BUG-2 of the 30.07.2026 test run).
+  it('адмін «без ціни — старий товар»: payload з purchasePrice = 0', async () => {
     asAdmin();
     const onSave = vi.fn();
     renderForm({ onSave });
@@ -144,7 +147,7 @@ describe('ConfirmForm', () => {
     expect(finish).toBeEnabled();
     await userEvent.click(finish);
     expect(onSave).toHaveBeenCalledWith(
-      { size: 38, color: '36', style: '7645', season: 'NONE', purchasePrice: null },
+      { size: 38, color: '36', style: '7645', season: 'NONE', purchasePrice: 0 },
       'finish',
     );
   });

@@ -44,12 +44,12 @@ test('скан бірки з галереї префілить форму пос
 
   // Headless chromium has no camera, so the screen offers the file fallback —
   // the input is hidden behind a styled label, hence the direct locator.
-  await page.locator('input[type="file"]').setInputFiles(LABEL_PHOTO);
+  await page.getByTestId('tag-photo-input').setInputFiles(LABEL_PHOTO);
 
-  await expect(page.getByText('Нове поступлення')).toBeVisible();
-  await expect(page.getByLabel('SIZE')).toHaveValue(RECOGNIZED.size);
-  await expect(page.getByLabel('COLOR')).toHaveValue(RECOGNIZED.color);
-  await expect(page.getByLabel('STYLE')).toHaveValue(RECOGNIZED.style);
+  await expect(page.getByTestId('intake-form')).toBeVisible();
+  await expect(page.getByTestId('field-size')).toHaveValue(RECOGNIZED.size);
+  await expect(page.getByTestId('field-color')).toHaveValue(RECOGNIZED.color);
+  await expect(page.getByTestId('field-style')).toHaveValue(RECOGNIZED.style);
   // confidence 0.99 — the "check the digits" warning must stay away.
   await expect(page.getByText(/Розпізнано невпевнено/)).toBeHidden();
 });
@@ -58,15 +58,17 @@ test('збій розпізнавання лишає «Ввести вручну
   await page.route('**/api/tags/recognize', (route) => route.abort());
   await page.goto('/intake');
 
-  await page.locator('input[type="file"]').setInputFiles(LABEL_PHOTO);
+  await page.getByTestId('tag-photo-input').setInputFiles(LABEL_PHOTO);
   await expect(page.getByText('Не вдалося прочитати бірку')).toBeVisible();
 
-  await page.getByRole('button', { name: 'Ввести вручну' }).click();
+  // The escape hatch on the ERROR screen — a different button from the one on
+  // the camera, and the one a seller actually reaches when recognition dies.
+  await page.getByTestId('recognition-error-manual').click();
 
   // The intake form with EMPTY fields — not /manual, which is the checkout
   // flow: selling a pair is the opposite of receiving one (regression S-1.2).
-  await expect(page.getByText('Нове поступлення')).toBeVisible();
-  await expect(page.getByLabel('SIZE')).toHaveValue('');
+  await expect(page.getByTestId('intake-form')).toBeVisible();
+  await expect(page.getByTestId('field-size')).toHaveValue('');
   expect(new URL(page.url()).pathname).toBe('/intake');
 
   await page.unroute('**/api/tags/recognize');
@@ -75,8 +77,8 @@ test('збій розпізнавання лишає «Ввести вручну
 test('скан у флоу продажу відкриває підтвердження скану (TC-D-08)', async () => {
   await page.goto('/sale');
 
-  await page.locator('input[type="file"]').setInputFiles(LABEL_PHOTO);
+  await page.getByTestId('tag-photo-input').setInputFiles(LABEL_PHOTO);
 
   await expect(page.getByText('Підтвердження скану')).toBeVisible();
-  await expect(page.getByLabel('STYLE')).toHaveValue(RECOGNIZED.style);
+  await expect(page.getByTestId('field-style')).toHaveValue(RECOGNIZED.style);
 });

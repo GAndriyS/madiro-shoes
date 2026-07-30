@@ -2,7 +2,7 @@ import type { Server } from 'node:http';
 
 import type { INestApplication } from '@nestjs/common';
 import { Test } from '@nestjs/testing';
-import { intakeResultSchema } from '@madiro/shared';
+import { CLIENT_HEADER, intakeResultSchema } from '@madiro/shared';
 import * as argon2 from 'argon2';
 import request from 'supertest';
 
@@ -61,7 +61,11 @@ describe('Intake (e2e, real Postgres)', () => {
   });
 
   const token = async (login: string, password: string) => {
-    const res = await request(http).post('/api/auth/login').send({ login, password }).expect(200);
+    const res = await request(http)
+      .post('/api/auth/login')
+      .set(CLIENT_HEADER, 'scanner')
+      .send({ login, password })
+      .expect(200);
     return res.body.accessToken as string;
   };
 

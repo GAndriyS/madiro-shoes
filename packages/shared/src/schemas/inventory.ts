@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { MATERIALS, PAIR_STATUSES, PAYMENT_METHODS, SEASONS } from '../enums.js';
-import { moneySchema, sizeSchema, tagCodeSchema } from './common.js';
+import { moneySchema, purchasePriceSchema, sizeSchema, tagCodeSchema } from './common.js';
 
 /**
  * Pair intake (FR-S-11/12): three tag fields plus optional material and
@@ -13,8 +13,13 @@ export const intakeSchema = z.object({
   style: tagCodeSchema,
   material: z.enum(MATERIALS).optional(),
   season: z.enum(SEASONS).optional(),
-  /** Admin only; explicit null means "no price — old stock". */
-  purchasePrice: moneySchema.nullable().optional(),
+  /**
+   * Admin only. `0` is «без ціни — старий товар» — a decision, and the same
+   * value the dashboard's no-price action writes. Absent (or null) means the
+   * price is simply not set yet: that is what a seller's draft sends, and an
+   * admin cannot express it, because deciding is the admin's job.
+   */
+  purchasePrice: purchasePriceSchema.nullable().optional(),
 });
 export type IntakeInput = z.infer<typeof intakeSchema>;
 
