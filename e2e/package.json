@@ -4,10 +4,12 @@
   "private": true,
   "description": "Browser e2e (Playwright) over the real api + built scanner and dashboard",
   "scripts": {
-    "test:pw": "playwright test"
+    "test:pw": "playwright test",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@playwright/test": "^1.49.0",
+    "@types/node": "^22.10.0",
     "typescript": "^5.7.0"
   }
 }

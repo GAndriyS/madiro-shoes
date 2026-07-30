@@ -25,6 +25,17 @@ const envSchema = z.object({
    * flag can never silently fake real usage.
    */
   VISION_PROVIDER: z.enum(['auto', 'mock', 'gemini']).default('auto'),
+  /**
+   * Per-minute rate limits on the auth routes. Defaults are the production
+   * values; an automated suite raises them because it makes dozens of honest
+   * logins a minute, and being throttled would only prove the limit exists.
+   * Read via process.env in the controller — @Throttle is evaluated when the
+   * class is defined, before any DI container exists.
+   */
+  AUTH_LOGIN_RATE_LIMIT: z.coerce.number().int().positive().default(10),
+  AUTH_REFRESH_RATE_LIMIT: z.coerce.number().int().positive().default(20),
+  /** Per-minute ceiling on everything else; same reasoning as the two above. */
+  GLOBAL_RATE_LIMIT: z.coerce.number().int().positive().default(300),
   /** Pino level; defaults to `info` in production and `debug` elsewhere. */
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).optional(),
 });

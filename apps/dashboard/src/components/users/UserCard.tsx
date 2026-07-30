@@ -20,7 +20,10 @@ export function UserCard({ seller, onEdit, onDelete }: Props) {
     seller.lastActiveAt != null ? dayLabel(seller.lastActiveAt) : t('users.neverActive');
 
   return (
-    <div className="flex items-center gap-3.5 rounded-[14px] border border-border bg-surface px-[18px] py-4 lg:gap-[18px] lg:px-[22px] lg:py-[18px]">
+    <div
+      data-testid="user-card"
+      className="flex items-center gap-3.5 rounded-[14px] border border-border bg-surface px-[18px] py-4 lg:gap-[18px] lg:px-[22px] lg:py-[18px]"
+    >
       <div className="flex h-10 w-10 flex-none items-center justify-center rounded-full bg-chart-bar text-[13px] font-extrabold text-accent-hover lg:h-11 lg:w-11 lg:text-sm">
         {initials(seller.name)}
       </div>
@@ -55,6 +58,7 @@ export function UserCard({ seller, onEdit, onDelete }: Props) {
 
       <div className="flex gap-3 lg:gap-3.5">
         <button
+          data-testid="user-edit"
           type="button"
           aria-label={t('users.editTitle')}
           onClick={() => onEdit(seller)}
@@ -63,6 +67,7 @@ export function UserCard({ seller, onEdit, onDelete }: Props) {
           <PencilIcon size={15} />
         </button>
         <button
+          data-testid="user-delete"
           type="button"
           aria-label={t('users.deleteLink')}
           onClick={() => onDelete(seller)}

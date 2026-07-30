@@ -32,6 +32,14 @@ import { Roles } from './decorators/roles.decorator';
 import { ClientHeaderGuard } from './guards/client-header.guard';
 import { refreshCookieOptions } from './refresh-cookie';
 
+/**
+ * Rate limits are read here, not injected: a decorator runs at class-definition
+ * time, long before the DI container exists. `env.validation` still declares
+ * and validates both variables — this is the same value, read earlier.
+ */
+const LOGIN_LIMIT = Number(process.env.AUTH_LOGIN_RATE_LIMIT ?? 10);
+const REFRESH_LIMIT = Number(process.env.AUTH_REFRESH_RATE_LIMIT ?? 20);
+
 @Controller('auth')
 export class AuthController {
   constructor(
@@ -50,7 +58,7 @@ export class AuthController {
   @UseGuards(ClientHeaderGuard)
   @Post('login')
   @HttpCode(200)
-  @Throttle({ default: { limit: 10, ttl: 60_000 } })
+  @Throttle({ default: { limit: LOGIN_LIMIT, ttl: 60_000 } })
   async login(
     @Body() body: unknown,
     @Req() req: Request,
@@ -78,7 +86,7 @@ export class AuthController {
   @UseGuards(ClientHeaderGuard)
   @Post('refresh')
   @HttpCode(200)
-  @Throttle({ default: { limit: 20, ttl: 60_000 } })
+  @Throttle({ default: { limit: REFRESH_LIMIT, ttl: 60_000 } })
   async refresh(
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,

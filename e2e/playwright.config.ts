@@ -28,6 +28,12 @@ const apiEnv = {
   // Recognition must read the same numbers every run and must never spend
   // Gemini quota — the mock is the provider under test here, not the model.
   VISION_PROVIDER: 'mock',
+  // The suite makes dozens of honest logins a minute; production limits (10/20)
+  // would throttle it and prove nothing. Rate limiting itself stays a manual
+  // check (TC-K-05) — it is configuration, enforced by @nestjs/throttler.
+  AUTH_LOGIN_RATE_LIMIT: '500',
+  AUTH_REFRESH_RATE_LIMIT: '2000',
+  GLOBAL_RATE_LIMIT: '100000',
 };
 
 /** What the mock vision provider returns for any photo (mock.provider.ts). */
@@ -54,8 +60,15 @@ export default defineConfig({
   ],
   webServer: [
     {
+      // `exec` matters: without it the shell owns the chain and Playwright's
+      // shutdown kills the shell while `node` keeps port 3000. The next run
+      // then finds a healthy-looking API — the previous run's, on whatever
+      // database it had — and every spec fails in a way that points anywhere
+      // but here. Running node directly from this directory also means the
+      // API takes its configuration only from `env` below, never from
+      // apps/api/.env.
       command:
-        'pnpm --filter @madiro/shared build && pnpm --filter @madiro/api build && pnpm --filter @madiro/api db:deploy && pnpm --filter @madiro/api db:seed && pnpm --filter @madiro/api start',
+        'pnpm --filter @madiro/shared build && pnpm --filter @madiro/api build && pnpm --filter @madiro/api db:deploy && pnpm --filter @madiro/api db:seed && exec node ../apps/api/dist/main.js',
       url: 'http://localhost:3000/api/health',
       timeout: 300_000,
       reuseExistingServer: false,

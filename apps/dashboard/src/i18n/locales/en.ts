@@ -44,7 +44,7 @@ export const en: Messages = {
     from: 'from',
     to: 'to',
     kpiRevenue: 'REVENUE',
-    kpiRevenueDelta: '+{{pct}}% vs yesterday',
+    kpiRevenueDelta: '{{pct}}% vs yesterday',
     kpiSold: 'SOLD',
     sales_one: '{{count}} sale',
     sales_other: '{{count}} sales',

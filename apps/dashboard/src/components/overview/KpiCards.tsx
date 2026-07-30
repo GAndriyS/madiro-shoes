@@ -2,7 +2,12 @@ import type { OverviewResponse } from '@madiro/shared';
 import { Link } from '@tanstack/react-router';
 import { useTranslation } from 'react-i18next';
 
-import { money } from '@madiro/web-core';
+import { cn, money } from '@madiro/web-core';
+
+/** «+12%» / «−4%»: the sign is part of the value, never part of the sentence. */
+function signed(pct: number): string {
+  return pct > 0 ? `+${pct}` : String(pct);
+}
 
 function Card({
   label,
@@ -65,8 +70,16 @@ export function KpiCards({ data, isToday }: { data: OverviewResponse; isToday: b
           {money(data.revenue)}
         </span>
         {data.revenueDeltaPct != null && (
-          <span className="hidden text-[11.5px] text-success md:block">
-            {t('overview.kpiRevenueDelta', { pct: data.revenueDeltaPct })}
+          <span
+            data-testid="kpi-revenue-delta"
+            className={cn(
+              'hidden text-[11.5px] md:block',
+              data.revenueDeltaPct < 0 ? 'text-danger' : 'text-success',
+            )}
+          >
+            {/* The sign belongs to the number: a template that hardcodes «+»
+                renders a drop as «+-100%», in green. */}
+            {t('overview.kpiRevenueDelta', { pct: signed(data.revenueDeltaPct) })}
           </span>
         )}
       </div>

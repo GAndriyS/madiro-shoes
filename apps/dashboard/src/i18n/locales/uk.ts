@@ -40,7 +40,7 @@ export const uk = {
     from: 'з',
     to: 'по',
     kpiRevenue: 'ВИРУЧКА',
-    kpiRevenueDelta: '+{{pct}}% до вчора',
+    kpiRevenueDelta: '{{pct}}% до вчора',
     kpiSold: 'ПРОДАНО',
     sales_one: '{{count}} продаж',
     sales_few: '{{count}} продажі',

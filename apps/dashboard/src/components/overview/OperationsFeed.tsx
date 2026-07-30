@@ -32,7 +32,10 @@ export function OperationsFeed({ items }: { items: RecentOperation[] }) {
   const tone = (op: RecentOperation) => (op.type === 'RETURN' ? 'text-danger' : 'text-ink');
 
   return (
-    <div className="flex flex-col gap-2.5 rounded-[14px] border border-border bg-surface px-[18px] py-4 md:px-[22px] md:py-[18px]">
+    <div
+      data-testid="operations-feed"
+      className="flex flex-col gap-2.5 rounded-[14px] border border-border bg-surface px-[18px] py-4 md:px-[22px] md:py-[18px]"
+    >
       <span className="text-[12.5px] font-extrabold text-ink md:text-[13px]">
         {t('overview.feedTitle')}
       </span>

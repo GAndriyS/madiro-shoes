@@ -72,6 +72,7 @@ function MySalesPage() {
         ).map(({ value, label }) => (
           <button
             key={value}
+            data-testid={`my-sales-period-${value}`}
             type="button"
             aria-pressed={period === value}
             onClick={() => {

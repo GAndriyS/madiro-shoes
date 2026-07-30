@@ -278,11 +278,27 @@ function DraftEditForm({
         {t('myDrafts.editTitle')}
       </DialogTitle>
       <div className="grid grid-cols-3 gap-2.5">
-        <FieldCard label={t('intake.fieldSize')} value={size} onChange={setSize} />
-        <FieldCard label={t('intake.fieldColor')} value={color} onChange={setColor} />
-        <FieldCard label={t('intake.fieldStyle')} value={style} onChange={setStyle} />
+        <FieldCard
+          testId="field-size"
+          label={t('intake.fieldSize')}
+          value={size}
+          onChange={setSize}
+        />
+        <FieldCard
+          testId="field-color"
+          label={t('intake.fieldColor')}
+          value={color}
+          onChange={setColor}
+        />
+        <FieldCard
+          testId="field-style"
+          label={t('intake.fieldStyle')}
+          value={style}
+          onChange={setStyle}
+        />
       </div>
       <PillGroup
+        testId="season"
         label={t('intake.seasonLabel')}
         options={SEASONS}
         selected={season}
@@ -290,6 +306,7 @@ function DraftEditForm({
         onSelect={setSeason}
       />
       <PillGroup
+        testId="material"
         label={t('intake.materialLabel')}
         options={MATERIALS}
         selected={material}

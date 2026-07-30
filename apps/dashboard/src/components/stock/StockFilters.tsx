@@ -22,14 +22,17 @@ function Chip({
   amber = false,
   onClick,
   children,
+  testId,
 }: {
   active: boolean;
   amber?: boolean;
   onClick: () => void;
   children: React.ReactNode;
+  testId?: string;
 }) {
   return (
     <button
+      data-testid={testId}
       type="button"
       onClick={onClick}
       className={cn(
@@ -63,25 +66,46 @@ export function StockFilters({ value, queueVariants, onChange }: Props) {
 
   return (
     <div className="flex gap-2 overflow-x-auto text-[12.5px] md:flex-wrap">
-      <Chip active={isAll} onClick={() => onChange({})}>
+      <Chip testId="filter-all" active={isAll} onClick={() => onChange({})}>
         {t('stock.filterAll')}
       </Chip>
-      <Chip active={value.material === 'LEATHER'} onClick={() => toggleMaterial('LEATHER')}>
+      <Chip
+        testId="filter-LEATHER"
+        active={value.material === 'LEATHER'}
+        onClick={() => toggleMaterial('LEATHER')}
+      >
         {t('stock.filterLeather')}
       </Chip>
-      <Chip active={value.material === 'SUEDE'} onClick={() => toggleMaterial('SUEDE')}>
+      <Chip
+        testId="filter-SUEDE"
+        active={value.material === 'SUEDE'}
+        onClick={() => toggleMaterial('SUEDE')}
+      >
         {t('stock.filterSuede')}
       </Chip>
-      <Chip active={value.season === 'SHEEPSKIN'} onClick={() => toggleSeason('SHEEPSKIN')}>
+      <Chip
+        testId="filter-SHEEPSKIN"
+        active={value.season === 'SHEEPSKIN'}
+        onClick={() => toggleSeason('SHEEPSKIN')}
+      >
         {t('stock.filterSheepskin')}
       </Chip>
-      <Chip active={value.season === 'BAIKA'} onClick={() => toggleSeason('BAIKA')}>
+      <Chip
+        testId="filter-BAIKA"
+        active={value.season === 'BAIKA'}
+        onClick={() => toggleSeason('BAIKA')}
+      >
         {t('stock.filterBaika')}
       </Chip>
-      <Chip active={value.season === 'NONE'} onClick={() => toggleSeason('NONE')}>
+      <Chip
+        testId="filter-NONE"
+        active={value.season === 'NONE'}
+        onClick={() => toggleSeason('NONE')}
+      >
         {t('stock.filterNoSeason')}
       </Chip>
       <Chip
+        testId="filter-awaiting"
         amber
         active={value.awaitingPrice === true}
         onClick={() =>
@@ -91,6 +115,7 @@ export function StockFilters({ value, queueVariants, onChange }: Props) {
         {t('stock.filterAwaiting', { count: queueVariants })}
       </Chip>
       <Chip
+        testId="filter-low-stock"
         active={value.lowStock === true}
         onClick={() => onChange({ ...value, lowStock: value.lowStock ? undefined : true })}
       >

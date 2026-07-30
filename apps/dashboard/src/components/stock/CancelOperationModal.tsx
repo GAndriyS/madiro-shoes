@@ -89,6 +89,7 @@ export function CancelOperationModal({ target, onClose }: Props) {
         )}
         <div className="flex gap-2.5">
           <button
+            data-testid="cancel-operation-confirm"
             type="button"
             disabled={mutation.isPending}
             onClick={() => mutation.mutate()}

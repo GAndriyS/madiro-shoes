@@ -50,6 +50,7 @@ function UsersPage() {
         </div>
         {/* Desktop/tablet: dark button (4a/4b); mobile: accent text link (4c) */}
         <button
+          data-testid="user-add"
           type="button"
           onClick={() => setFormTarget({ mode: 'add' })}
           className="hidden items-center gap-2 rounded-[11px] bg-ink px-[18px] py-2.5 text-[13px] font-bold text-page md:flex"
