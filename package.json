@@ -13,7 +13,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "e2e:pw": "pnpm --filter @madiro/e2e test:pw"
+    "e2e:pw": "pnpm --filter @madiro/e2e test:pw",
+    "test:reset": "bash scripts/test-env-reset.sh"
   },
   "devDependencies": {
     "@eslint/js": "^9.20.0",

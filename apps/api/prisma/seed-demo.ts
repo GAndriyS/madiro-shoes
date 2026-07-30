@@ -9,6 +9,12 @@ import * as argon2 from 'argon2';
  * is left untouched. Never runs against production.
  *
  *   pnpm --filter @madiro/api db:seed:demo
+ *
+ * The dataset is DETERMINISTIC by contract — docs/manual-test-plan.md asserts
+ * exact figures against it. Every pair states who created it and the sold pair
+ * is named outright (SOLD_SIZE) instead of falling out of a `findFirst`, so a
+ * test never has to discover which size left the shelf. Keep it that way when
+ * editing: any change here is a change to the plan's expected numbers.
  */
 const prisma = new PrismaClient();
 
@@ -44,6 +50,10 @@ async function main(): Promise<void> {
   const admin = await prisma.user.findFirst({ where: { role: 'ADMIN', deletedAt: null } });
   const actor = admin?.id ?? olia;
 
+  /** The one pair that leaves the shelf, named so tests need not discover it. */
+  const SOLD = { style: '7645', size: 37, price: 2850, payment: 'CARD' } as const;
+  const SIZES = [37, 39] as const;
+
   const variants = [
     { style: '7645', color: '36', material: 'LEATHER', season: 'SHEEPSKIN', price: 1400 },
     { style: '8102', color: '01', material: 'LEATHER', season: 'NONE', price: 1800 },
@@ -51,6 +61,8 @@ async function main(): Promise<void> {
     { style: '5211', color: '44', material: 'SUEDE', season: 'BAIKA', price: null }, // awaiting price
     { style: '9031', color: '14', material: 'LEATHER', season: 'SHEEPSKIN', price: 2100 },
   ] as const;
+
+  let soldPairId: string | null = null;
 
   for (const v of variants) {
     const variant = await prisma.variant.create({
@@ -65,7 +77,7 @@ async function main(): Promise<void> {
 
     // Two pairs per variant; the priceless variant's pairs are seller drafts.
     const draft = v.price == null;
-    for (const size of [37, 39]) {
+    for (const size of SIZES) {
       const pair = await prisma.pair.create({
         data: {
           variantId: variant.id,
@@ -85,26 +97,33 @@ async function main(): Promise<void> {
           createdAt: daysAgo(20),
         },
       });
+      if (v.style === SOLD.style && size === SOLD.size) soldPairId = pair.id;
     }
   }
 
-  // A couple of sales so the overview/analytics have movement.
-  const firstPair = await prisma.pair.findFirst({ where: { awaitingPrice: false } });
-  if (firstPair) {
-    await prisma.operation.create({
-      data: {
-        type: 'SALE',
-        pairId: firstPair.id,
-        userId: iryna,
-        salePrice: 2850,
-        paymentMethod: 'CARD',
-        createdAt: daysAgo(1),
-      },
-    });
-    await prisma.pair.update({ where: { id: firstPair.id }, data: { status: 'SOLD' } });
+  // One sale yesterday so the overview has movement and «% до вчора» has a base.
+  if (soldPairId == null) {
+    throw new Error(
+      `Демо-сід: пара ${SOLD.style} р.${SOLD.size} не створена — сід неконсистентний.`,
+    );
   }
+  await prisma.operation.create({
+    data: {
+      type: 'SALE',
+      pairId: soldPairId,
+      userId: iryna,
+      salePrice: SOLD.price,
+      paymentMethod: SOLD.payment,
+      createdAt: daysAgo(1),
+    },
+  });
+  await prisma.pair.update({ where: { id: soldPairId }, data: { status: 'SOLD' } });
 
-  console.log('Demo dataset seeded: 2 sellers, 5 variants, 10 pairs, intake + a sale.');
+  const pairs = variants.length * SIZES.length;
+  console.log(
+    `Demo dataset seeded: 2 sellers, ${variants.length} variants, ${pairs} pairs, ` +
+      `intake + 1 sale (${SOLD.style} р.${SOLD.size} — ${SOLD.price} ₴, Ірина, вчора).`,
+  );
 }
 
 main()

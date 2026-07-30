@@ -7,7 +7,15 @@ export function uniqueStyle(): string {
   return String(1000 + Math.floor(Math.random() * 9000));
 }
 
-/** Sign into the SCANNER (both roles may enter). Lands on the home hub. */
+/**
+ * Sign into the SCANNER (both roles may enter). Lands on the home hub.
+ *
+ * BUDGET: `POST /auth/login` is throttled to 10/min per IP and the suite runs
+ * with `workers: 1`, so every spec draws on one shared allowance. Sign in once
+ * per spec file (a serial describe with a shared page) rather than per test —
+ * otherwise a spec added today makes an unrelated spec fail tomorrow with a
+ * confusing "greeting not visible".
+ */
 export async function scannerSignIn(page: Page, login: string, password: string): Promise<void> {
   await page.goto('/login');
   await page.getByLabel('ЛОГІН').fill(login);

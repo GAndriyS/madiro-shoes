@@ -41,4 +41,27 @@ describe('validateEnv', () => {
       /Некоректна конфігурація env/,
     );
   });
+
+  it('VISION_PROVIDER за замовчуванням auto', () => {
+    expect(validateEnv({ ...required }).VISION_PROVIDER).toBe('auto');
+  });
+
+  it('дозволяє форсувати мок поза production', () => {
+    const env = validateEnv({ ...required, VISION_PROVIDER: 'mock', GEMINI_API_KEY: 'real-key' });
+
+    expect(env.VISION_PROVIDER).toBe('mock');
+  });
+
+  // The flag exists to make recognition testable, not to fake production.
+  it('забороняє мок у production', () => {
+    expect(() =>
+      validateEnv({ ...required, NODE_ENV: 'production', VISION_PROVIDER: 'mock' }),
+    ).toThrow(/mock заборонено в production/);
+  });
+
+  it('gemini без ключа — помилка старту, а не 503 у рантаймі', () => {
+    expect(() => validateEnv({ ...required, VISION_PROVIDER: 'gemini' })).toThrow(
+      /потребує GEMINI_API_KEY/,
+    );
+  });
 });

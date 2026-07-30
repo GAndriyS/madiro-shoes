@@ -16,6 +16,15 @@ const envSchema = z.object({
    * the mock provider and production answers 503 on /tags/recognize.
    */
   GEMINI_API_KEY: z.string().optional(),
+  /**
+   * Which vision provider to bind. `auto` (default) keeps the historic rule —
+   * key present → Gemini, otherwise mock outside production. `mock` forces the
+   * deterministic stand-in even when a key is configured, which is what makes
+   * recognition testable: a test run must not depend on what a live model
+   * reads off a photo, nor spend quota. `mock` is refused in production so the
+   * flag can never silently fake real usage.
+   */
+  VISION_PROVIDER: z.enum(['auto', 'mock', 'gemini']).default('auto'),
   /** Pino level; defaults to `info` in production and `debug` elsewhere. */
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).optional(),
 });
@@ -34,5 +43,14 @@ export function validateEnv(config: Record<string, unknown>): Env {
   if (!result.success) {
     throw new Error(`Некоректна конфігурація env:\n${result.error.message}`);
   }
-  return result.data;
+  const env = result.data;
+
+  if (env.NODE_ENV === 'production' && env.VISION_PROVIDER === 'mock') {
+    throw new Error('VISION_PROVIDER=mock заборонено в production.');
+  }
+  if (env.VISION_PROVIDER === 'gemini' && !env.GEMINI_API_KEY) {
+    throw new Error('VISION_PROVIDER=gemini потребує GEMINI_API_KEY.');
+  }
+
+  return env;
 }

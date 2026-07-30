@@ -25,7 +25,13 @@ const apiEnv = {
   ADMIN_NAME: 'Адміністратор',
   CORS_ORIGINS: 'http://localhost:5174,http://localhost:5173',
   PORT: '3000',
+  // Recognition must read the same numbers every run and must never spend
+  // Gemini quota — the mock is the provider under test here, not the model.
+  VISION_PROVIDER: 'mock',
 };
+
+/** What the mock vision provider returns for any photo (mock.provider.ts). */
+export const MOCK_TAG = { size: '38', color: '36', style: '7645' } as const;
 
 export default defineConfig({
   testDir: './tests',
