@@ -24,25 +24,34 @@ export class TagsService {
   constructor(@Inject(VISION_PROVIDER) private readonly vision: VisionProvider) {}
 
   /**
-   * Photo → normalized JPEG (~1024px) → vision provider → validated result.
+   * Photo → normalized JPEG (~768px) → vision provider → validated result.
    * The photo lives only in memory for the duration of the request (FR-B-03:
    * no storage).
    */
   async recognize(photo: UploadedPhoto): Promise<TagRecognition> {
+    // The scanner already uploads at this size; the resize is what protects the
+    // model from a gallery pick or an older client. Measured against the real
+    // label: 768px read correctly every run at a ~405ms median, 1024px at
+    // ~1350ms (more image tiles, more input tokens), and 512px started
+    // misreading digits for no further speedup.
+    const resizeStartedAt = Date.now();
     let normalized: Buffer;
     try {
       normalized = await sharp(photo.buffer)
         .rotate()
-        .resize({ width: 1024, height: 1024, fit: 'inside', withoutEnlargement: true })
+        .resize({ width: 768, height: 768, fit: 'inside', withoutEnlargement: true })
         .jpeg({ quality: 80 })
         .toBuffer();
     } catch {
       throw new BadRequestException('Файл не є зображенням, яке вдалося обробити');
     }
+    const resizeMs = Date.now() - resizeStartedAt;
 
     let raw: unknown;
     // Recognition latency is the thing sellers feel; log it so a regression is
-    // visible without reproducing it. `finally` so timeouts get timed too.
+    // visible without reproducing it. `finally` so timeouts get timed too, and
+    // both stages separately — decode+resize used to sit outside the timer,
+    // which made a slow upload and a slow model look identical in the log.
     const startedAt = Date.now();
     try {
       raw = await this.vision.recognizeTag({ buffer: normalized, mimeType: 'image/jpeg' });
@@ -53,7 +62,8 @@ export class TagsService {
       throw error;
     } finally {
       this.logger.log(
-        `vision recognizeTag: ${Date.now() - startedAt}ms, ${normalized.byteLength} bytes`,
+        `vision recognizeTag: sharp ${resizeMs}ms, model ${Date.now() - startedAt}ms, ` +
+          `${photo.buffer.byteLength} → ${normalized.byteLength} bytes`,
       );
     }
 
