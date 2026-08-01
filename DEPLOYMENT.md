@@ -71,7 +71,8 @@ without a redeploy).
 
 > Recognition needs credit on the OpenRouter account — an exhausted balance
 > surfaces as HTTP 402 from OpenRouter and a 502 to the scanner. The API logs
-> every call as `vision recognizeTag: Nms, N bytes`, which is the quickest way
+> every call as `vision recognizeTag: sharp Nms, model Nms, N → N bytes`
+> followed by which model won the race, which is the quickest way
 > to tell a slow model from a failing one.
 
 > Set `PORT` **explicitly to `3000`** on the api service. Railway injects a

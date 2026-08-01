@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
-import { computeCropRect, type CropBox } from './cropRect';
+import { computeCropRect, fitWithin, type CropBox } from './cropRect';
 
 export type CameraStatus = 'pending' | 'streaming' | 'unavailable';
 
@@ -104,8 +104,14 @@ export function useCamera() {
   /**
    * Current frame as JPEG. With `crop` the frame is narrowed to the viewfinder
    * box: boxes are scanned in stacks, so a full frame hands the model several
-   * labels at once and no way to know which one was aimed at. It also shrinks
-   * the upload, which is the cheapest latency win available.
+   * labels at once and no way to know which one was aimed at.
+   *
+   * The canvas is sized to the *upload* size, not the source region, so the one
+   * drawImage both crops and downscales. Encoding at sensor resolution meant a
+   * ~250KB upload the server immediately shrank again; this keeps it under
+   * ~60KB, and on a portrait phone that is the largest single latency win in
+   * the pipeline — the crop alone never narrows the width, because the padded
+   * box always exceeds the frame's 1080px.
    *
    * Falls back to the full frame whenever the crop cannot be computed.
    */
@@ -118,26 +124,25 @@ export function useCamera() {
       ? computeCropRect(video.videoWidth, video.videoHeight, rect.width, rect.height, crop)
       : null;
 
+    const sx = region?.sx ?? 0;
+    const sy = region?.sy ?? 0;
+    const sw = region?.sw ?? video.videoWidth;
+    const sh = region?.sh ?? video.videoHeight;
+    const target = fitWithin(sw, sh);
+
     const canvas = document.createElement('canvas');
-    canvas.width = region?.sw ?? video.videoWidth;
-    canvas.height = region?.sh ?? video.videoHeight;
+    canvas.width = target.width;
+    canvas.height = target.height;
     const context = canvas.getContext('2d');
-    if (region) {
-      context?.drawImage(
-        video,
-        region.sx,
-        region.sy,
-        region.sw,
-        region.sh,
-        0,
-        0,
-        region.sw,
-        region.sh,
-      );
-    } else {
-      context?.drawImage(video, 0, 0);
+    if (context) {
+      // Bilinear-ish smoothing matters here: nearest-neighbour downscaling of
+      // thin handwritten strokes is exactly what makes a 3 read as an 8.
+      context.imageSmoothingQuality = 'high';
+      context.drawImage(video, sx, sy, sw, sh, 0, 0, target.width, target.height);
     }
-    return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+    // q0.8 rather than 0.9: the server re-encodes at 80 regardless, so the
+    // extra bytes never reach the model.
+    return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.8));
   }, []);
 
   return { setVideoRef, status, torchSupported, torchOn, toggleTorch, captureFrame };
