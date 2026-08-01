@@ -16,15 +16,23 @@ const envSchema = z.object({
    * the mock provider and production answers 503 on /tags/recognize.
    */
   GEMINI_API_KEY: z.string().optional(),
+  /** OpenRouter key — the preferred vision backend when both are configured. */
+  OPENROUTER_API_KEY: z.string().optional(),
   /**
-   * Which vision provider to bind. `auto` (default) keeps the historic rule —
-   * key present → Gemini, otherwise mock outside production. `mock` forces the
-   * deterministic stand-in even when a key is configured, which is what makes
-   * recognition testable: a test run must not depend on what a live model
-   * reads off a photo, nor spend quota. `mock` is refused in production so the
-   * flag can never silently fake real usage.
+   * Model slug for OpenRouter. Optional: the provider ships a benchmarked
+   * default, and this only exists so a better model can be adopted from the
+   * dashboard without a redeploy.
    */
-  VISION_PROVIDER: z.enum(['auto', 'mock', 'gemini']).default('auto'),
+  OPENROUTER_MODEL: z.string().optional(),
+  /**
+   * Which vision provider to bind. `auto` (default) prefers OpenRouter, falls
+   * back to Gemini, and otherwise uses the mock outside production. `mock`
+   * forces the deterministic stand-in even when a key is configured, which is
+   * what makes recognition testable: a test run must not depend on what a live
+   * model reads off a photo, nor spend quota. `mock` is refused in production
+   * so the flag can never silently fake real usage.
+   */
+  VISION_PROVIDER: z.enum(['auto', 'mock', 'gemini', 'openrouter']).default('auto'),
   /**
    * Per-minute rate limits on the auth routes. Defaults are the production
    * values; an automated suite raises them because it makes dozens of honest
@@ -61,6 +69,9 @@ export function validateEnv(config: Record<string, unknown>): Env {
   }
   if (env.VISION_PROVIDER === 'gemini' && !env.GEMINI_API_KEY) {
     throw new Error('VISION_PROVIDER=gemini потребує GEMINI_API_KEY.');
+  }
+  if (env.VISION_PROVIDER === 'openrouter' && !env.OPENROUTER_API_KEY) {
+    throw new Error('VISION_PROVIDER=openrouter потребує OPENROUTER_API_KEY.');
   }
 
   return env;

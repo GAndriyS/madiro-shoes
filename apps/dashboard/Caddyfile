@@ -1,0 +1,32 @@
+# Static SPA plus a same-origin /api proxy — see apps/scanner/Caddyfile for why
+# the proxy exists (third-party refresh cookie died in WebKit; same origin fixes
+# it). The dashboard additionally needs the realtime socket proxied.
+#
+# API_UPSTREAM points at the API over Railway's private network, e.g.
+# http://${{api.RAILWAY_PRIVATE_DOMAIN}}:${{api.PORT}}
+{
+	admin off
+	auto_https off
+}
+
+:{$PORT:8080} {
+	encode zstd gzip
+
+	# `handle` (not `handle_path`) — the API's global prefix IS /api.
+	handle /api/* {
+		reverse_proxy {$API_UPSTREAM}
+	}
+
+	# socket.io's wire path stays the default /socket.io even though the app
+	# namespace is /realtime. Caddy performs the WebSocket upgrade itself, so
+	# no extra transport configuration is needed here.
+	handle /socket.io/* {
+		reverse_proxy {$API_UPSTREAM}
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

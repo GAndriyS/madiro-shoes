@@ -3,6 +3,7 @@ import { Link } from '@tanstack/react-router';
 import { useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { VIEWFINDER } from '../../lib/cropRect';
 import { normalizePhoto } from '../../lib/normalizePhoto';
 import { useCamera } from '../../lib/useCamera';
 
@@ -26,7 +27,8 @@ export function CameraScreen({ title, processing, onCapture, onManual }: CameraS
   const [captureFailed, setCaptureFailed] = useState(false);
 
   const shoot = async () => {
-    const frame = await captureFrame();
+    // Crop to the brackets — a stack of boxes puts several labels in frame.
+    const frame = await captureFrame(VIEWFINDER);
     if (frame) {
       setCaptureFailed(false);
       onCapture(frame);
@@ -100,7 +102,8 @@ export function CameraScreen({ title, processing, onCapture, onManual }: CameraS
               muted
               className="absolute inset-0 h-full w-full object-cover"
             />
-            <div className="relative h-[190px] w-[300px]">
+            {/* Sized from VIEWFINDER so the brackets and the crop stay in step. */}
+            <div className="relative" style={{ width: VIEWFINDER.boxW, height: VIEWFINDER.boxH }}>
               <div className="absolute top-0 left-0 h-7 w-7 rounded-tl-md border-t-[2.5px] border-l-[2.5px] border-queue-badge" />
               <div className="absolute top-0 right-0 h-7 w-7 rounded-tr-md border-t-[2.5px] border-r-[2.5px] border-queue-badge" />
               <div className="absolute bottom-0 left-0 h-7 w-7 rounded-bl-md border-b-[2.5px] border-l-[2.5px] border-queue-badge" />
