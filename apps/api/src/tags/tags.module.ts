@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Logger, Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
 import type { Env } from '../config/env.validation';
@@ -29,17 +29,39 @@ import { VISION_PROVIDER } from './vision/vision-provider';
         const model = config.get('OPENROUTER_MODEL', { infer: true });
         const choice = config.get('VISION_PROVIDER', { infer: true });
 
-        if (choice === 'mock') return new MockVisionProvider();
-        if (choice === 'gemini') return new GeminiVisionProvider(geminiKey as string);
+        // Which backend won is otherwise invisible until someone scans a tag
+        // and reads the failure — with two keys configured and an `auto` rule
+        // between them, "which model answered?" should not be a guess.
+        const logger = new Logger('VisionProvider');
+        const bind = <T>(provider: T, why: string): T => {
+          logger.log(`bound ${why} (VISION_PROVIDER=${choice})`);
+          return provider;
+        };
+
+        if (choice === 'mock') return bind(new MockVisionProvider(), 'mock');
+        if (choice === 'gemini') {
+          return bind(new GeminiVisionProvider(geminiKey as string), 'Gemini');
+        }
         if (choice === 'openrouter') {
-          return new OpenRouterVisionProvider(openRouterKey as string, model);
+          return bind(
+            new OpenRouterVisionProvider(openRouterKey as string, model),
+            `OpenRouter (${model ?? 'default model'})`,
+          );
         }
 
-        if (openRouterKey) return new OpenRouterVisionProvider(openRouterKey, model);
-        if (geminiKey) return new GeminiVisionProvider(geminiKey);
-        if (config.get('NODE_ENV', { infer: true }) !== 'production') {
-          return new MockVisionProvider();
+        if (openRouterKey) {
+          return bind(
+            new OpenRouterVisionProvider(openRouterKey, model),
+            `OpenRouter (${model ?? 'default model'})`,
+          );
         }
+        if (geminiKey) return bind(new GeminiVisionProvider(geminiKey), 'Gemini');
+        if (config.get('NODE_ENV', { infer: true }) !== 'production') {
+          return bind(new MockVisionProvider(), 'mock — no key configured');
+        }
+        // Production without a key: /tags/recognize answers 503. Warn, because
+        // this is a misconfiguration, not a choice.
+        logger.warn(`no vision key configured — /tags/recognize will answer 503`);
         return new UnavailableVisionProvider();
       },
     },
