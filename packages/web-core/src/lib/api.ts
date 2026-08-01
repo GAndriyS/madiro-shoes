@@ -33,9 +33,11 @@ export class ApiError extends Error {
 }
 
 /**
- * API origin. Empty in dev (requests stay relative to `/api` so the Vite proxy
- * handles them); in production each app is built with VITE_API_URL pointing at
- * the deployed API, since the frontends and API live on separate origins.
+ * API origin. Normally empty, so requests stay relative to `/api`: in dev the
+ * Vite proxy handles them, in production the app's own Caddy container proxies
+ * them to the API. Same-origin is deliberate — the refresh cookie used to be
+ * third-party and WebKit dropped it, logging the PWA out on every launch.
+ * VITE_API_URL stays as an escape hatch for topologies without that proxy.
  */
 const API_BASE =
   (import.meta as unknown as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? '';
@@ -76,8 +78,8 @@ async function request<T>(
     response = await fetch(`${API_BASE}/api${path}`, {
       ...init,
       headers,
-      // The refresh cookie is httpOnly and cross-site in production, so it only
-      // travels when credentials are included.
+      // The refresh cookie is httpOnly, so it only travels when credentials are
+      // included — and it still must, even now that the API is same-origin.
       credentials: 'include',
       signal: controller.signal,
     });

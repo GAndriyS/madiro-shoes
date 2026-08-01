@@ -10,9 +10,13 @@ Madiro runs as **three services** in the Railway project
 | `dashboard` | `apps/dashboard/Dockerfile` | `dashboard-production-2dab.up.railway.app`   |
 | Postgres    | Railway plugin              | (internal)                                   |
 
-The frontends and API live on separate origins. Each frontend is built with
-`VITE_API_URL` pointing at the API; the API allows those origins via
-`CORS_ORIGINS`. **Continuous deployment is native:** once a service is connected
+Each frontend container serves its static bundle **and reverse-proxies `/api` to
+the api service over Railway's private network** (Caddy — see
+`apps/scanner/Caddyfile`). The browser therefore talks to a single origin per
+app. That is not cosmetic: `up.railway.app` is on the public suffix list, so
+separate subdomains are separate _sites_, the httpOnly refresh cookie was
+third-party, and WebKit dropped it — the installed PWA asked for a login on
+every launch. **Continuous deployment is native:** once a service is connected
 to this repo on the `main` branch, every merge to `main` redeploys it — no
 GitHub Actions needed.
 
@@ -60,29 +64,34 @@ repo and set:
 | `NODE_ENV`           | `production`                                                                                                       |
 
 `ADMIN_LOGIN` (default `admin`) and `ADMIN_NAME` are optional, as is
-`LOG_LEVEL` (defaults to `info` in production). `PORT` is set by Railway
-automatically.
+`LOG_LEVEL` (defaults to `info` in production).
 
-> The dashboard keeps a websocket open to `/realtime` on the api domain
-> (Railway proxies websockets out of the box) and the refresh cookie is
-> cross-site — both work only over the HTTPS domains above, with
-> `CORS_ORIGINS` naming the exact frontend origins.
+> Set `PORT` **explicitly to `3000`** on the api service. Railway injects a
+> `PORT` of its own, but the frontends reference `${{api.PORT}}` to build their
+> upstream URL, and an auto-injected value is not reliably referenceable from
+> another service.
 
-**scanner** and **dashboard** services — one build-time variable each:
+> With the proxy in place the browser never makes a cross-origin API call, so
+> CORS is largely inert — but keep `CORS_ORIGINS` accurate: the realtime socket
+> handshake still sends an `Origin` header, which `CorsIoAdapter` checks.
 
-| Variable       | Value                                               |
-| -------------- | --------------------------------------------------- |
-| `VITE_API_URL` | `https://<api-domain>` (no `/api`, no trailing `/`) |
+**scanner** and **dashboard** services — one runtime variable each:
 
-> `VITE_API_URL` is read at **build** time (Vite inlines it). After changing it,
-> redeploy the frontend so the new value is baked in.
+| Variable       | Value                                                  |
+| -------------- | ------------------------------------------------------ |
+| `API_UPSTREAM` | `http://${{api.RAILWAY_PRIVATE_DOMAIN}}:${{api.PORT}}` |
+
+> `API_UPSTREAM` is read at **runtime** by Caddy, so changing it needs only a
+> restart, not a rebuild. It stays on the private network — plain `http` and no
+> public egress. There is no `VITE_API_URL` any more: the bundle calls a
+> relative `/api`.
 
 ### 4. First deploy order
 
 Deploy **api** first (it runs `prisma migrate deploy` and seeds the admin on
-boot — see `apps/api/docker-entrypoint.sh`), then the two frontends. Once the
-api domain is known, set `VITE_API_URL` on the frontends and `CORS_ORIGINS` on
-the api, then redeploy.
+boot — see `apps/api/docker-entrypoint.sh`), then the two frontends. Set
+`API_UPSTREAM` on the frontends and `CORS_ORIGINS` on the api once the domains
+are known.
 
 ---
 
@@ -106,10 +115,15 @@ migration drift) before merge; Railway builds the same Dockerfiles you can build
 locally:
 
 ```sh
-API=https://madiro-shoes-production.up.railway.app
 docker build -f apps/api/Dockerfile -t madiro-api .
-docker build -f apps/scanner/Dockerfile --build-arg VITE_API_URL=$API -t madiro-scanner .
-docker build -f apps/dashboard/Dockerfile --build-arg VITE_API_URL=$API -t madiro-dashboard .
+docker build -f apps/scanner/Dockerfile -t madiro-scanner .
+docker build -f apps/dashboard/Dockerfile -t madiro-dashboard .
+```
+
+The frontends take no build args now; point them at an API when you run them:
+
+```sh
+docker run -p 8080:8080 -e API_UPSTREAM=http://host.docker.internal:3000 madiro-scanner
 ```
 
 ## Admin & seller accounts

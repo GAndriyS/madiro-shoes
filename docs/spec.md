@@ -372,8 +372,9 @@ operation-cancelled`) і часом. **Даних у події немає** —
   unit, build, міграції, drift-гейт схеми, e2e).
 - **Деплой — Railway**: 3 сервіси (api / scanner / dashboard) з власних
   Dockerfile + керований Postgres. API на старті застосовує міграції та
-  ідемпотентно сідить адміна (`docker-entrypoint.sh`). Фронти збираються
-  з `VITE_API_URL` (окремі origin-и, CORS-allowlist). **Кожен merge у
+  ідемпотентно сідить адміна (`docker-entrypoint.sh`). Фронти віддає Caddy,
+  який тим самим origin-ом проксить `/api` в api приватною мережею — інакше
+  refresh-кука була б third-party і WebKit вбивав би сесію PWA. **Кожен merge у
   `main` автодеплоїться** (нативна GitHub-інтеграція Railway); CI гейтить
   ПР до мержу. HTTPS-домени Railway дають secure context для камери й
   PWA-інсталяції з телефона.

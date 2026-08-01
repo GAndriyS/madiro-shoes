@@ -1,0 +1,33 @@
+# Static PWA plus a same-origin /api proxy.
+#
+# The proxy is not a convenience: it is what keeps a session alive. The refresh
+# token is an httpOnly cookie, and while the scanner and the API sat on separate
+# up.railway.app subdomains they were separate *sites* (up.railway.app is on the
+# public suffix list), so the cookie was third-party and WebKit dropped it —
+# every cold start of the installed PWA landed on the login screen. Served from
+# one origin the cookie is first-party and simply works.
+#
+# API_UPSTREAM points at the API over Railway's private network, e.g.
+# http://${{api.RAILWAY_PRIVATE_DOMAIN}}:${{api.PORT}}
+{
+	admin off
+	auto_https off
+}
+
+:{$PORT:8080} {
+	encode zstd gzip
+
+	# `handle` (not `handle_path`) — the API's global prefix IS /api, so the
+	# path must reach it intact. Keeping this block separate from the static
+	# one also means an unknown /api route returns the API's own 404 instead
+	# of the SPA shell.
+	handle /api/* {
+		reverse_proxy {$API_UPSTREAM}
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}
