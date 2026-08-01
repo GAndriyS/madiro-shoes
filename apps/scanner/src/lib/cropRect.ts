@@ -10,6 +10,31 @@
  */
 export const VIEWFINDER = { boxW: 300, boxH: 190, padRatio: 0.25 } as const;
 
+/**
+ * Longest edge of the uploaded JPEG. The backend downscales to this anyway, so
+ * sending the sensor-resolution crop only buys a slower upload and a second
+ * resize. Benchmarked against the real label: at 768 the model read the tag
+ * correctly every time with a ~405ms median, against ~1350ms at 1024 (fewer
+ * image tiles → fewer input tokens). 512 was no faster and started misreading
+ * digits, so this is the floor, not a knob to keep turning.
+ */
+export const MAX_UPLOAD_EDGE = 768;
+
+/** Scaled-down size preserving aspect ratio; never upscales. */
+export function fitWithin(
+  width: number,
+  height: number,
+  maxEdge: number = MAX_UPLOAD_EDGE,
+): { width: number; height: number } {
+  if (width <= 0 || height <= 0 || maxEdge <= 0) return { width, height };
+  const factor = Math.min(1, maxEdge / Math.max(width, height));
+  return {
+    // A rounded-down edge can hit 0 on extreme aspect ratios; keep a real pixel.
+    width: Math.max(1, Math.round(width * factor)),
+    height: Math.max(1, Math.round(height * factor)),
+  };
+}
+
 export interface CropBox {
   boxW: number;
   boxH: number;
