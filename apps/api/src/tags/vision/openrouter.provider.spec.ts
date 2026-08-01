@@ -71,7 +71,29 @@ describe('OpenRouterVisionProvider', () => {
   });
 
   it('HTTP-помилка → VisionProviderError', async () => {
-    fetchMock.mockResolvedValue({ ok: false, status: 402, json: async () => ({}) });
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 402,
+      text: async () => '',
+      json: async () => ({}),
+    });
+
+    await expect(provider.recognizeTag(image)).rejects.toBeInstanceOf(VisionProviderError);
+  });
+
+  // An unread body leaves the socket unusable, so undici destroys it instead of
+  // pooling it — a burst of 402s would make every later scan pay a reconnect.
+  it('вичитує тіло помилкової відповіді, щоб зʼєднання лишилось у пулі', async () => {
+    const text = jest.fn().mockResolvedValue('{"error":"insufficient credits"}');
+    fetchMock.mockResolvedValue({ ok: false, status: 402, text, json: async () => ({}) });
+
+    await expect(provider.recognizeTag(image)).rejects.toBeInstanceOf(VisionProviderError);
+    expect(text).toHaveBeenCalled();
+  });
+
+  it('падає як VisionProviderError, навіть якщо вичитування тіла саме кинуло', async () => {
+    const text = jest.fn().mockRejectedValue(new Error('socket closed'));
+    fetchMock.mockResolvedValue({ ok: false, status: 429, text, json: async () => ({}) });
 
     await expect(provider.recognizeTag(image)).rejects.toBeInstanceOf(VisionProviderError);
   });

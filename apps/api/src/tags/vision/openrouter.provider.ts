@@ -5,8 +5,14 @@ import { VisionProviderError } from './vision-provider';
 
 const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 
-/** Kept below the frontend's upload budget (45s) so the server gives up first. */
-const REQUEST_TIMEOUT_MS = 25_000;
+/**
+ * Kept below the frontend's upload budget (45s) so the server gives up first.
+ * 15s rather than the original 25s: the slowest completed call measured across
+ * every benchmark run was 8.2s (a fallback model taking over), so this is still
+ * ~1.8x headroom, and it halves how long a seller watches a spinner before the
+ * failure sheet with its manual-entry escape appears.
+ */
+const REQUEST_TIMEOUT_MS = 15_000;
 
 /**
  * Default model, chosen by benchmarking candidates against a real box label:
@@ -117,6 +123,10 @@ export class OpenRouterVisionProvider implements VisionProvider {
     }
 
     if (!response.ok) {
+      // Drain before throwing: an unread body leaves the socket unusable, so
+      // undici destroys it instead of returning it to the pool — a burst of
+      // 402s or 429s would otherwise make every following scan reconnect.
+      await response.text().catch(() => undefined);
       // The body can echo the key — log the status only.
       this.logger.warn(`OpenRouter responded with HTTP ${response.status}`);
       throw new VisionProviderError(`OpenRouter responded with HTTP ${response.status}`);
