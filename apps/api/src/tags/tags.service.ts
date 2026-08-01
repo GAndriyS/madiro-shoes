@@ -3,6 +3,7 @@ import {
   BadRequestException,
   Inject,
   Injectable,
+  Logger,
   UnprocessableEntityException,
 } from '@nestjs/common';
 import { tagRecognitionSchema, type TagRecognition } from '@madiro/shared';
@@ -18,6 +19,8 @@ export interface UploadedPhoto {
 
 @Injectable()
 export class TagsService {
+  private readonly logger = new Logger(TagsService.name);
+
   constructor(@Inject(VISION_PROVIDER) private readonly vision: VisionProvider) {}
 
   /**
@@ -38,6 +41,9 @@ export class TagsService {
     }
 
     let raw: unknown;
+    // Recognition latency is the thing sellers feel; log it so a regression is
+    // visible without reproducing it. `finally` so timeouts get timed too.
+    const startedAt = Date.now();
     try {
       raw = await this.vision.recognizeTag({ buffer: normalized, mimeType: 'image/jpeg' });
     } catch (error) {
@@ -45,6 +51,10 @@ export class TagsService {
         throw new BadGatewayException('Сервіс розпізнавання тимчасово недоступний');
       }
       throw error;
+    } finally {
+      this.logger.log(
+        `vision recognizeTag: ${Date.now() - startedAt}ms, ${normalized.byteLength} bytes`,
+      );
     }
 
     // Model output that fails the contract (junk digits, size out of range)
