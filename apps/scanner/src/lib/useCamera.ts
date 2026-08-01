@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { computeCropRect, type CropBox } from './cropRect';
+
 export type CameraStatus = 'pending' | 'streaming' | 'unavailable';
 
 interface TorchCapabilities extends MediaTrackCapabilities {
@@ -99,14 +101,42 @@ export function useCamera() {
     }
   }, [torchOn]);
 
-  /** Full current frame as JPEG — the backend downscales, extra context helps the model. */
-  const captureFrame = useCallback(async (): Promise<Blob | null> => {
+  /**
+   * Current frame as JPEG. With `crop` the frame is narrowed to the viewfinder
+   * box: boxes are scanned in stacks, so a full frame hands the model several
+   * labels at once and no way to know which one was aimed at. It also shrinks
+   * the upload, which is the cheapest latency win available.
+   *
+   * Falls back to the full frame whenever the crop cannot be computed.
+   */
+  const captureFrame = useCallback(async (crop?: CropBox): Promise<Blob | null> => {
     const video = videoRef.current;
     if (!video || video.videoWidth === 0) return null;
+
+    const rect = video.getBoundingClientRect();
+    const region = crop
+      ? computeCropRect(video.videoWidth, video.videoHeight, rect.width, rect.height, crop)
+      : null;
+
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    canvas.getContext('2d')?.drawImage(video, 0, 0);
+    canvas.width = region?.sw ?? video.videoWidth;
+    canvas.height = region?.sh ?? video.videoHeight;
+    const context = canvas.getContext('2d');
+    if (region) {
+      context?.drawImage(
+        video,
+        region.sx,
+        region.sy,
+        region.sw,
+        region.sh,
+        0,
+        0,
+        region.sw,
+        region.sh,
+      );
+    } else {
+      context?.drawImage(video, 0, 0);
+    }
     return new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
   }, []);
 
