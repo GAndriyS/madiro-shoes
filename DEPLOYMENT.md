@@ -59,12 +59,20 @@ repo and set:
 | `JWT_ACCESS_SECRET`  | 32+ chars — `openssl rand -hex 32`                                                                                 |
 | `JWT_REFRESH_SECRET` | a **different** 32+ char value                                                                                     |
 | `CORS_ORIGINS`       | `https://<scanner-domain>,https://<dashboard-domain>` (no trailing /) — also the allowlist for the realtime socket |
-| `GEMINI_API_KEY`     | your Google AI Studio key (label recognition)                                                                      |
+| `OPENROUTER_API_KEY` | your OpenRouter key — the label-recognition backend                                                                |
+| `GEMINI_API_KEY`     | optional alternative backend; unused while an OpenRouter key is set                                                |
 | `ADMIN_PASSWORD`     | the admin login password (used once to seed the admin)                                                             |
 | `NODE_ENV`           | `production`                                                                                                       |
 
 `ADMIN_LOGIN` (default `admin`) and `ADMIN_NAME` are optional, as is
-`LOG_LEVEL` (defaults to `info` in production).
+`LOG_LEVEL` (defaults to `info` in production) and `OPENROUTER_MODEL` (the
+provider ships a benchmarked default; set it only to adopt a different model
+without a redeploy).
+
+> Recognition needs credit on the OpenRouter account — an exhausted balance
+> surfaces as HTTP 402 from OpenRouter and a 502 to the scanner. The API logs
+> every call as `vision recognizeTag: Nms, N bytes`, which is the quickest way
+> to tell a slow model from a failing one.
 
 > Set `PORT` **explicitly to `3000`** on the api service. Railway injects a
 > `PORT` of its own, but the frontends reference `${{api.PORT}}` to build their
