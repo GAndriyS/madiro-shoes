@@ -1,10 +1,10 @@
 import { expect, type APIRequestContext, type Page } from '@playwright/test';
 
-import { ADMIN, DASHBOARD_URL, MOCK_TAG } from '../playwright.config';
+import { ADMIN, API_URL, DASHBOARD_URL, MOCK_TAG } from '../playwright.config';
 
 export { ADMIN, DASHBOARD_URL, MOCK_TAG };
 
-export const API = 'http://localhost:3000/api';
+export const API = API_URL;
 
 /** Every auth route needs the client id — CSRF guard and cookie selector. */
 const clientHeader = (client: 'scanner' | 'dashboard') => ({ 'x-madiro-client': client });

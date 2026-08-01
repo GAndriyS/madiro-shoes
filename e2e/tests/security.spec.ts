@@ -1,6 +1,6 @@
 import { expect, request, test, type APIRequestContext } from '@playwright/test';
 
-import { ADMIN } from './helpers';
+import { ADMIN, API } from './helpers';
 
 /**
  * Suite K of docs/manual-test-plan.md as executable checks — the part a human
@@ -10,8 +10,6 @@ import { ADMIN } from './helpers';
  * The seller is created through the admin API so the suite owns its fixtures
  * and never depends on the demo seed.
  */
-
-const API = 'http://localhost:3000/api';
 
 const SELLER = { name: 'Тест-Продавець', login: 'e2e-seller', password: 'e2e-seller-2026' };
 

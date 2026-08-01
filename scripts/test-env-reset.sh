@@ -14,7 +14,17 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
-api_url="${API_URL:-http://localhost:3000/api}"
+# Port overrides live in the root .env — the same file docker compose reads —
+# so a machine whose 5432/3000 belong to another project configures them once.
+# Real environment variables still win.
+if [ -f .env ]; then
+  set -a
+  # shellcheck disable=SC1091
+  . ./.env
+  set +a
+fi
+
+api_url="${API_URL:-http://localhost:${API_PORT:-3000}/api}"
 
 step() { printf '\n\033[1m▸ %s\033[0m\n' "$1"; }
 fail() { printf '\n\033[31m✗ %s\033[0m\n' "$1" >&2; exit 1; }
@@ -57,7 +67,7 @@ fi
 cat <<'DONE'
 
 ▸ Готово. Далі:
-    pnpm --filter @madiro/api dev          # http://localhost:3000/api
+    pnpm --filter @madiro/api dev          # API (порт із apps/api/.env PORT)
     pnpm --filter @madiro/dashboard dev    # http://localhost:5173
     pnpm --filter @madiro/scanner dev      # http://localhost:5174
 

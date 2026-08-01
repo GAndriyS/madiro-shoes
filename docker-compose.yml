@@ -7,7 +7,10 @@ services:
       POSTGRES_PASSWORD: madiro
       POSTGRES_DB: madiro
     ports:
-      - '5432:5432'
+      # Host port only — set POSTGRES_PORT in .env when 5432 is taken by another
+      # project. Inside the container postgres always listens on 5432, so the
+      # healthcheck and `docker compose exec` are unaffected.
+      - '${POSTGRES_PORT:-5432}:5432'
     volumes:
       - postgres-data:/var/lib/postgresql/data
     healthcheck:

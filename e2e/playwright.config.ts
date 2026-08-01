@@ -1,3 +1,6 @@
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { defineConfig, devices } from '@playwright/test';
 
 /**
@@ -10,13 +13,35 @@ import { defineConfig, devices } from '@playwright/test';
  * admin comes from the api's own seed (ADMIN_LOGIN/ADMIN_PASSWORD below);
  * sellers and stock are created through the UI/API by the tests themselves.
  */
+
+/**
+ * Port overrides live in the monorepo-root .env — the same file docker compose
+ * reads — so a machine whose 5432/3000 belong to another project configures
+ * them once. Real environment variables still win, which is how CI overrides
+ * DATABASE_URL wholesale. Absent file → defaults, which is the normal case.
+ */
+function rootEnv(name: string, fallback: string): string {
+  if (process.env[name]) return process.env[name];
+  try {
+    const file = readFileSync(resolve(__dirname, '..', '.env'), 'utf8');
+    const hit = file.match(new RegExp(`^\\s*${name}\\s*=\\s*(.+?)\\s*$`, 'm'))?.[1];
+    return hit ? hit.replace(/^["']|["']$/g, '') : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+const PG_PORT = rootEnv('POSTGRES_PORT', '5432');
+const API_PORT = rootEnv('API_PORT', '3000');
 const DATABASE_URL =
-  process.env.DATABASE_URL ?? 'postgresql://madiro:madiro@localhost:5432/madiro_e2e?schema=public';
+  process.env.DATABASE_URL ??
+  `postgresql://madiro:madiro@localhost:${PG_PORT}/madiro_e2e?schema=public`;
 
 export const ADMIN = { login: 'admin', password: 'admin-e2e-password' } as const;
 export const DASHBOARD_URL = 'http://localhost:5173';
+export const API_URL = `http://localhost:${API_PORT}/api`;
 
-const apiEnv = {
+export const apiEnv = {
   DATABASE_URL,
   JWT_ACCESS_SECRET: 'e2e-access-secret-0123456789-0123456789',
   JWT_REFRESH_SECRET: 'e2e-refresh-secret-9876543210-9876543210',
@@ -24,7 +49,7 @@ const apiEnv = {
   ADMIN_PASSWORD: ADMIN.password,
   ADMIN_NAME: 'Адміністратор',
   CORS_ORIGINS: 'http://localhost:5174,http://localhost:5173',
-  PORT: '3000',
+  PORT: API_PORT,
   // Recognition must read the same numbers every run and must never spend
   // Gemini quota — the mock is the provider under test here, not the model.
   VISION_PROVIDER: 'mock',
@@ -58,32 +83,32 @@ export default defineConfig({
       use: { ...devices['Pixel 5'] },
     },
   ],
+  // Builds and migrations happen once, before any server — see global-setup.ts.
+  globalSetup: './global-setup.ts',
+  // Every command below is a single process, no shell chain. That is what lets
+  // Playwright stop them cleanly on any platform: a chained command would leave
+  // node holding the API port after shutdown, and the next run would find a
+  // healthy-looking API — the previous run's, on whatever database it had.
+  // Starting node directly also means the API is configured only by `env`
+  // below, never by apps/api/.env.
   webServer: [
     {
-      // `exec` matters: without it the shell owns the chain and Playwright's
-      // shutdown kills the shell while `node` keeps port 3000. The next run
-      // then finds a healthy-looking API — the previous run's, on whatever
-      // database it had — and every spec fails in a way that points anywhere
-      // but here. Running node directly from this directory also means the
-      // API takes its configuration only from `env` below, never from
-      // apps/api/.env.
-      command:
-        'pnpm --filter @madiro/shared build && pnpm --filter @madiro/api build && pnpm --filter @madiro/api db:deploy && pnpm --filter @madiro/api db:seed && exec node ../apps/api/dist/main.js',
-      url: 'http://localhost:3000/api/health',
-      timeout: 300_000,
+      command: 'node ../apps/api/dist/main.js',
+      url: `${API_URL}/health`,
+      timeout: 120_000,
       reuseExistingServer: false,
       env: apiEnv,
     },
     {
-      command: 'pnpm --filter @madiro/scanner build && pnpm --filter @madiro/scanner preview',
+      command: 'pnpm --filter @madiro/scanner preview',
       url: 'http://localhost:5174',
-      timeout: 300_000,
+      timeout: 120_000,
       reuseExistingServer: false,
     },
     {
-      command: 'pnpm --filter @madiro/dashboard build && pnpm --filter @madiro/dashboard preview',
+      command: 'pnpm --filter @madiro/dashboard preview',
       url: 'http://localhost:5173',
-      timeout: 300_000,
+      timeout: 120_000,
       reuseExistingServer: false,
     },
   ],
