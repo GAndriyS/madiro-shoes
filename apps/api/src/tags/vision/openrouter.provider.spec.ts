@@ -44,20 +44,27 @@ describe('OpenRouterVisionProvider', () => {
     ]);
   });
 
-  it('за замовчуванням бере збенчмаркану модель і додає фолбеки без дублів', async () => {
+  const modelsAsked = () =>
+    fetchMock.mock.calls.map(
+      (call) => JSON.parse((call as [string, RequestInit])[1].body as string).model as string,
+    );
+
+  it('питає обидві збенчмаркані моделі паралельно, кожну окремим запитом', async () => {
     fetchMock.mockResolvedValue(
       contentResponse('{"size":38,"color":"36","style":"7645","confidence":0.9}'),
     );
 
     await provider.recognizeTag(image);
 
-    const body = JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string);
-    expect(body.model).toBe('openai/gpt-5.6-luna');
-    expect(body.models[0]).toBe(body.model);
-    expect(new Set(body.models).size).toBe(body.models.length);
+    // One request per model — no serial `models` fallback array, because that
+    // makes a healthy scan wait for the sick model to fail first.
+    expect(modelsAsked()).toEqual(['openai/gpt-5.6-luna', 'qwen/qwen3-vl-32b-instruct']);
+    expect(
+      JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string).models,
+    ).toBeUndefined();
   });
 
-  it('OPENROUTER_MODEL перекриває дефолт і не дублюється у фолбеках', async () => {
+  it('OPENROUTER_MODEL стає першим у гонці й не дублюється', async () => {
     fetchMock.mockResolvedValue(
       contentResponse('{"size":38,"color":"36","style":"7645","confidence":0.9}'),
     );
@@ -65,9 +72,46 @@ describe('OpenRouterVisionProvider', () => {
 
     await pinned.recognizeTag(image);
 
-    const body = JSON.parse((fetchMock.mock.calls[0] as [string, RequestInit])[1].body as string);
-    expect(body.model).toBe('qwen/qwen3-vl-32b-instruct');
-    expect(new Set(body.models).size).toBe(body.models.length);
+    const asked = modelsAsked();
+    expect(asked[0]).toBe('qwen/qwen3-vl-32b-instruct');
+    expect(new Set(asked).size).toBe(asked.length);
+  });
+
+  // The whole point of racing: one model having a bad minute must not decide
+  // the scan's latency, and one model being down must not fail it.
+  it('повертає відповідь моделі, що встигла перша, навіть якщо інша впала', async () => {
+    fetchMock.mockImplementation((_url: string, init: RequestInit) => {
+      const { model } = JSON.parse(init.body as string) as { model: string };
+      if (model === 'openai/gpt-5.6-luna') {
+        return Promise.resolve({
+          ok: false,
+          status: 402,
+          text: async () => '',
+          json: async () => ({}),
+        });
+      }
+      return Promise.resolve(
+        contentResponse('{"size":41,"color":"75","style":"6061","confidence":0.88}'),
+      );
+    });
+
+    await expect(provider.recognizeTag(image)).resolves.toEqual({
+      size: 41,
+      color: '75',
+      style: '6061',
+      confidence: 0.88,
+    });
+  });
+
+  it('коли впали всі моделі — VisionProviderError із причинами обох', async () => {
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 500,
+      text: async () => '',
+      json: async () => ({}),
+    });
+
+    await expect(provider.recognizeTag(image)).rejects.toThrow(/every OpenRouter model failed/);
   });
 
   it('HTTP-помилка → VisionProviderError', async () => {

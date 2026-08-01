@@ -15,20 +15,19 @@ const OPENROUTER_ENDPOINT = 'https://openrouter.ai/api/v1/chat/completions';
 const REQUEST_TIMEOUT_MS = 15_000;
 
 /**
- * Default model, chosen by benchmarking candidates against a real box label:
- * it read the tag correctly on every run at a ~490ms median, the fastest of
- * the models that never misread a digit. The nano tiers were quicker still but
- * flipped digits between runs — a silently wrong style code is worse than a
- * slow one, since it writes a pair into the wrong variant.
+ * Both models read the real box label correctly on every benchmark run — the
+ * nano tiers were quicker but flipped digits between runs, and a silently wrong
+ * style code writes a pair into the wrong variant, which is worse than slow.
+ *
+ * They are raced rather than ranked because neither is reliably faster. Sampled
+ * in one window, luna had a 488ms median against qwen's 687ms; sampled in
+ * another, luna sat at 2339ms while qwen answered in 964ms. OpenRouter's
+ * upstream load moves independently per model, so whichever is having a good
+ * minute wins and the seller stops paying for the other one's bad one.
  */
-const DEFAULT_MODEL = 'openai/gpt-5.6-luna';
+const HEDGED_MODELS = ['openai/gpt-5.6-luna', 'qwen/qwen3-vl-32b-instruct'] as const;
 
-/**
- * Tried in order when the primary is unavailable; OpenRouter fails over on its
- * own. Both were also correct on every benchmark run, so a fallback degrades
- * latency rather than accuracy.
- */
-const FALLBACK_MODELS = ['qwen/qwen3-vl-32b-instruct', 'google/gemini-3.5-flash-lite'];
+const DEFAULT_MODEL = HEDGED_MODELS[0];
 
 const PROMPT = [
   'You are reading a photo of a shoe-box label from a shoe store.',
@@ -80,7 +79,46 @@ export class OpenRouterVisionProvider implements VisionProvider {
     private readonly model: string = DEFAULT_MODEL,
   ) {}
 
+  /**
+   * Races the configured models and takes the first valid answer, aborting the
+   * rest. Racing also covers the outage case the old serial `models` fallback
+   * handled — a model that 402s or hangs simply loses — without making a
+   * healthy scan wait for the sick one to fail first.
+   */
   async recognizeTag(image: VisionImage): Promise<unknown> {
+    const models = [this.model, ...HEDGED_MODELS.filter((m) => m !== this.model)];
+    const controllers = models.map(() => new AbortController());
+    // One deadline for the whole race, not one per attempt.
+    const deadline = setTimeout(() => {
+      for (const controller of controllers) controller.abort();
+    }, REQUEST_TIMEOUT_MS);
+
+    const startedAt = Date.now();
+    try {
+      // Promise.any resolves on the first success and only rejects if every
+      // attempt failed, which is exactly the semantics wanted here.
+      const winner = await Promise.any(
+        models.map((model, index) => this.askModel(model, image, controllers[index]!.signal)),
+      );
+      this.logger.log(`${winner.model} won in ${Date.now() - startedAt}ms`);
+      return winner.parsed;
+    } catch (error) {
+      const causes = error instanceof AggregateError ? error.errors : [error];
+      const detail = causes.map((c) => (c as Error)?.message ?? String(c)).join('; ');
+      throw new VisionProviderError(`every OpenRouter model failed: ${detail}`, { cause: error });
+    } finally {
+      clearTimeout(deadline);
+      // Cancel whoever is still in flight — including on the success path, so a
+      // loser's socket is released instead of streaming a reply nobody reads.
+      for (const controller of controllers) controller.abort();
+    }
+  }
+
+  private async askModel(
+    model: string,
+    image: VisionImage,
+    signal: AbortSignal,
+  ): Promise<{ model: string; parsed: unknown }> {
     let response: Response;
     try {
       response = await fetch(OPENROUTER_ENDPOINT, {
@@ -93,10 +131,7 @@ export class OpenRouterVisionProvider implements VisionProvider {
           'X-Title': 'Madiro',
         },
         body: JSON.stringify({
-          model: this.model,
-          // OpenRouter routes to the next entry when one is down, so a provider
-          // outage degrades latency instead of failing the scan.
-          models: [this.model, ...FALLBACK_MODELS.filter((m) => m !== this.model)],
+          model,
           messages: [
             {
               role: 'user',
@@ -116,10 +151,10 @@ export class OpenRouterVisionProvider implements VisionProvider {
             json_schema: { name: 'tag_recognition', strict: true, schema: RESPONSE_SCHEMA },
           },
         }),
-        signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+        signal,
       });
     } catch (error) {
-      throw new VisionProviderError('OpenRouter request failed or timed out', { cause: error });
+      throw new VisionProviderError(`${model}: request failed or timed out`, { cause: error });
     }
 
     if (!response.ok) {
@@ -128,24 +163,24 @@ export class OpenRouterVisionProvider implements VisionProvider {
       // 402s or 429s would otherwise make every following scan reconnect.
       await response.text().catch(() => undefined);
       // The body can echo the key — log the status only.
-      this.logger.warn(`OpenRouter responded with HTTP ${response.status}`);
-      throw new VisionProviderError(`OpenRouter responded with HTTP ${response.status}`);
+      this.logger.warn(`OpenRouter responded with HTTP ${response.status} for ${model}`);
+      throw new VisionProviderError(`${model}: HTTP ${response.status}`);
     }
 
     const payload = (await response.json()) as OpenRouterResponse;
     // A 200 can still carry an error object (upstream provider refused).
     if (payload.error) {
-      throw new VisionProviderError(`OpenRouter error: ${payload.error.message ?? 'unknown'}`);
+      throw new VisionProviderError(`${model}: ${payload.error.message ?? 'unknown error'}`);
     }
     const text = payload.choices?.[0]?.message?.content;
     if (!text) {
-      throw new VisionProviderError('OpenRouter returned no message content');
+      throw new VisionProviderError(`${model}: no message content`);
     }
 
     try {
-      return JSON.parse(text) as unknown;
+      return { model, parsed: JSON.parse(text) as unknown };
     } catch (error) {
-      throw new VisionProviderError('OpenRouter content is not valid JSON', { cause: error });
+      throw new VisionProviderError(`${model}: content is not valid JSON`, { cause: error });
     }
   }
 }
