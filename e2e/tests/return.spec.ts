@@ -10,7 +10,7 @@ test('повернення за вручну введеною біркою: па
   const tag = { size: '39', color: '12', style: uniqueStyle() };
 
   await scannerSignIn(page, ADMIN.login, ADMIN.password);
-  await manualIntake(page, tag, '1200');
+  await manualIntake(page, tag, '30'); // $30 → 1 200 ₴
   await manualSale(page, tag, '2700', 'CASH');
 
   await page.goto('/return');

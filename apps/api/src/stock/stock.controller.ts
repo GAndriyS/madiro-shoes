@@ -47,7 +47,7 @@ export class StockController {
     if (!parsed.success) {
       throw new BadRequestException(parsed.error.issues);
     }
-    return this.stock.setPrice(id, parsed.data.purchasePrice);
+    return this.stock.setPrice(id, parsed.data.purchasePriceUsd);
   }
 
   @Post('variants/:id/no-price')

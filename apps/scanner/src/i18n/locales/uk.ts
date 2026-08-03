@@ -85,9 +85,12 @@ export const uk = {
     materialSuede: 'Замша',
     lowConfidenceHint: 'Розпізнано невпевнено — звірте цифри з біркою перед збереженням.',
     rescan: 'Сканувати ще раз',
-    priceLabel: 'ЦІНА ЗАКУПКИ',
+    priceLabel: 'ЦІНА ЗАКУПКИ, $',
     pricePlaceholder: 'Ціна',
     priceHintNote: 'Підставлено ціну цього варіанта — змініть, якщо потрібно',
+    priceConverted: 'Збережеться як {{amount}}',
+    rateStale: 'курс останній відомий',
+    rateUnavailable: 'Курс валют недоступний — спробуйте ще раз за хвилину',
     noPriceToggle: 'Без ціни — старий товар',
     withPriceToggle: 'Вказати ціну',
     sellerDraftNote:

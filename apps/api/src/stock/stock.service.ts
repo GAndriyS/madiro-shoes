@@ -11,7 +11,9 @@ import type {
   StockListResponse,
   VariantDetail,
 } from '@madiro/shared';
+import { usdToUah } from '@madiro/shared';
 
+import { ExchangeService } from '../exchange/exchange.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 
@@ -54,6 +56,7 @@ export class StockService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeGateway,
+    private readonly exchange: ExchangeService,
   ) {}
 
   /**
@@ -303,8 +306,11 @@ export class StockService {
    * operations that were recorded without one — the batch was accepted at
    * exactly this price.
    */
-  setPrice(variantId: string, purchasePrice: number): Promise<{ ok: true }> {
-    return this.confirm(variantId, new Prisma.Decimal(purchasePrice));
+  async setPrice(variantId: string, purchasePriceUsd: number): Promise<{ ok: true }> {
+    // Entered in dollars, kept in hryvnia — the conversion happens here so the
+    // rest of the service, and every read path, deals in one currency.
+    const { rate } = await this.exchange.getRate();
+    return this.confirm(variantId, new Prisma.Decimal(usdToUah(purchasePriceUsd, rate)));
   }
 
   /** «Без ціни — старий товар» (FR-D-11/14): deliberate price 0, distinct from null. */

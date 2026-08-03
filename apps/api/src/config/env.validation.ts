@@ -34,6 +34,13 @@ const envSchema = z.object({
    */
   VISION_PROVIDER: z.enum(['auto', 'mock', 'gemini', 'openrouter']).default('auto'),
   /**
+   * Fixes the USD rate instead of asking the provider. Exists for automated
+   * runs: a suite that asserts stored hryvnia cannot depend on what the cash
+   * desk quotes today. Refused in production — a frozen rate there would
+   * quietly misprice every purchase.
+   */
+  EXCHANGE_RATE_USD: z.coerce.number().positive().optional(),
+  /**
    * Per-minute rate limits on the auth routes. Defaults are the production
    * values; an automated suite raises them because it makes dozens of honest
    * logins a minute, and being throttled would only prove the limit exists.
@@ -72,6 +79,9 @@ export function validateEnv(config: Record<string, unknown>): Env {
   }
   if (env.VISION_PROVIDER === 'openrouter' && !env.OPENROUTER_API_KEY) {
     throw new Error('VISION_PROVIDER=openrouter потребує OPENROUTER_API_KEY.');
+  }
+  if (env.NODE_ENV === 'production' && env.EXCHANGE_RATE_USD != null) {
+    throw new Error('EXCHANGE_RATE_USD заборонено в production — курс має бути справжнім.');
   }
 
   return env;

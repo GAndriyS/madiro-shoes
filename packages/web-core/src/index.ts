@@ -1,6 +1,7 @@
 export * from './lib/api';
 export * from './lib/cn';
 export * from './lib/format';
+export * from './lib/useExchangeRate';
 export * from './stores/auth';
 export * from './i18n/core';
 export * from './components/ui/dialog';

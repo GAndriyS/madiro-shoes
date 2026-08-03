@@ -10,6 +10,7 @@ import type { Env } from './config/env.validation';
 import { validateEnv } from './config/env.validation';
 import { HealthController } from './health/health.controller';
 import { pinoOptions } from './logging/logging.config';
+import { ExchangeModule } from './exchange/exchange.module';
 import { IntakeModule } from './intake/intake.module';
 import { MeModule } from './me/me.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -47,6 +48,7 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     MeModule,
     TagsModule,
+    ExchangeModule,
     IntakeModule,
     SaleModule,
     ReturnsModule,

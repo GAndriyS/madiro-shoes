@@ -21,6 +21,9 @@ import { PrismaService } from '../src/prisma/prisma.service';
  * confirmation, intake queue/history and the overview — all admin-only
  * (FR-B-02: a seller gets 403 everywhere here).
  */
+/** Pinned for the whole suite in test/setup-e2e.ts. */
+const RATE = 40;
+
 describe('Dashboard (e2e, real Postgres)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -227,7 +230,7 @@ describe('Dashboard (e2e, real Postgres)', () => {
 
   it('встановлення ціни: знімає очікування, бекфілить basis усіх операцій, історія поповнюється', async () => {
     await asAdmin(request(http).patch(`/api/stock/variants/${draftVariantId}/price`))
-      .send({ purchasePrice: 900 })
+      .send({ purchasePriceUsd: 900 / RATE })
       .expect(200);
 
     const variant = await prisma.variant.findUniqueOrThrow({ where: { id: draftVariantId } });

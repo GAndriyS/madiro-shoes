@@ -147,3 +147,19 @@ model Operation {
   @@index([attributedToId, createdAt])
   @@map("operations")
 }
+
+// Last known FX rate, one row per currency. Purchase prices are entered in USD
+// and stored in hryvnia, so a save needs a rate — and the shop must not stop
+// working because a rate provider is down. The service refreshes this row and
+// falls back to it, which is also why it survives a restart.
+model ExchangeRate {
+  /// ISO code of the priced currency; the base is always UAH.
+  currency  String   @id
+  /// Hryvnia per one unit — the mid of the cash buy/sell spread.
+  rate      Decimal  @db.Decimal(12, 4)
+  /// Where it came from, so a stale number can be traced.
+  source    String
+  fetchedAt DateTime
+
+  @@map("exchange_rates")
+}

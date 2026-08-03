@@ -10,3 +10,4 @@ export * from './schemas/stock.js';
 export * from './schemas/intake.js';
 export * from './schemas/me.js';
 export * from './schemas/realtime.js';
+export * from './schemas/exchange.js';
