@@ -49,6 +49,10 @@ pnpm --filter @madiro/dashboard dev
 pnpm --filter @madiro/scanner dev
 ```
 
+> Ціна закупки вводиться **в доларах** і зберігається в гривні за готівковим
+> курсом (PrivatBank); для відтворюваних чисел у тестах курс фіксується
+> змінною `EXCHANGE_RATE_USD`.
+
 Демо-логіни після `db:seed:demo`: продавці `olia` / `olia-2026` та `iryna` / `iryna-2026` (сканер), адмін — із вашого `.env`.
 
 ## Команди

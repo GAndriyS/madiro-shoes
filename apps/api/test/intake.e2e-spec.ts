@@ -14,6 +14,9 @@ import { PrismaService } from '../src/prisma/prisma.service';
  * role branch (FR-B-02): sellers only ever create drafts and never price a
  * pair, admins price or mark "no price".
  */
+/** Pinned for the whole suite in test/setup-e2e.ts. */
+const RATE = 40;
+
 describe('Intake (e2e, real Postgres)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -75,7 +78,7 @@ describe('Intake (e2e, real Postgres)', () => {
     const res = await request(http)
       .post('/api/intake')
       .set('Authorization', `Bearer ${seller}`)
-      .send({ size: 38, color: '36', style: '7645', purchasePrice: 999 })
+      .send({ size: 38, color: '36', style: '7645', purchasePriceUsd: 999 })
       .expect(201);
 
     const result = intakeResultSchema.parse(res.body);
@@ -95,7 +98,7 @@ describe('Intake (e2e, real Postgres)', () => {
     const res = await request(http)
       .post('/api/intake')
       .set('Authorization', `Bearer ${admin}`)
-      .send({ size: 40, color: '36', style: '7645', purchasePrice: 1400 })
+      .send({ size: 40, color: '36', style: '7645', purchasePriceUsd: 35 })
       .expect(201);
 
     const result = intakeResultSchema.parse(res.body);
@@ -111,7 +114,7 @@ describe('Intake (e2e, real Postgres)', () => {
     await request(http)
       .post('/api/intake')
       .set('Authorization', `Bearer ${admin}`)
-      .send({ size: 41, color: '36', style: '7645', purchasePrice: 1400 })
+      .send({ size: 41, color: '36', style: '7645', purchasePriceUsd: 35 })
       .expect(201);
 
     const after = await prisma.variant.count({ where: { style: '7645', color: '36' } });
@@ -167,7 +170,7 @@ describe('Intake (e2e, real Postgres)', () => {
           style: '4400',
           material: 'SUEDE',
           season: 'BAIKA',
-          purchasePrice: 1750,
+          purchasePriceUsd: 1750 / RATE,
         })
         .expect(201);
 
@@ -177,7 +180,7 @@ describe('Intake (e2e, real Postgres)', () => {
         .set('Authorization', `Bearer ${admin}`)
         .expect(200);
 
-      expect(res.body).toEqual({ purchasePrice: 1750 });
+      expect(res.body).toEqual({ purchasePriceUsd: 1750 / RATE });
     });
 
     // The intake form may omit insulation; the hint must still find the variant
@@ -188,7 +191,7 @@ describe('Intake (e2e, real Postgres)', () => {
       await request(http)
         .post('/api/intake')
         .set('Authorization', `Bearer ${admin}`)
-        .send({ size: 40, color: '13', style: '4401', purchasePrice: 990 })
+        .send({ size: 40, color: '13', style: '4401', purchasePriceUsd: 990 / RATE })
         .expect(201);
 
       const res = await request(http)
@@ -197,7 +200,7 @@ describe('Intake (e2e, real Postgres)', () => {
         .set('Authorization', `Bearer ${admin}`)
         .expect(200);
 
-      expect(res.body).toEqual({ purchasePrice: 990 });
+      expect(res.body).toEqual({ purchasePriceUsd: 990 / RATE });
     });
 
     it('невідомий варіант → підказки немає', async () => {
@@ -209,7 +212,7 @@ describe('Intake (e2e, real Postgres)', () => {
         .set('Authorization', `Bearer ${admin}`)
         .expect(200);
 
-      expect(res.body).toEqual({ purchasePrice: null });
+      expect(res.body).toEqual({ purchasePriceUsd: null });
     });
 
     // FR-B-02: this endpoint returns a purchase price, so a seller must not reach it.

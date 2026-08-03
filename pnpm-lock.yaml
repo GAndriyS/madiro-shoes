@@ -373,6 +373,9 @@ importers:
         specifier: ^5.0.0
         version: 5.0.14(@types/react@19.2.17)(immer@11.1.11)(react@19.2.7)(use-sync-external-store@1.6.0(react@19.2.7))
     devDependencies:
+      '@tanstack/react-query':
+        specifier: ^5.66.0
+        version: 5.101.2(react@19.2.7)
       '@testing-library/jest-dom':
         specifier: ^6.6.0
         version: 6.9.1

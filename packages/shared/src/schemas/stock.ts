@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { MATERIALS, OPERATION_TYPES, PAIR_STATUSES, PAYMENT_METHODS, SEASONS } from '../enums.js';
-import { moneySchema } from './common.js';
+import { purchasePriceUsdSchema } from './common.js';
 
 /** Stock list query (FR-D-06): search, filter chips, sort, server-side pagination. */
 export const stockListQuerySchema = z.object({
@@ -106,8 +106,11 @@ export const cancelOperationResultSchema = z.object({
 });
 export type CancelOperationResult = z.infer<typeof cancelOperationResultSchema>;
 
-/** PATCH /stock/variants/:id/price — one price for every size of the variant (FR-D-08). */
+/**
+ * PATCH /stock/variants/:id/price — one price for every size of the variant
+ * (FR-D-08), entered in US dollars and stored as whole hryvnia.
+ */
 export const setVariantPriceSchema = z.object({
-  purchasePrice: moneySchema,
+  purchasePriceUsd: purchasePriceUsdSchema,
 });
 export type SetVariantPriceInput = z.infer<typeof setVariantPriceSchema>;

@@ -35,7 +35,7 @@ test.beforeAll(async ({ browser, request }) => {
   const { variantId } = (await intake.json()) as { variantId: string };
   await request.patch(`${API}/stock/variants/${variantId}/price`, {
     headers: bearer(await adminToken(request)),
-    data: { purchasePrice: 1000 },
+    data: { purchasePriceUsd: 25 }, // $25 → 1 000 ₴
   });
 
   dashboard = await browser.newPage({ viewport: { width: 1280, height: 800 } });

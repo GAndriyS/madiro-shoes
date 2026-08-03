@@ -6,7 +6,15 @@ import {
   type Season,
   type TagRecognition,
 } from '@madiro/shared';
-import { AlertIcon, ChevronRightIcon, cn, useAuthStore } from '@madiro/web-core';
+import {
+  AlertIcon,
+  ChevronRightIcon,
+  cn,
+  money,
+  previewUah,
+  useAuthStore,
+  useExchangeRate,
+} from '@madiro/web-core';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -48,6 +56,9 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
   const [priceTouched, setPriceTouched] = useState(false);
 
   const hint = usePriceHint(isAdmin ? { style, color, material, season } : null);
+  // Purchase prices are entered in dollars and stored in hryvnia; show the admin
+  // the hryvnia that will actually be written, at the same rate the API uses.
+  const { data: exchange, isError: rateFailed } = useExchangeRate({ enabled: isAdmin });
 
   useEffect(() => {
     if (priceTouched) return;
@@ -76,6 +87,7 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
   };
 
   const priceValue = Number(price);
+  const previewedUah = previewUah(priceValue, exchange?.rate);
   const priceEntered = price.length > 0 && priceValue > 0;
   // Same size bounds as the checkout flows — manual entry must not discover
   // them as an unexplained 400 from the server.
@@ -90,7 +102,9 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
     // «Без ціни — старий товар» is the price 0, exactly what the dashboard's
     // no-price action writes — not null, which would mean «ще не вказана» and
     // leave the pair looking like a draft nobody had priced yet.
-    const purchasePrice = isAdmin ? (priceMode === 'none' ? 0 : priceValue) : undefined;
+    // Dollars: «без ціни — старий товар» is $0, the same decision the dashboard
+    // writes, and the API converts and stores hryvnia.
+    const purchasePriceUsd = isAdmin ? (priceMode === 'none' ? 0 : priceValue) : undefined;
     onSave(
       {
         size: sizeNum,
@@ -98,7 +112,7 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
         style,
         ...(material ? { material } : {}),
         season,
-        ...(purchasePrice !== undefined ? { purchasePrice } : {}),
+        ...(purchasePriceUsd !== undefined ? { purchasePriceUsd } : {}),
       },
       mode,
     );
@@ -190,6 +204,7 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
           </div>
           {priceMode === 'set' ? (
             <div className="flex items-baseline gap-2 rounded-[14px] border-[1.5px] border-ink bg-surface px-[18px] py-4">
+              <span className="text-base text-text-muted">$</span>
               <input
                 data-testid="purchase-price-input"
                 inputMode="numeric"
@@ -201,12 +216,24 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
                 }}
                 className="w-full bg-transparent font-display text-[34px] font-semibold text-ink outline-none placeholder:text-text-faint"
               />
-              <span className="text-base text-text-muted">₴</span>
             </div>
           ) : (
             <div className="rounded-[14px] border-[1.5px] border-dashed border-border-input bg-surface px-[18px] py-4 text-[13px] text-text-secondary">
               {t('common.noPrice')}
             </div>
+          )}
+          {/* The dollars are what the admin types; the hryvnia is what gets
+              stored, so show it before the save rather than after. */}
+          {priceMode === 'set' && priceEntered && previewedUah != null && (
+            <span data-testid="price-preview-uah" className="text-[12.5px] text-text-secondary">
+              {t('intake.priceConverted', { amount: money(previewedUah) })}
+              {exchange?.stale ? ` · ${t('intake.rateStale')}` : ''}
+            </span>
+          )}
+          {priceMode === 'set' && priceEntered && rateFailed && (
+            <span data-testid="price-rate-error" className="text-[12.5px] text-danger">
+              {t('intake.rateUnavailable')}
+            </span>
           )}
           {/* Say where the number came from, so a suggestion never reads as a fact. */}
           {hint != null && !priceTouched && (
