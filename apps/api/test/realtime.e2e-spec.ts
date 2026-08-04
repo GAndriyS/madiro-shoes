@@ -109,7 +109,7 @@ describe('Realtime (e2e, real Postgres + socket.io)', () => {
     await request(app.getHttpServer())
       .post('/api/intake')
       .set('Authorization', `Bearer ${sellerToken}`)
-      .send({ size: 38, color: '36', style: '7645' })
+      .send({ sizes: [{ size: 38, qty: 1 }], color: '36', style: '7645' })
       .expect(201);
 
     expect(realtimeEventSchema.parse(await event).topic).toBe('intake-draft');

@@ -109,12 +109,13 @@ export async function scannerSignIn(page: Page, login: string, password: string)
  */
 export async function manualIntake(
   page: Page,
-  tag: { size: string; color: string; style: string },
+  tag: { size: string; color: string; style: string; qty?: string },
   purchasePriceUsd?: string,
 ): Promise<void> {
   await page.goto('/intake');
   await page.getByTestId('camera-manual').click();
-  await page.getByTestId('field-size').fill(tag.size);
+  // Sizes are a quantity grid now, not a field: one pair unless asked otherwise.
+  await page.getByTestId(`size-qty-${tag.size}`).fill(tag.qty ?? '1');
   await page.getByTestId('field-color').fill(tag.color);
   await page.getByTestId('field-style').fill(tag.style);
   if (purchasePriceUsd != null) {

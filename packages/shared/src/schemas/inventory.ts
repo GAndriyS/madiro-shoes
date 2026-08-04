@@ -1,24 +1,51 @@
 import { z } from 'zod';
 
+import { MAX_PAIRS_PER_SIZE } from '../constants.js';
 import { MATERIALS, PAIR_STATUSES, PAYMENT_METHODS, SEASONS } from '../enums.js';
 import { moneySchema, purchasePriceUsdSchema, sizeSchema, tagCodeSchema } from './common.js';
 
 /**
- * Pair intake (FR-S-11/12): three tag fields plus optional material and
- * insulation. Only the admin sets the purchase price; a seller creates a draft.
+ * How many pairs of one size arrive in an intake. A size present with `qty: 0`
+ * is not a thing to send — leave it out; the grid on the scanner does exactly
+ * that, so an untouched size never reaches the server.
+ */
+export const intakeSizeQtySchema = z.object({
+  size: sizeSchema,
+  qty: z.number().int().min(1).max(MAX_PAIRS_PER_SIZE),
+});
+export type IntakeSizeQty = z.infer<typeof intakeSizeQtySchema>;
+
+/**
+ * Pair intake (FR-S-11/12): the two tag codes plus optional material and
+ * insulation identify ONE variant, and `sizes` says how many pairs of it are
+ * arriving in each size. A box label carries a single size, but a delivery of
+ * the same model never does — one scan therefore takes in the whole run.
+ *
+ * Only the admin sets the purchase price; a seller creates drafts.
  */
 export const intakeSchema = z.object({
-  size: sizeSchema,
+  sizes: z
+    .array(intakeSizeQtySchema)
+    .min(1)
+    // A repeated size is a client bug, not two deliveries: silently summing the
+    // quantities would take in pairs nobody asked for, so refuse instead.
+    .refine(
+      (sizes) => new Set(sizes.map((s) => s.size)).size === sizes.length,
+      'Розмір не може повторюватися',
+    ),
   color: tagCodeSchema,
   style: tagCodeSchema,
   material: z.enum(MATERIALS).optional(),
   season: z.enum(SEASONS).optional(),
   /**
-   * Admin only, **in US dollars** — the API converts and stores hryvnia. `0` is
-   * «без ціни — старий товар»: a decision, and the same value the dashboard's
-   * no-price action writes. Absent (or null) means the price is simply not set
-   * yet — that is what a seller's draft sends, and an admin cannot express it,
-   * because deciding is the admin's job.
+   * Admin only, **in US dollars** — the API converts and stores hryvnia. It
+   * applies to every pair in the batch, because the price belongs to the
+   * variant, which is exactly what all these sizes share.
+   *
+   * `0` is «без ціни — старий товар»: a decision, and the same value the
+   * dashboard's no-price action writes. Absent (or null) means the price is
+   * simply not set yet — that is what a seller's draft sends, and an admin
+   * cannot express it, because deciding is the admin's job.
    */
   purchasePriceUsd: purchasePriceUsdSchema.nullable().optional(),
 });
@@ -37,11 +64,16 @@ export const draftUpdateSchema = z.object({
 });
 export type DraftUpdateInput = z.infer<typeof draftUpdateSchema>;
 
-/** Result of a successful intake — no price fields, so it is safe for sellers. */
+/**
+ * Result of a successful intake — no price fields, so it is safe for sellers.
+ * One intake is one variant and N pairs; `pairs` carries them in the order the
+ * sizes were sent, and its length is how many pairs the toast should report.
+ * Status and awaitingPrice are per-batch: every pair here was created by the
+ * same person in the same transaction, so they cannot differ.
+ */
 export const intakeResultSchema = z.object({
-  pairId: z.string(),
   variantId: z.string(),
-  size: sizeSchema,
+  pairs: z.array(z.object({ pairId: z.string(), size: sizeSchema })).min(1),
   status: z.enum(PAIR_STATUSES),
   awaitingPrice: z.boolean(),
 });

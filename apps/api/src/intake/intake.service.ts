@@ -85,11 +85,16 @@ export class IntakeService {
   ) {}
 
   /**
-   * Take a pair into stock. Variants are auto-created from the tag fields; the
-   * same 5-field identity reuses its variant. Role decides pricing (FR-B-02):
-   * a seller only ever creates a draft (awaitingPrice, no price), while an admin
-   * either sets the purchase price or marks the pair as deliberately price-less
-   * ("old stock"). All three writes run in one transaction.
+   * Take a delivery into stock: one variant, one pair per size per unit. The
+   * variant is auto-created from the tag fields; the same 5-field identity
+   * reuses its variant. Role decides pricing (FR-B-02): a seller only ever
+   * creates drafts (awaitingPrice, no price), while an admin either sets the
+   * purchase price or marks the pairs as deliberately price-less ("old stock").
+   *
+   * The whole batch is one transaction, so a delivery is taken in completely or
+   * not at all — a half-received run would leave the admin reconciling a queue
+   * against a paper invoice. It is also one advisory lock and one realtime
+   * event rather than N of each.
    */
   async create(input: IntakeInput, user: { id: string; role: Role }): Promise<IntakeResult> {
     // A seller's price (if any is smuggled in) is ignored: sellers never price.
@@ -104,6 +109,11 @@ export class IntakeService {
         )
       : null;
 
+    // Quantities expand into individual rows: a pair is the unit that gets
+    // sold, written off and returned, so 3 of size 38 is three pairs, never one
+    // row with a count. Sizes keep the order they were sent in.
+    const sizes = input.sizes.flatMap(({ size, qty }) => Array.from({ length: qty }, () => size));
+
     const result = await this.prisma.$transaction(async (tx) => {
       const variant = await findOrCreateVariant(tx, identityOf(input));
 
@@ -113,31 +123,35 @@ export class IntakeService {
         await tx.variant.update({ where: { id: variant.id }, data: { purchasePrice } });
       }
 
-      const pair = await tx.pair.create({
-        data: {
+      // createManyAndReturn keeps a batch at two statements instead of 2N while
+      // still handing back the ids the INTAKE operations have to reference.
+      const pairs = await tx.pair.createManyAndReturn({
+        data: sizes.map((size) => ({
           variantId: variant.id,
-          size: input.size,
-          status: 'IN_STOCK',
+          size,
+          status: 'IN_STOCK' as const,
           awaitingPrice,
           createdById: user.id,
-        },
+        })),
+        select: { id: true, size: true, status: true, awaitingPrice: true },
       });
 
-      await tx.operation.create({
-        data: {
-          type: 'INTAKE',
+      await tx.operation.createMany({
+        data: pairs.map((pair) => ({
+          type: 'INTAKE' as const,
           pairId: pair.id,
           userId: user.id,
           purchasePriceAtTime: purchasePrice,
-        },
+        })),
       });
 
+      const first = pairs[0]!;
       return {
-        pairId: pair.id,
         variantId: variant.id,
-        size: pair.size,
-        status: pair.status,
-        awaitingPrice: pair.awaitingPrice,
+        pairs: pairs.map((pair) => ({ pairId: pair.id, size: pair.size })),
+        // Per-batch by construction: same author, same transaction, same role.
+        status: first.status,
+        awaitingPrice: first.awaitingPrice,
       };
     });
 

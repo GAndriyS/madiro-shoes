@@ -75,12 +75,66 @@ describe('ConfirmForm', () => {
     );
   };
 
-  it('префілить SIZE/COLOR/STYLE з результату розпізнавання', () => {
+  it('префілить COLOR/STYLE, а розпізнаний розмір отримує 1 у сітці', () => {
     asSeller();
     renderForm();
-    expect(screen.getByDisplayValue('38')).toBeInTheDocument();
     expect(screen.getByDisplayValue('36')).toBeInTheDocument();
     expect(screen.getByDisplayValue('7645')).toBeInTheDocument();
+    expect(screen.getByTestId('size-qty-38')).toHaveValue('1');
+    // The rest of the run is the seller's to type — nothing is assumed.
+    expect(screen.getByTestId('size-qty-39')).toHaveValue('');
+    // The standalone SIZE field is gone; the grid carries that meaning now.
+    expect(screen.queryByTestId('field-size')).not.toBeInTheDocument();
+  });
+
+  it('розпізнаний розмір поза 35–41 отримує власну комірку', () => {
+    asSeller();
+    renderForm({ overrides: { size: 42 } });
+    expect(screen.getByTestId('size-qty-42')).toHaveValue('1');
+    expect(screen.getByTestId('size-qty-35')).toHaveValue('');
+  });
+
+  it('решта розмірів вводиться вручну і потрапляє в payload за зростанням', async () => {
+    asSeller();
+    const onSave = vi.fn();
+    renderForm({ onSave });
+
+    await userEvent.type(screen.getByTestId('size-qty-40'), '2');
+    await userEvent.type(screen.getByTestId('size-qty-36'), '3');
+
+    expect(screen.getByTestId('size-grid-total')).toHaveTextContent('6');
+    await userEvent.click(screen.getByRole('button', { name: 'У чернетки і сканувати наступну' }));
+    expect(onSave).toHaveBeenCalledWith(
+      {
+        sizes: [
+          { size: 36, qty: 3 },
+          { size: 38, qty: 1 },
+          { size: 40, qty: 2 },
+        ],
+        color: '36',
+        style: '7645',
+        season: 'NONE',
+      },
+      'next',
+    );
+  });
+
+  // Clearing the prefilled size is how a seller says «цього розміру не привезли»;
+  // it must actually leave the payload, not linger as a qty-0 entry.
+  it('очищена комірка зникає з payload, а порожня сітка блокує збереження', async () => {
+    asSeller();
+    const onSave = vi.fn();
+    renderForm({ onSave });
+
+    await userEvent.clear(screen.getByTestId('size-qty-38'));
+    expect(screen.getByRole('button', { name: 'У чернетки і сканувати наступну' })).toBeDisabled();
+
+    await userEvent.type(screen.getByTestId('size-qty-41'), '1');
+    await userEvent.click(screen.getByRole('button', { name: 'У чернетки і сканувати наступну' }));
+    expect(onSave).toHaveBeenCalledWith(
+      { sizes: [{ size: 41, qty: 1 }], color: '36', style: '7645', season: 'NONE' },
+      'next',
+    );
   });
 
   it('показує підказку лише при низькій упевненості (< 0.8)', () => {
@@ -121,7 +175,7 @@ describe('ConfirmForm', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'У чернетки і сканувати наступну' }));
     expect(onSave).toHaveBeenCalledWith(
-      { size: 38, color: '36', style: '7645', season: 'NONE' },
+      { sizes: [{ size: 38, qty: 1 }], color: '36', style: '7645', season: 'NONE' },
       'next',
     );
   });
@@ -139,7 +193,13 @@ describe('ConfirmForm', () => {
     expect(next).toBeEnabled();
     await userEvent.click(next);
     expect(onSave).toHaveBeenCalledWith(
-      { size: 38, color: '36', style: '7645', season: 'NONE', purchasePriceUsd: 1400 },
+      {
+        sizes: [{ size: 38, qty: 1 }],
+        color: '36',
+        style: '7645',
+        season: 'NONE',
+        purchasePriceUsd: 1400,
+      },
       'next',
     );
   });
@@ -157,7 +217,13 @@ describe('ConfirmForm', () => {
     expect(finish).toBeEnabled();
     await userEvent.click(finish);
     expect(onSave).toHaveBeenCalledWith(
-      { size: 38, color: '36', style: '7645', season: 'NONE', purchasePriceUsd: 0 },
+      {
+        sizes: [{ size: 38, qty: 1 }],
+        color: '36',
+        style: '7645',
+        season: 'NONE',
+        purchasePriceUsd: 0,
+      },
       'finish',
     );
   });
@@ -259,17 +325,21 @@ describe('ConfirmForm', () => {
   });
 
   describe('ручний ввід (без розпізнавання)', () => {
-    it('рендерить порожні поля і не показує банер впевненості', () => {
+    // Manual entry is the same form and the same grid — nothing is prefilled,
+    // because there was no scan to prefill it from.
+    it('рендерить порожні поля й порожню сітку, без банера впевненості', () => {
       asSeller();
       renderForm({ recognition: null });
 
       const inputs = [
-        screen.getByText('SIZE').parentElement!.querySelector('input')!,
         screen.getByText('COLOR').parentElement!.querySelector('input')!,
         screen.getByText('STYLE').parentElement!.querySelector('input')!,
       ];
       for (const input of inputs) {
         expect(input).toHaveValue('');
+      }
+      for (const size of [35, 36, 37, 38, 39, 40, 41]) {
+        expect(screen.getByTestId(`size-qty-${size}`)).toHaveValue('');
       }
       expect(screen.queryByText(/звірте цифри з біркою/)).not.toBeInTheDocument();
     });
@@ -282,7 +352,7 @@ describe('ConfirmForm', () => {
       const next = screen.getByRole('button', { name: 'У чернетки і сканувати наступну' });
       expect(next).toBeDisabled();
 
-      await userEvent.type(screen.getByText('SIZE').parentElement!.querySelector('input')!, '41');
+      await userEvent.type(screen.getByTestId('size-qty-41'), '2');
       await userEvent.type(screen.getByText('COLOR').parentElement!.querySelector('input')!, '12');
       await userEvent.type(
         screen.getByText('STYLE').parentElement!.querySelector('input')!,
@@ -291,7 +361,7 @@ describe('ConfirmForm', () => {
       expect(next).toBeEnabled();
       await userEvent.click(next);
       expect(onSave).toHaveBeenCalledWith(
-        { size: 41, color: '12', style: '9031', season: 'NONE' },
+        { sizes: [{ size: 41, qty: 2 }], color: '12', style: '9031', season: 'NONE' },
         'next',
       );
     });
@@ -308,11 +378,12 @@ describe('ConfirmForm', () => {
       expect(screen.getByText(/ЦІНА ЗАКУПКИ/)).toBeInTheDocument();
     });
 
-    it('розмір поза межами 16–50 блокує збереження', async () => {
+    // The old free-text SIZE field could hold an out-of-range number; the grid
+    // cannot, so the remaining way to be invalid is entering no quantity at all.
+    it('заповнені коди без жодної кількості не зберігаються', async () => {
       asSeller();
       renderForm({ recognition: null });
 
-      await userEvent.type(screen.getByText('SIZE').parentElement!.querySelector('input')!, '7');
       await userEvent.type(screen.getByText('COLOR').parentElement!.querySelector('input')!, '12');
       await userEvent.type(
         screen.getByText('STYLE').parentElement!.querySelector('input')!,
