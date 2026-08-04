@@ -1,6 +1,6 @@
 import { expect, request, test, type APIRequestContext } from '@playwright/test';
 
-import { ADMIN, API } from './helpers';
+import { ADMIN, API, apiIntake } from './helpers';
 
 /**
  * Suite K of docs/manual-test-plan.md as executable checks — the part a human
@@ -91,8 +91,9 @@ test.describe('безпека API', () => {
 
   test('у відповідях продавцю немає цін закупки й маржі (TC-K-03)', async () => {
     // Give the seller something of their own to read back.
+    // `tag` stays single-size: /sale/lookup below takes one pair's identity.
     const tag = { size: 38, color: '36', style: '7645', season: 'NONE' as const };
-    await ctx.post(`${API}/intake`, { headers: auth(sellerToken), data: tag });
+    await apiIntake(ctx, sellerToken, tag);
 
     const responses = [
       await ctx.post(`${API}/sale/lookup`, { headers: auth(sellerToken), data: tag }),
@@ -125,11 +126,16 @@ test.describe('безпека API', () => {
     }
     const otherToken = await login(ctx, other.login, other.password);
 
-    const created = await ctx.post(`${API}/intake`, {
-      headers: auth(otherToken),
-      data: { size: 41, color: '77', style: '7777', season: 'NONE' },
+    const { pairs } = await apiIntake(ctx, otherToken, {
+      size: 41,
+      color: '77',
+      style: '7777',
+      season: 'NONE',
     });
-    const { pairId } = (await created.json()) as { pairId: string };
+    // Read the id out of `pairs` — it used to be a top-level `pairId`, and
+    // destructuring the old name gave `undefined`, which made the 404 below
+    // pass for the wrong reason: /intake/undefined is missing for everyone.
+    const pairId = pairs[0]!.pairId;
 
     const patched = await ctx.patch(`${API}/intake/${pairId}`, {
       headers: auth(sellerToken),

@@ -1,14 +1,6 @@
 import { expect, test, type Page } from '@playwright/test';
 
-import {
-  ADMIN,
-  API,
-  bearer,
-  manualIntake,
-  scannerSignIn,
-  seedSeller,
-  uniqueStyle,
-} from './helpers';
+import { ADMIN, apiIntake, manualIntake, scannerSignIn, seedSeller, uniqueStyle } from './helpers';
 
 /**
  * Suite G — the scanner's reference search. Read-only by design: it must show
@@ -27,11 +19,7 @@ const draftSize = 41;
 test.beforeAll(async ({ browser, request }) => {
   const seller = await seedSeller(request, 'search');
   // Same variant, two pairs: one priced by the admin, one still a draft.
-  const res = await request.post(`${API}/intake`, {
-    headers: bearer(seller.token),
-    data: { size: draftSize, color: priced.color, style },
-  });
-  expect(res.ok()).toBeTruthy();
+  await apiIntake(request, seller.token, { size: draftSize, color: priced.color, style });
 
   page = await browser.newPage({ viewport: { width: 393, height: 851 } });
   await scannerSignIn(page, ADMIN.login, ADMIN.password);
