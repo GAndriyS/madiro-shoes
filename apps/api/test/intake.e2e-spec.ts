@@ -60,13 +60,22 @@ describe('Intake (e2e, real Postgres)', () => {
     await app.close();
   });
 
+  // Cached per login: this suite is about intake, not about logging in, and a
+  // fresh login per test walks straight into the endpoint's own rate limit
+  // (LOGIN_LIMIT per minute) once the suite grows past a dozen cases.
+  const tokens = new Map<string, string>();
   const token = async (login: string, password: string) => {
+    const cached = tokens.get(login);
+    if (cached) return cached;
+
     const res = await request(http)
       .post('/api/auth/login')
       .set(CLIENT_HEADER, 'scanner')
       .send({ login, password })
       .expect(200);
-    return res.body.accessToken as string;
+    const accessToken = res.body.accessToken as string;
+    tokens.set(login, accessToken);
+    return accessToken;
   };
 
   it('продавець створює чернетку (awaitingPrice), ціна ігнорується', async () => {
@@ -75,7 +84,7 @@ describe('Intake (e2e, real Postgres)', () => {
     const res = await request(http)
       .post('/api/intake')
       .set('Authorization', `Bearer ${seller}`)
-      .send({ size: 38, color: '36', style: '7645', purchasePrice: 999 })
+      .send({ sizes: [{ size: 38, qty: 1 }], color: '36', style: '7645', purchasePrice: 999 })
       .expect(201);
 
     const result = intakeResultSchema.parse(res.body);
@@ -84,7 +93,9 @@ describe('Intake (e2e, real Postgres)', () => {
 
     const variant = await prisma.variant.findUniqueOrThrow({ where: { id: result.variantId } });
     expect(variant.purchasePrice).toBeNull();
-    const op = await prisma.operation.findFirstOrThrow({ where: { pairId: result.pairId } });
+    const op = await prisma.operation.findFirstOrThrow({
+      where: { pairId: result.pairs[0]!.pairId },
+    });
     expect(op.type).toBe('INTAKE');
     expect(op.purchasePriceAtTime).toBeNull();
   });
@@ -95,7 +106,7 @@ describe('Intake (e2e, real Postgres)', () => {
     const res = await request(http)
       .post('/api/intake')
       .set('Authorization', `Bearer ${admin}`)
-      .send({ size: 40, color: '36', style: '7645', purchasePrice: 1400 })
+      .send({ sizes: [{ size: 40, qty: 1 }], color: '36', style: '7645', purchasePrice: 1400 })
       .expect(201);
 
     const result = intakeResultSchema.parse(res.body);
@@ -111,7 +122,7 @@ describe('Intake (e2e, real Postgres)', () => {
     await request(http)
       .post('/api/intake')
       .set('Authorization', `Bearer ${admin}`)
-      .send({ size: 41, color: '36', style: '7645', purchasePrice: 1400 })
+      .send({ sizes: [{ size: 41, qty: 1 }], color: '36', style: '7645', purchasePrice: 1400 })
       .expect(201);
 
     const after = await prisma.variant.count({ where: { style: '7645', color: '36' } });
@@ -120,7 +131,7 @@ describe('Intake (e2e, real Postgres)', () => {
 
   it('одночасне поступлення того самого варіанта без матеріалу/утеплення не дублює його', async () => {
     const seller = await token('seller-intake', sellerPassword);
-    const body = { size: 39, color: '77', style: '9001' }; // material/season = null
+    const body = { sizes: [{ size: 39, qty: 1 }], color: '77', style: '9001' }; // material/season = null
 
     // Postgres treats NULLs as distinct, so @@unique alone lets both inserts
     // through (docs/audit-2026-07, M-2) — the advisory lock in
@@ -140,7 +151,7 @@ describe('Intake (e2e, real Postgres)', () => {
   it('без токена → 401', async () => {
     await request(http)
       .post('/api/intake')
-      .send({ size: 38, color: '36', style: '7645' })
+      .send({ sizes: [{ size: 38, qty: 1 }], color: '36', style: '7645' })
       .expect(401);
   });
 
@@ -150,7 +161,67 @@ describe('Intake (e2e, real Postgres)', () => {
     await request(http)
       .post('/api/intake')
       .set('Authorization', `Bearer ${seller}`)
-      .send({ size: 99, color: '36', style: '7645' })
+      .send({ sizes: [{ size: 99, qty: 1 }], color: '36', style: '7645' })
+      .expect(400);
+  });
+
+  // The whole reason the endpoint takes quantities: one scan receives the run
+  // of sizes that arrived, not the single size the box label showed.
+  it('батч: кількості дають по парі на одиницю в межах одного варіанта', async () => {
+    const admin = await token('admin', adminPassword);
+
+    const res = await request(http)
+      .post('/api/intake')
+      .set('Authorization', `Bearer ${admin}`)
+      .send({
+        sizes: [
+          { size: 36, qty: 2 },
+          { size: 37, qty: 1 },
+        ],
+        color: '55',
+        style: '8100',
+        purchasePrice: 1200,
+      })
+      .expect(201);
+
+    const result = intakeResultSchema.parse(res.body);
+    expect(result.pairs.map((p) => p.size)).toEqual([36, 36, 37]);
+
+    // One variant, three pairs — a quantity is rows, never a counter column.
+    const pairs = await prisma.pair.findMany({ where: { variantId: result.variantId } });
+    expect(pairs).toHaveLength(3);
+    const ops = await prisma.operation.count({
+      where: { type: 'INTAKE', pairId: { in: result.pairs.map((p) => p.pairId) } },
+    });
+    expect(ops).toBe(3);
+  });
+
+  it('порожній список розмірів → 400', async () => {
+    const seller = await token('seller-intake', sellerPassword);
+
+    await request(http)
+      .post('/api/intake')
+      .set('Authorization', `Bearer ${seller}`)
+      .send({ sizes: [], color: '36', style: '7645' })
+      .expect(400);
+  });
+
+  // Summing a repeated size would take in pairs nobody asked for; that is a
+  // client bug, and the server says so instead of guessing.
+  it('повторений розмір у тілі → 400', async () => {
+    const seller = await token('seller-intake', sellerPassword);
+
+    await request(http)
+      .post('/api/intake')
+      .set('Authorization', `Bearer ${seller}`)
+      .send({
+        sizes: [
+          { size: 38, qty: 1 },
+          { size: 38, qty: 2 },
+        ],
+        color: '36',
+        style: '7645',
+      })
       .expect(400);
   });
 
@@ -162,7 +233,7 @@ describe('Intake (e2e, real Postgres)', () => {
         .post('/api/intake')
         .set('Authorization', `Bearer ${admin}`)
         .send({
-          size: 41,
+          sizes: [{ size: 41, qty: 1 }],
           color: '12',
           style: '4400',
           material: 'SUEDE',
@@ -188,7 +259,7 @@ describe('Intake (e2e, real Postgres)', () => {
       await request(http)
         .post('/api/intake')
         .set('Authorization', `Bearer ${admin}`)
-        .send({ size: 40, color: '13', style: '4401', purchasePrice: 990 })
+        .send({ sizes: [{ size: 40, qty: 1 }], color: '13', style: '4401', purchasePrice: 990 })
         .expect(201);
 
       const res = await request(http)

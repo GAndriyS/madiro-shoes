@@ -73,8 +73,16 @@ function IntakePage() {
         void navigate({ to: '/' });
         return;
       }
-      // Batch: confirm briefly, then back to the camera for the next pair.
-      showToast(result.awaitingPrice ? t('intake.savedDraft') : t('intake.savedToStock'), 2500);
+      // Batch: confirm briefly, then back to the camera for the next model.
+      // The count is the point — one scan can now take in a whole run of sizes,
+      // and «збережено» alone would not say how many pairs that turned into.
+      const count = result.pairs.length;
+      showToast(
+        result.awaitingPrice
+          ? t('intake.savedDraft', { count })
+          : t('intake.savedToStock', { count }),
+        2500,
+      );
       recognize.reset();
       setRecognition(null);
       setStep('capture');

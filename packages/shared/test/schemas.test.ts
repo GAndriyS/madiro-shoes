@@ -30,7 +30,7 @@ describe('tagRecognitionSchema', () => {
 });
 
 describe('intakeSchema', () => {
-  const base = { size: 38, color: '36', style: '7645' };
+  const base = { sizes: [{ size: 38, qty: 1 }], color: '36', style: '7645' };
 
   it('приймає поступлення без матеріалу, утеплення й ціни (чернетка продавця)', () => {
     expect(intakeSchema.safeParse(base).success).toBe(true);
@@ -42,6 +42,47 @@ describe('intakeSchema', () => {
 
   it('відхиляє від’ємну ціну закупки', () => {
     expect(intakeSchema.safeParse({ ...base, purchasePrice: -100 }).success).toBe(false);
+  });
+
+  it('приймає кілька розмірів з кількостями', () => {
+    const many = {
+      ...base,
+      sizes: [
+        { size: 36, qty: 2 },
+        { size: 41, qty: 3 },
+      ],
+    };
+    expect(intakeSchema.safeParse(many).success).toBe(true);
+  });
+
+  // An empty grid is «нічого не привезли» — a request with nothing to do, and
+  // the scanner disables saving for exactly this reason.
+  it('відхиляє порожній список розмірів', () => {
+    expect(intakeSchema.safeParse({ ...base, sizes: [] }).success).toBe(false);
+  });
+
+  // Summing a repeat would take in pairs nobody asked for, so it is refused
+  // rather than guessed at.
+  it('відхиляє повторений розмір', () => {
+    const dup = {
+      ...base,
+      sizes: [
+        { size: 38, qty: 1 },
+        { size: 38, qty: 2 },
+      ],
+    };
+    expect(intakeSchema.safeParse(dup).success).toBe(false);
+  });
+
+  it('відхиляє кількість 0 і від’ємну', () => {
+    expect(intakeSchema.safeParse({ ...base, sizes: [{ size: 38, qty: 0 }] }).success).toBe(false);
+    expect(intakeSchema.safeParse({ ...base, sizes: [{ size: 38, qty: -1 }] }).success).toBe(false);
+  });
+
+  it('відхиляє розмір поза межами 16–50', () => {
+    expect(
+      intakeSchema.safeParse({ ...base, sizes: [{ size: SIZE_MAX + 1, qty: 1 }] }).success,
+    ).toBe(false);
   });
 });
 

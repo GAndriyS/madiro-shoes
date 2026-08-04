@@ -47,7 +47,8 @@ test('скан бірки з галереї префілить форму пос
   await page.getByTestId('tag-photo-input').setInputFiles(LABEL_PHOTO);
 
   await expect(page.getByTestId('intake-form')).toBeVisible();
-  await expect(page.getByTestId('field-size')).toHaveValue(RECOGNIZED.size);
+  // The scanned size seeds the grid with one pair; there is no SIZE field.
+  await expect(page.getByTestId(`size-qty-${RECOGNIZED.size}`)).toHaveValue('1');
   await expect(page.getByTestId('field-color')).toHaveValue(RECOGNIZED.color);
   await expect(page.getByTestId('field-style')).toHaveValue(RECOGNIZED.style);
   // confidence 0.99 — the "check the digits" warning must stay away.
@@ -68,7 +69,7 @@ test('збій розпізнавання лишає «Ввести вручну
   // The intake form with EMPTY fields — not /manual, which is the checkout
   // flow: selling a pair is the opposite of receiving one (regression S-1.2).
   await expect(page.getByTestId('intake-form')).toBeVisible();
-  await expect(page.getByTestId('field-size')).toHaveValue('');
+  await expect(page.getByTestId(`size-qty-${RECOGNIZED.size}`)).toHaveValue('');
   expect(new URL(page.url()).pathname).toBe('/intake');
 
   await page.unroute('**/api/tags/recognize');

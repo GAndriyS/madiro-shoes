@@ -14,9 +14,16 @@ function makeTx() {
       create: jest.fn(),
       update: jest.fn(),
     },
-    pair: { create: jest.fn() },
-    operation: { create: jest.fn() },
+    // Batched on purpose: one delivery is 2 statements, not 2 per pair.
+    pair: { createManyAndReturn: jest.fn() },
+    operation: { createMany: jest.fn() },
   };
+}
+
+interface PairRow {
+  size: number;
+  status: string;
+  awaitingPrice: boolean;
 }
 
 describe('IntakeService', () => {
@@ -40,17 +47,23 @@ describe('IntakeService', () => {
     service = moduleRef.get(IntakeService);
 
     tx.variant.create.mockResolvedValue({ id: 'v1' });
-    tx.pair.create.mockImplementation(({ data }) =>
-      Promise.resolve({
-        id: 'p1',
-        size: data.size,
-        status: data.status,
-        awaitingPrice: data.awaitingPrice,
-      }),
+    tx.pair.createManyAndReturn.mockImplementation(({ data }: { data: PairRow[] }) =>
+      Promise.resolve(
+        data.map((row, index) => ({
+          id: `p${index + 1}`,
+          size: row.size,
+          status: row.status,
+          awaitingPrice: row.awaitingPrice,
+        })),
+      ),
     );
   });
 
-  const input = { size: 38, color: '36', style: '7645' };
+  /** Rows handed to createManyAndReturn — what the batch actually writes. */
+  const pairRows = (): PairRow[] => tx.pair.createManyAndReturn.mock.calls[0][0].data;
+  const operationRows = () => tx.operation.createMany.mock.calls[0][0].data;
+
+  const input = { sizes: [{ size: 38, qty: 1 }], color: '36', style: '7645' };
 
   it('продавець: завжди чернетка, ціна ігнорується навіть якщо прийшла', async () => {
     tx.variant.findFirst.mockResolvedValue(null);
@@ -61,15 +74,14 @@ describe('IntakeService', () => {
     );
 
     expect(res).toEqual({
-      pairId: 'p1',
       variantId: 'v1',
-      size: 38,
+      pairs: [{ pairId: 'p1', size: 38 }],
       status: 'IN_STOCK',
       awaitingPrice: true,
     });
     expect(tx.variant.update).not.toHaveBeenCalled();
-    expect(tx.pair.create.mock.calls[0][0].data.awaitingPrice).toBe(true);
-    expect(tx.operation.create.mock.calls[0][0].data.purchasePriceAtTime).toBeNull();
+    expect(pairRows()[0]!.awaitingPrice).toBe(true);
+    expect(operationRows()[0].purchasePriceAtTime).toBeNull();
     // The queue and its badge move on the dashboard right away (FR-B-04).
     expect(realtime.emit).toHaveBeenCalledWith('intake-draft');
   });
@@ -81,8 +93,8 @@ describe('IntakeService', () => {
 
     expect(tx.variant.update).toHaveBeenCalledTimes(1);
     expect(Number(tx.variant.update.mock.calls[0][0].data.purchasePrice)).toBe(1400);
-    expect(tx.pair.create.mock.calls[0][0].data.awaitingPrice).toBe(false);
-    expect(Number(tx.operation.create.mock.calls[0][0].data.purchasePriceAtTime)).toBe(1400);
+    expect(pairRows()[0]!.awaitingPrice).toBe(false);
+    expect(Number(operationRows()[0].purchasePriceAtTime)).toBe(1400);
   });
 
   // «Без ціни — старий товар» is the price 0 — the same value the dashboard's
@@ -94,8 +106,8 @@ describe('IntakeService', () => {
     await service.create({ ...input, purchasePrice: 0 }, { id: 'admin', role: 'ADMIN' });
 
     expect(Number(tx.variant.update.mock.calls[0][0].data.purchasePrice)).toBe(0);
-    expect(tx.pair.create.mock.calls[0][0].data.awaitingPrice).toBe(false);
-    expect(Number(tx.operation.create.mock.calls[0][0].data.purchasePriceAtTime)).toBe(0);
+    expect(pairRows()[0]!.awaitingPrice).toBe(false);
+    expect(Number(operationRows()[0].purchasePriceAtTime)).toBe(0);
   });
 
   it('адмін без рішення щодо ціни (null): ціна варіанта лишається недоторканою', async () => {
@@ -104,7 +116,57 @@ describe('IntakeService', () => {
     await service.create({ ...input, purchasePrice: null }, { id: 'admin', role: 'ADMIN' });
 
     expect(tx.variant.update).not.toHaveBeenCalled();
-    expect(tx.operation.create.mock.calls[0][0].data.purchasePriceAtTime).toBeNull();
+    expect(operationRows()[0].purchasePriceAtTime).toBeNull();
+  });
+
+  // A pair is the unit that gets sold, written off and returned, so a quantity
+  // has to become that many rows — never one row carrying a count.
+  it('кількості розгортаються в окрему пару на кожну одиницю', async () => {
+    tx.variant.findFirst.mockResolvedValue({ id: 'v1' });
+
+    const res = await service.create(
+      {
+        ...input,
+        sizes: [
+          { size: 38, qty: 2 },
+          { size: 40, qty: 1 },
+        ],
+      },
+      { id: 'u1', role: 'SELLER' },
+    );
+
+    expect(pairRows().map((row) => row.size)).toEqual([38, 38, 40]);
+    expect(res.pairs).toEqual([
+      { pairId: 'p1', size: 38 },
+      { pairId: 'p2', size: 38 },
+      { pairId: 'p3', size: 40 },
+    ]);
+    // One INTAKE operation per pair: history counts pairs, not deliveries.
+    expect(operationRows()).toHaveLength(3);
+  });
+
+  // The batch is the reason the endpoint took quantities in the first place —
+  // if it degenerated into per-pair work, the lock contention and the dashboard
+  // event storm would be worse than the loop it replaced.
+  it('увесь батч — один лок, один INSERT пар і одна подія', async () => {
+    tx.variant.findFirst.mockResolvedValue({ id: 'v1' });
+
+    await service.create(
+      {
+        ...input,
+        sizes: [
+          { size: 36, qty: 3 },
+          { size: 37, qty: 2 },
+        ],
+      },
+      { id: 'u1', role: 'SELLER' },
+    );
+
+    expect(pairRows()).toHaveLength(5);
+    expect(tx.$executeRaw).toHaveBeenCalledTimes(1);
+    expect(tx.pair.createManyAndReturn).toHaveBeenCalledTimes(1);
+    expect(tx.operation.createMany).toHaveBeenCalledTimes(1);
+    expect(realtime.emit).toHaveBeenCalledTimes(1);
   });
 
   it('перевикористовує наявний варіант за 5 полями, не створює новий', async () => {

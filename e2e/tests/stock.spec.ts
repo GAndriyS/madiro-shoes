@@ -25,8 +25,10 @@ test.describe.configure({ mode: 'serial' });
 let dashboard: Page;
 let scanner: Page;
 const style = uniqueStyle();
-const first = { size: '42', color: '61', style };
-const second = { size: '43', color: '61', style };
+// Sizes stay inside the intake grid (35-41): manual entry has no free-text
+// size field any more, so a fixture outside the grid has nowhere to be typed.
+const first = { size: '40', color: '61', style };
+const second = { size: '41', color: '61', style };
 
 test.beforeAll(async ({ browser, request }) => {
   const seller = await seedSeller(request, 'stock');

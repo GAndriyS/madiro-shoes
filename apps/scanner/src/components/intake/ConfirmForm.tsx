@@ -7,11 +7,19 @@ import {
   type TagRecognition,
 } from '@madiro/shared';
 import { AlertIcon, ChevronRightIcon, cn, useAuthStore } from '@madiro/web-core';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import {
+  collectSizes,
+  gridSizes,
+  initialQuantities,
+  totalPairs,
+  type SizeQuantities,
+} from '../../lib/sizeGrid';
 import { usePriceHint } from '../../lib/usePriceHint';
 import { FieldCard, PillGroup } from '../scan/fields';
+import { SizeGrid } from './SizeGrid';
 
 /** Recognitions below this read as "double-check me" in the UI (heuristic). */
 const LOW_CONFIDENCE_THRESHOLD = 0.8;
@@ -36,7 +44,12 @@ interface ConfirmFormProps {
 export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: ConfirmFormProps) {
   const { t } = useTranslation();
   const isAdmin = useAuthStore((s) => s.user?.role) === 'ADMIN';
-  const [size, setSize] = useState(recognition ? String(recognition.size) : '');
+  // The scanned size only seeds the grid — there is no size *field* any more,
+  // because one label stands for a whole run of sizes being received.
+  const sizes = useMemo(() => gridSizes(recognition?.size), [recognition?.size]);
+  const [quantities, setQuantities] = useState<SizeQuantities>(() =>
+    initialQuantities(recognition?.size),
+  );
   const [color, setColor] = useState(recognition?.color ?? '');
   const [style, setStyle] = useState(recognition?.style ?? '');
   const [season, setSeason] = useState<Season>('NONE');
@@ -77,12 +90,12 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
 
   const priceValue = Number(price);
   const priceEntered = price.length > 0 && priceValue > 0;
-  // Same size bounds as the checkout flows — manual entry must not discover
-  // them as an unexplained 400 from the server.
-  const sizeNum = Number(size);
-  const sizeValid = Number.isInteger(sizeNum) && sizeNum >= 16 && sizeNum <= 50;
+  // Sizes come from a fixed grid, so they cannot be out of range the way a free
+  // text field could be — the only question left is whether anything was
+  // entered at all.
+  const pairCount = totalPairs(quantities);
   // Admin must decide: a price or the explicit "no price" toggle.
-  const canSave = sizeValid && color.length > 0 && style.length > 0 && !saving;
+  const canSave = pairCount > 0 && color.length > 0 && style.length > 0 && !saving;
   const adminNeedsPrice = isAdmin && priceMode === 'set' && !priceEntered;
 
   const submit = (mode: SaveMode) => {
@@ -93,7 +106,7 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
     const purchasePrice = isAdmin ? (priceMode === 'none' ? 0 : priceValue) : undefined;
     onSave(
       {
-        size: sizeNum,
+        sizes: collectSizes(quantities),
         color,
         style,
         ...(material ? { material } : {}),
@@ -132,13 +145,7 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-2.5">
-        <FieldCard
-          testId="field-size"
-          label={t('intake.fieldSize')}
-          value={size}
-          onChange={setSize}
-        />
+      <div className="grid grid-cols-2 gap-2.5">
         <FieldCard
           testId="field-color"
           label={t('intake.fieldColor')}
@@ -152,6 +159,16 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
           onChange={setStyle}
         />
       </div>
+
+      <SizeGrid
+        label={t('intake.sizesLabel')}
+        sizes={sizes}
+        quantities={quantities}
+        onChange={setQuantities}
+        summary={
+          pairCount > 0 ? t('intake.sizesTotal', { count: pairCount }) : t('intake.sizesEmptyHint')
+        }
+      />
 
       <PillGroup
         testId="season"
