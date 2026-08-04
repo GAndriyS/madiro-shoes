@@ -8,9 +8,17 @@ import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vite
 import { ConfirmForm, type SaveMode } from '../src/components/intake/ConfirmForm';
 import { initI18n } from '../src/i18n';
 
-// The form asks the API for a purchase price hint; the network is not the
-// subject here, so only that one call is stubbed.
-const apiGet = vi.fn();
+// The form asks the API for two things: the purchase-price hint and the
+// exchange rate the dollar field previews with. Neither is the subject here, so
+// both are stubbed — dispatched by path, because a single blanket mock would
+// feed the hint's payload to the rate query and vice versa.
+const RATE = 40;
+const priceHint = vi.fn();
+const apiGet = vi.fn((path: string) =>
+  path.startsWith('/exchange/rate')
+    ? Promise.resolve({ rate: RATE, fetchedAt: '2026-08-03T10:00:00.000Z', stale: false })
+    : priceHint(path),
+);
 vi.mock('@madiro/web-core', async () => {
   const actual = await vi.importActual<typeof import('@madiro/web-core')>('@madiro/web-core');
   return { ...actual, api: { ...actual.api, get: (path: string) => apiGet(path) } };
@@ -30,8 +38,10 @@ describe('ConfirmForm', () => {
 
   beforeEach(() => {
     // Default: nothing known about this variant, so no hint interferes.
-    apiGet.mockReset();
-    apiGet.mockResolvedValue({ purchasePrice: null });
+    // `mockClear`, not `mockReset`: the dispatcher implementation must survive.
+    apiGet.mockClear();
+    priceHint.mockReset();
+    priceHint.mockResolvedValue({ purchasePriceUsd: null });
   });
 
   afterEach(() => {
@@ -161,7 +171,7 @@ describe('ConfirmForm', () => {
     renderForm({ onSave });
 
     expect(screen.getByText(/Ціну закупки додасть адміністратор/)).toBeInTheDocument();
-    expect(screen.queryByText('ЦІНА ЗАКУПКИ')).not.toBeInTheDocument();
+    expect(screen.queryByText(/ЦІНА ЗАКУПКИ/)).not.toBeInTheDocument();
 
     await userEvent.click(screen.getByRole('button', { name: 'У чернетки і сканувати наступну' }));
     expect(onSave).toHaveBeenCalledWith(
@@ -175,7 +185,7 @@ describe('ConfirmForm', () => {
     const onSave = vi.fn();
     renderForm({ onSave });
 
-    expect(screen.getByText('ЦІНА ЗАКУПКИ')).toBeInTheDocument();
+    expect(screen.getByText(/ЦІНА ЗАКУПКИ/)).toBeInTheDocument();
     const next = screen.getByRole('button', { name: 'На склад і сканувати наступну' });
     expect(next).toBeDisabled();
 
@@ -188,7 +198,7 @@ describe('ConfirmForm', () => {
         color: '36',
         style: '7645',
         season: 'NONE',
-        purchasePrice: 1400,
+        purchasePriceUsd: 1400,
       },
       'next',
     );
@@ -212,7 +222,7 @@ describe('ConfirmForm', () => {
         color: '36',
         style: '7645',
         season: 'NONE',
-        purchasePrice: 0,
+        purchasePriceUsd: 0,
       },
       'finish',
     );
@@ -221,7 +231,7 @@ describe('ConfirmForm', () => {
   describe('підказка ціни закупки (FR-D-08)', () => {
     it('адмін: ціна відомого варіанта підставляється у поле', async () => {
       asAdmin();
-      apiGet.mockResolvedValue({ purchasePrice: 1750 });
+      priceHint.mockResolvedValue({ purchasePriceUsd: 1750 });
       renderForm();
 
       await waitFor(() => expect(screen.getByPlaceholderText('Ціна')).toHaveValue('1750'));
@@ -231,25 +241,25 @@ describe('ConfirmForm', () => {
     // A suggestion must never overwrite what a person just typed.
     it('введена вручну ціна не перезаписується підказкою', async () => {
       asAdmin();
-      let resolveHint: (value: { purchasePrice: number }) => void = () => {};
-      apiGet.mockReturnValue(
-        new Promise<{ purchasePrice: number }>((resolve) => {
+      let resolveHint: (value: { purchasePriceUsd: number }) => void = () => {};
+      priceHint.mockReturnValue(
+        new Promise<{ purchasePriceUsd: number }>((resolve) => {
           resolveHint = resolve;
         }),
       );
       renderForm();
 
       await userEvent.type(screen.getByPlaceholderText('Ціна'), '999');
-      resolveHint({ purchasePrice: 1750 });
+      resolveHint({ purchasePriceUsd: 1750 });
 
-      await waitFor(() => expect(apiGet).toHaveBeenCalled());
+      await waitFor(() => expect(priceHint).toHaveBeenCalled());
       expect(screen.getByPlaceholderText('Ціна')).toHaveValue('999');
       expect(screen.queryByText(/Підставлено ціну цього варіанта/)).not.toBeInTheDocument();
     });
 
     it('варіант «без ціни — старий товар» (0) відкриває той самий режим', async () => {
       asAdmin();
-      apiGet.mockResolvedValue({ purchasePrice: 0 });
+      priceHint.mockResolvedValue({ purchasePriceUsd: 0 });
       renderForm();
 
       await waitFor(() =>
@@ -261,9 +271,9 @@ describe('ConfirmForm', () => {
     // received at a price that belongs to a different model.
     it('зміна style на невідомий варіант очищає підставлену ціну', async () => {
       asAdmin();
-      apiGet.mockImplementation((path: string) =>
+      priceHint.mockImplementation((path: string) =>
         Promise.resolve(
-          path.includes('style=7645') ? { purchasePrice: 1750 } : { purchasePrice: null },
+          path.includes('style=7645') ? { purchasePriceUsd: 1750 } : { purchasePriceUsd: null },
         ),
       );
       renderForm();
@@ -283,9 +293,9 @@ describe('ConfirmForm', () => {
 
     it('власноруч введена ціна переживає зміну style', async () => {
       asAdmin();
-      apiGet.mockImplementation((path: string) =>
+      priceHint.mockImplementation((path: string) =>
         Promise.resolve(
-          path.includes('style=7645') ? { purchasePrice: 1750 } : { purchasePrice: null },
+          path.includes('style=7645') ? { purchasePriceUsd: 1750 } : { purchasePriceUsd: null },
         ),
       );
       renderForm();
@@ -359,13 +369,13 @@ describe('ConfirmForm', () => {
     it('ролі в ручному режимі: продавець без секції ціни, адмін — з нею', () => {
       asSeller();
       const { unmount } = renderForm({ recognition: null });
-      expect(screen.queryByText('ЦІНА ЗАКУПКИ')).not.toBeInTheDocument();
+      expect(screen.queryByText(/ЦІНА ЗАКУПКИ/)).not.toBeInTheDocument();
       expect(screen.getByText(/Ціну закупки додасть адміністратор/)).toBeInTheDocument();
       unmount();
 
       asAdmin();
       renderForm({ recognition: null });
-      expect(screen.getByText('ЦІНА ЗАКУПКИ')).toBeInTheDocument();
+      expect(screen.getByText(/ЦІНА ЗАКУПКИ/)).toBeInTheDocument();
     });
 
     // The old free-text SIZE field could hold an out-of-range number; the grid

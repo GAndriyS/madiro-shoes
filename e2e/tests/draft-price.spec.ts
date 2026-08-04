@@ -50,7 +50,7 @@ test('чернетка продавця отримує ціну від адмі�
   await card.getByTestId('queue-set-price').click();
   const priceInput = dashboard.getByTestId('price-modal-input');
   await priceInput.click();
-  await priceInput.pressSequentially('1300');
+  await priceInput.pressSequentially('32.5'); // $32.50 → 1 300 ₴
   const save = dashboard.getByTestId('price-modal-save');
   await expect(save).toBeEnabled();
   await save.click();

@@ -1,5 +1,6 @@
 import { Test } from '@nestjs/testing';
 
+import { ExchangeService } from '../exchange/exchange.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 import { IntakeService } from './intake.service';
@@ -26,6 +27,10 @@ interface PairRow {
   awaitingPrice: boolean;
 }
 
+/** A fixed rate keeps the arithmetic in these tests obvious: $1 = 40 ₴. */
+const RATE = 40;
+const exchange = { getRate: jest.fn() };
+
 describe('IntakeService', () => {
   /** Realtime is fire-and-forget: assert it fires, never let it fail a write. */
   const realtime = { emit: jest.fn() };
@@ -42,10 +47,16 @@ describe('IntakeService', () => {
         IntakeService,
         { provide: RealtimeGateway, useValue: realtime },
         { provide: PrismaService, useValue: { $transaction: transaction } },
+        { provide: ExchangeService, useValue: exchange },
       ],
     }).compile();
     service = moduleRef.get(IntakeService);
 
+    exchange.getRate.mockResolvedValue({
+      rate: RATE,
+      fetchedAt: new Date().toISOString(),
+      stale: false,
+    });
     tx.variant.create.mockResolvedValue({ id: 'v1' });
     tx.pair.createManyAndReturn.mockImplementation(({ data }: { data: PairRow[] }) =>
       Promise.resolve(
@@ -69,7 +80,7 @@ describe('IntakeService', () => {
     tx.variant.findFirst.mockResolvedValue(null);
 
     const res = await service.create(
-      { ...input, purchasePrice: 999 },
+      { ...input, purchasePriceUsd: 999 },
       { id: 'u1', role: 'SELLER' },
     );
 
@@ -86,10 +97,11 @@ describe('IntakeService', () => {
     expect(realtime.emit).toHaveBeenCalledWith('intake-draft');
   });
 
-  it('адмін з ціною: оновлює ціну варіанта, pair не чекає ціни', async () => {
+  // The admin types dollars; the books keep hryvnia. $35 × 40 = 1400 ₴.
+  it('адмін з ціною в доларах: зберігає конвертовану гривню', async () => {
     tx.variant.findFirst.mockResolvedValue(null);
 
-    await service.create({ ...input, purchasePrice: 1400 }, { id: 'admin', role: 'ADMIN' });
+    await service.create({ ...input, purchasePriceUsd: 35 }, { id: 'admin', role: 'ADMIN' });
 
     expect(tx.variant.update).toHaveBeenCalledTimes(1);
     expect(Number(tx.variant.update.mock.calls[0][0].data.purchasePrice)).toBe(1400);
@@ -103,7 +115,7 @@ describe('IntakeService', () => {
   it('адмін "без ціни — старий товар" (0): ціна варіанта стає 0, pair на складі', async () => {
     tx.variant.findFirst.mockResolvedValue({ id: 'v1' });
 
-    await service.create({ ...input, purchasePrice: 0 }, { id: 'admin', role: 'ADMIN' });
+    await service.create({ ...input, purchasePriceUsd: 0 }, { id: 'admin', role: 'ADMIN' });
 
     expect(Number(tx.variant.update.mock.calls[0][0].data.purchasePrice)).toBe(0);
     expect(pairRows()[0]!.awaitingPrice).toBe(false);
@@ -113,7 +125,7 @@ describe('IntakeService', () => {
   it('адмін без рішення щодо ціни (null): ціна варіанта лишається недоторканою', async () => {
     tx.variant.findFirst.mockResolvedValue({ id: 'v1' });
 
-    await service.create({ ...input, purchasePrice: null }, { id: 'admin', role: 'ADMIN' });
+    await service.create({ ...input, purchasePriceUsd: null }, { id: 'admin', role: 'ADMIN' });
 
     expect(tx.variant.update).not.toHaveBeenCalled();
     expect(operationRows()[0].purchasePriceAtTime).toBeNull();
@@ -229,9 +241,15 @@ describe('IntakeService.priceHint', () => {
           provide: PrismaService,
           useValue: { variant: { findFirst: variantFindFirst } },
         },
+        { provide: ExchangeService, useValue: exchange },
       ],
     }).compile();
     service = moduleRef.get(IntakeService);
+    exchange.getRate.mockResolvedValue({
+      rate: RATE,
+      fetchedAt: new Date().toISOString(),
+      stale: false,
+    });
   });
 
   const query = { style: '7645', color: '36', material: 'LEATHER' as const };
@@ -247,25 +265,27 @@ describe('IntakeService.priceHint', () => {
       material: 'LEATHER',
       season: 'NONE',
     });
-    expect(res).toEqual({ purchasePrice: 1400 });
+    // Stored 1400 ₴ read back through today's rate: $35.
+    expect(res).toEqual({ purchasePriceUsd: 35 });
   });
 
   it('невідомий варіант — підказки немає', async () => {
     variantFindFirst.mockResolvedValue(null);
 
-    expect(await service.priceHint(query)).toEqual({ purchasePrice: null });
+    expect(await service.priceHint(query)).toEqual({ purchasePriceUsd: null });
   });
 
   it('варіант без ціни — підказки немає', async () => {
     variantFindFirst.mockResolvedValue({ purchasePrice: null });
 
-    expect(await service.priceHint(query)).toEqual({ purchasePrice: null });
+    expect(await service.priceHint(query)).toEqual({ purchasePriceUsd: null });
   });
 
   // 0 is «без ціни — старий товар»: a real decision, distinct from "not set yet".
   it('«без ціни — старий товар» (0) — це підказка, а не порожнеча', async () => {
     variantFindFirst.mockResolvedValue({ purchasePrice: 0 });
 
-    expect(await service.priceHint(query)).toEqual({ purchasePrice: 0 });
+    // 0 needs no rate at all — the decision survives any exchange rate.
+    expect(await service.priceHint(query)).toEqual({ purchasePriceUsd: 0 });
   });
 });

@@ -14,6 +14,9 @@ import { PrismaService } from '../src/prisma/prisma.service';
  * role branch (FR-B-02): sellers only ever create drafts and never price a
  * pair, admins price or mark "no price".
  */
+/** Pinned for the whole suite in test/setup-e2e.ts. */
+const RATE = 40;
+
 describe('Intake (e2e, real Postgres)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -84,7 +87,7 @@ describe('Intake (e2e, real Postgres)', () => {
     const res = await request(http)
       .post('/api/intake')
       .set('Authorization', `Bearer ${seller}`)
-      .send({ sizes: [{ size: 38, qty: 1 }], color: '36', style: '7645', purchasePrice: 999 })
+      .send({ sizes: [{ size: 38, qty: 1 }], color: '36', style: '7645', purchasePriceUsd: 999 })
       .expect(201);
 
     const result = intakeResultSchema.parse(res.body);
@@ -106,7 +109,7 @@ describe('Intake (e2e, real Postgres)', () => {
     const res = await request(http)
       .post('/api/intake')
       .set('Authorization', `Bearer ${admin}`)
-      .send({ sizes: [{ size: 40, qty: 1 }], color: '36', style: '7645', purchasePrice: 1400 })
+      .send({ sizes: [{ size: 40, qty: 1 }], color: '36', style: '7645', purchasePriceUsd: 35 })
       .expect(201);
 
     const result = intakeResultSchema.parse(res.body);
@@ -122,7 +125,7 @@ describe('Intake (e2e, real Postgres)', () => {
     await request(http)
       .post('/api/intake')
       .set('Authorization', `Bearer ${admin}`)
-      .send({ sizes: [{ size: 41, qty: 1 }], color: '36', style: '7645', purchasePrice: 1400 })
+      .send({ sizes: [{ size: 41, qty: 1 }], color: '36', style: '7645', purchasePriceUsd: 35 })
       .expect(201);
 
     const after = await prisma.variant.count({ where: { style: '7645', color: '36' } });
@@ -180,7 +183,7 @@ describe('Intake (e2e, real Postgres)', () => {
         ],
         color: '55',
         style: '8100',
-        purchasePrice: 1200,
+        purchasePriceUsd: 30,
       })
       .expect(201);
 
@@ -190,10 +193,21 @@ describe('Intake (e2e, real Postgres)', () => {
     // One variant, three pairs — a quantity is rows, never a counter column.
     const pairs = await prisma.pair.findMany({ where: { variantId: result.variantId } });
     expect(pairs).toHaveLength(3);
-    const ops = await prisma.operation.count({
+    const ops = await prisma.operation.findMany({
       where: { type: 'INTAKE', pairId: { in: result.pairs.map((p) => p.pairId) } },
+      select: { purchasePriceAtTime: true },
     });
-    expect(ops).toBe(3);
+    expect(ops).toHaveLength(3);
+
+    // The price is per pair, not per delivery: one conversion of $30 is frozen
+    // into every pair's basis, so margin works whichever pair gets sold.
+    const variant = await prisma.variant.findUniqueOrThrow({ where: { id: result.variantId } });
+    expect(Number(variant.purchasePrice)).toBe(30 * RATE);
+    expect(ops.map((op) => Number(op.purchasePriceAtTime))).toEqual([
+      30 * RATE,
+      30 * RATE,
+      30 * RATE,
+    ]);
   });
 
   it('порожній список розмірів → 400', async () => {
@@ -238,7 +252,7 @@ describe('Intake (e2e, real Postgres)', () => {
           style: '4400',
           material: 'SUEDE',
           season: 'BAIKA',
-          purchasePrice: 1750,
+          purchasePriceUsd: 1750 / RATE,
         })
         .expect(201);
 
@@ -248,7 +262,7 @@ describe('Intake (e2e, real Postgres)', () => {
         .set('Authorization', `Bearer ${admin}`)
         .expect(200);
 
-      expect(res.body).toEqual({ purchasePrice: 1750 });
+      expect(res.body).toEqual({ purchasePriceUsd: 1750 / RATE });
     });
 
     // The intake form may omit insulation; the hint must still find the variant
@@ -259,7 +273,12 @@ describe('Intake (e2e, real Postgres)', () => {
       await request(http)
         .post('/api/intake')
         .set('Authorization', `Bearer ${admin}`)
-        .send({ sizes: [{ size: 40, qty: 1 }], color: '13', style: '4401', purchasePrice: 990 })
+        .send({
+          sizes: [{ size: 40, qty: 1 }],
+          color: '13',
+          style: '4401',
+          purchasePriceUsd: 990 / RATE,
+        })
         .expect(201);
 
       const res = await request(http)
@@ -268,7 +287,7 @@ describe('Intake (e2e, real Postgres)', () => {
         .set('Authorization', `Bearer ${admin}`)
         .expect(200);
 
-      expect(res.body).toEqual({ purchasePrice: 990 });
+      expect(res.body).toEqual({ purchasePriceUsd: 990 / RATE });
     });
 
     it('невідомий варіант → підказки немає', async () => {
@@ -280,7 +299,7 @@ describe('Intake (e2e, real Postgres)', () => {
         .set('Authorization', `Bearer ${admin}`)
         .expect(200);
 
-      expect(res.body).toEqual({ purchasePrice: null });
+      expect(res.body).toEqual({ purchasePriceUsd: null });
     });
 
     // FR-B-02: this endpoint returns a purchase price, so a seller must not reach it.

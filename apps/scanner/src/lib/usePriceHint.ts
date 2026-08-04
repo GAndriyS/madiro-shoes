@@ -31,7 +31,7 @@ function useDebounced<T>(value: T, delayMs: number): T {
 
 /**
  * Purchase price of the variant these fields identify (FR-D-08, «підказка
- * ціни»), or null when there is nothing to suggest.
+ * ціни») **in US dollars**, or null when there is nothing to suggest.
  *
  * Pass `null` for a seller: the endpoint is admin-only because it returns a
  * purchase price (FR-B-02), so a seller must not even ask.
@@ -65,5 +65,5 @@ export function usePriceHint(identity: PriceHintIdentity | null): number | null 
     retry: false,
   });
 
-  return query.data?.purchasePrice ?? null;
+  return query.data?.purchasePriceUsd ?? null;
 }

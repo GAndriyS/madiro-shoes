@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { api } from '@madiro/web-core';
+import { api, money, previewUah, useExchangeRate } from '@madiro/web-core';
 import { dayLabel } from '@madiro/web-core';
 import { CloseIcon } from '@madiro/web-core';
 import {
@@ -33,6 +33,9 @@ export function PriceModal({ target, onClose }: Props) {
   const { t } = useTranslation();
   const queryClient = useQueryClient();
   const [value, setValue] = useState('');
+  // The field is in dollars, the books are in hryvnia: the same rate the API
+  // converts with, so the preview is the number that gets stored.
+  const { data: exchange, isError: rateFailed } = useExchangeRate();
 
   const { data } = useQuery({
     queryKey: ['stock', 'variant', target?.variantId],
@@ -44,9 +47,12 @@ export function PriceModal({ target, onClose }: Props) {
   });
 
   useEffect(() => {
-    // Prefill only a real price; 0 ("no price") and null start empty.
-    setValue(data?.purchasePrice ? String(data.purchasePrice) : '');
-  }, [data?.purchasePrice, target?.variantId]);
+    // Prefill only a real price; 0 ("no price") and null start empty. Stored
+    // hryvnia read back through today's rate — the field is dollars, and the
+    // rate moves, so this is a starting point the admin confirms.
+    const uah = data?.purchasePrice;
+    setValue(uah && exchange?.rate ? String(Math.round((uah / exchange.rate) * 100) / 100) : '');
+  }, [data?.purchasePrice, target?.variantId, exchange?.rate]);
 
   const invalidate = () => {
     void queryClient.invalidateQueries({ queryKey: ['stock'] });
@@ -55,8 +61,8 @@ export function PriceModal({ target, onClose }: Props) {
   };
 
   const mutation = useMutation({
-    mutationFn: async (purchasePrice: number) => {
-      const body = setVariantPriceSchema.parse({ purchasePrice });
+    mutationFn: async (purchasePriceUsd: number) => {
+      const body = setVariantPriceSchema.parse({ purchasePriceUsd });
       return api.patch(`/stock/variants/${target?.variantId}/price`, body);
     },
     onSuccess: invalidate,
@@ -76,6 +82,7 @@ export function PriceModal({ target, onClose }: Props) {
   const draftIntake = data?.history.find((h) => h.type === 'INTAKE' && h.amount == null);
   const parsedValue = Number(value);
   const valid = Number.isFinite(parsedValue) && parsedValue > 0;
+  const previewedUah = valid ? previewUah(parsedValue, exchange?.rate) : null;
 
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
@@ -141,6 +148,7 @@ export function PriceModal({ target, onClose }: Props) {
             {t('stock.priceLabel')}
           </span>
           <label className="flex items-baseline gap-2 rounded-[14px] border-[1.5px] border-ink bg-surface px-[18px] py-4 focus-within:border-accent">
+            <span className="text-base text-text-muted">$</span>
             <input
               data-testid="price-modal-input"
               value={value}
@@ -149,8 +157,18 @@ export function PriceModal({ target, onClose }: Props) {
               autoFocus
               className="w-full bg-transparent font-display text-4xl font-semibold text-ink outline-none"
             />
-            <span className="text-base text-text-muted">₴</span>
           </label>
+          {previewedUah != null && (
+            <span data-testid="price-preview-uah" className="text-[12.5px] text-text-secondary">
+              {t('stock.priceConverted', { amount: money(previewedUah) })}
+              {exchange?.stale ? ` · ${t('stock.rateStale')}` : ''}
+            </span>
+          )}
+          {rateFailed && (
+            <span data-testid="price-rate-error" className="text-[12.5px] text-danger">
+              {t('stock.rateUnavailable')}
+            </span>
+          )}
           <span className="text-[11.5px] text-text-faint">
             {queueMode
               ? t('stock.priceAutofillNote')

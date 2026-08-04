@@ -11,7 +11,9 @@ import type {
   PriceHintResponse,
   Role,
 } from '@madiro/shared';
+import { usdToUah } from '@madiro/shared';
 
+import { ExchangeService } from '../exchange/exchange.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 
@@ -79,6 +81,7 @@ export class IntakeService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly realtime: RealtimeGateway,
+    private readonly exchange: ExchangeService,
   ) {}
 
   /**
@@ -96,9 +99,15 @@ export class IntakeService {
   async create(input: IntakeInput, user: { id: string; role: Role }): Promise<IntakeResult> {
     // A seller's price (if any is smuggled in) is ignored: sellers never price.
     const isAdmin = user.role === 'ADMIN';
-    const priced = isAdmin && input.purchasePrice != null;
+    const priced = isAdmin && input.purchasePriceUsd != null;
     const awaitingPrice = !isAdmin;
-    const purchasePrice = priced ? new Prisma.Decimal(input.purchasePrice as number) : null;
+    // The admin thinks in dollars, the books are kept in hryvnia: convert here,
+    // once, so nothing downstream has to know a second currency exists.
+    const purchasePrice = priced
+      ? new Prisma.Decimal(
+          usdToUah(input.purchasePriceUsd as number, (await this.exchange.getRate()).rate),
+        )
+      : null;
 
     // Quantities expand into individual rows: a pair is the unit that gets
     // sold, written off and returned, so 3 of size 38 is three pairs, never one
@@ -168,10 +177,20 @@ export class IntakeService {
       where: identityOf(query),
       select: { purchasePrice: true },
     });
+    if (variant?.purchasePrice == null) {
+      return { purchasePriceUsd: null };
+    }
 
-    return {
-      purchasePrice: variant?.purchasePrice != null ? Number(variant.purchasePrice) : null,
-    };
+    // The form is in dollars, the stored price is hryvnia — so the hint is that
+    // amount back at today's rate. It will not always round-trip to the exact
+    // hryvnia it came from (the rate moves), which is precisely why this is a
+    // hint the admin confirms rather than a value the form silently reuses.
+    const uah = Number(variant.purchasePrice);
+    if (uah === 0) {
+      return { purchasePriceUsd: 0 }; // «без ціни — старий товар» survives the trip
+    }
+    const { rate } = await this.exchange.getRate();
+    return { purchasePriceUsd: Math.round((uah / rate) * 100) / 100 };
   }
 
   /**

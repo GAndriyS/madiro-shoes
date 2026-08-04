@@ -10,7 +10,7 @@ test('продаж через ручний ввід: пара залишає с�
   const tag = { size: '38', color: '36', style: uniqueStyle() };
 
   await scannerSignIn(page, ADMIN.login, ADMIN.password);
-  await manualIntake(page, tag, '1400');
+  await manualIntake(page, tag, '35'); // $35 → 1 400 ₴
 
   // The pair is findable before the sale…
   await page.goto('/search');

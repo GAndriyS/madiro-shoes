@@ -55,7 +55,7 @@ test('вказати ціну: варіант залишає чергу, цін�
 
   const input = page.getByTestId('price-modal-input');
   await input.click();
-  await input.pressSequentially('1900');
+  await input.pressSequentially('47.5'); // $47.50 → 1 900 ₴
   await page.getByTestId('price-modal-save').click();
 
   await expect(queueCard(priced.style)).toBeHidden();

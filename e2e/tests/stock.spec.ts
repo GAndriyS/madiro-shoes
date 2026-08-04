@@ -36,8 +36,8 @@ test.beforeAll(async ({ browser, request }) => {
   scanner = await browser.newPage({ viewport: { width: 393, height: 851 } });
   await scannerSignIn(scanner, ADMIN.login, ADMIN.password);
   // Two pairs of one variant: one stays on the shelf, one gets sold.
-  await manualIntake(scanner, first, '1200');
-  await manualIntake(scanner, second, '1200');
+  await manualIntake(scanner, first, '30'); // $30 → 1 200 ₴
+  await manualIntake(scanner, second, '30');
   await manualSale(scanner, second, '3000', 'CARD');
 
   dashboard = await browser.newPage({ viewport: { width: 1280, height: 800 } });
@@ -59,6 +59,7 @@ test('пошук по складу звужує таблицю до варіан
   // The sold pair is gone from stock; only the remaining size shows.
   await expect(rows.first()).toContainText(first.size);
   await expect(rows.first()).not.toContainText(second.size);
+  // Entered as $30, stored and shown as hryvnia — the books are in one currency.
   await expect(rows.first()).toContainText('1 200 ₴');
 });
 
@@ -88,7 +89,7 @@ test('зміна ціни застосовується до всіх пар ва
   const input = dashboard.getByTestId('price-modal-input');
   await input.click();
   await input.fill('');
-  await input.pressSequentially('1350');
+  await input.pressSequentially('33.75'); // $33.75 → 1 350 ₴
   await dashboard.getByTestId('price-modal-save').click();
 
   const res = await request.get(`${API}/stock/variants?search=${style}`, {

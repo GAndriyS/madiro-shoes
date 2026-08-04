@@ -56,6 +56,10 @@ export const apiEnv = {
   // The suite makes dozens of honest logins a minute; production limits (10/20)
   // would throttle it and prove nothing. Rate limiting itself stays a manual
   // check (TC-K-05) — it is configuration, enforced by @nestjs/throttler.
+  // Purchase prices are entered in dollars and stored in hryvnia; a live quote
+  // would make «$35 → 1400 ₴» unassertable. $1 = 40 ₴ keeps the arithmetic
+  // readable in the specs.
+  EXCHANGE_RATE_USD: '40',
   AUTH_LOGIN_RATE_LIMIT: '500',
   AUTH_REFRESH_RATE_LIMIT: '2000',
   GLOBAL_RATE_LIMIT: '100000',

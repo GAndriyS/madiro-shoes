@@ -35,7 +35,7 @@ test.beforeAll(async ({ browser, request }) => {
 
   page = await browser.newPage({ viewport: { width: 393, height: 851 } });
   await scannerSignIn(page, ADMIN.login, ADMIN.password);
-  await manualIntake(page, priced, '1500');
+  await manualIntake(page, priced, '37.5'); // $37.50 → 1 500 ₴
 });
 
 test.afterAll(async () => {

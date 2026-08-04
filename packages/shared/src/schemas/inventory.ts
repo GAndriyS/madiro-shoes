@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 import { MAX_PAIRS_PER_SIZE } from '../constants.js';
 import { MATERIALS, PAIR_STATUSES, PAYMENT_METHODS, SEASONS } from '../enums.js';
-import { moneySchema, purchasePriceSchema, sizeSchema, tagCodeSchema } from './common.js';
+import { moneySchema, purchasePriceUsdSchema, sizeSchema, tagCodeSchema } from './common.js';
 
 /**
  * How many pairs of one size arrive in an intake. A size present with `qty: 0`
@@ -38,14 +38,16 @@ export const intakeSchema = z.object({
   material: z.enum(MATERIALS).optional(),
   season: z.enum(SEASONS).optional(),
   /**
-   * Admin only, and applies to every pair in the batch — the price belongs to
-   * the variant, which is what all these sizes share. `0` is «без ціни —
-   * старий товар», a decision, and the same value the dashboard's no-price
-   * action writes. Absent (or null) means the price is simply not set yet:
-   * that is what a seller's draft sends, and an admin cannot express it,
-   * because deciding is the admin's job.
+   * Admin only, **in US dollars** — the API converts and stores hryvnia. It
+   * applies to every pair in the batch, because the price belongs to the
+   * variant, which is exactly what all these sizes share.
+   *
+   * `0` is «без ціни — старий товар»: a decision, and the same value the
+   * dashboard's no-price action writes. Absent (or null) means the price is
+   * simply not set yet — that is what a seller's draft sends, and an admin
+   * cannot express it, because deciding is the admin's job.
    */
-  purchasePrice: purchasePriceSchema.nullable().optional(),
+  purchasePriceUsd: purchasePriceUsdSchema.nullable().optional(),
 });
 export type IntakeInput = z.infer<typeof intakeSchema>;
 
@@ -250,20 +252,23 @@ export const priceHintQuerySchema = z.object({
 export type PriceHintQuery = z.infer<typeof priceHintQuerySchema>;
 
 /**
- * `purchasePrice` is the price this exact variant currently carries: a number,
- * `0` for «без ціни — старий товар», or null when the variant is new or has
- * never been priced — in which case the form stays empty and the admin decides.
+ * What this exact variant currently costs, **in US dollars** — the unit the
+ * form is in. The stored price is hryvnia, so this is that amount converted
+ * back at today's rate: an approximation by nature, which is why the field it
+ * prefills is a hint the admin can overwrite.
+ *
+ * `0` is «без ціни — старий товар»; null means the variant is new or has never
+ * been priced — the form then stays empty and the admin decides.
  */
 export const priceHintResponseSchema = z.object({
-  // Plain number, not moneySchema: 0 is «без ціни — старий товар», and
-  // moneySchema is positive-only (same reason the other read paths do this).
-  purchasePrice: z.number().nullable(),
+  // Plain number, not the money schemas: 0 is a real answer here.
+  purchasePriceUsd: z.number().nullable(),
 });
 export type PriceHintResponse = z.infer<typeof priceHintResponseSchema>;
 
-/** Setting a variant's purchase price from the queue (FR-D-08); null = "no price — old stock". */
+/** Setting a variant's purchase price from the queue (FR-D-08), in US dollars; null = "no price — old stock". */
 export const setPurchasePriceSchema = z.object({
   variantId: z.string().min(1),
-  purchasePrice: moneySchema.nullable(),
+  purchasePriceUsd: purchasePriceUsdSchema.nullable(),
 });
 export type SetPurchasePriceInput = z.infer<typeof setPurchasePriceSchema>;

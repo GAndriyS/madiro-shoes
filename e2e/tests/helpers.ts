@@ -102,11 +102,15 @@ export async function scannerSignIn(page: Page, login: string, password: string)
  * Manual intake through the UI (S-1): camera is unavailable in headless
  * chromium, so the «Ввести вручну» escape IS the flow under test.
  * Admin fills a purchase price; a seller saves a draft.
+ *
+ * `purchasePriceUsd` is in DOLLARS — the currency the form is in. The API
+ * stores hryvnia at the run's pinned rate (EXCHANGE_RATE_USD, $1 = 40 ₴), so
+ * an assertion about stored money multiplies by RATE.
  */
 export async function manualIntake(
   page: Page,
   tag: { size: string; color: string; style: string; qty?: string },
-  purchasePrice?: string,
+  purchasePriceUsd?: string,
 ): Promise<void> {
   await page.goto('/intake');
   await page.getByTestId('camera-manual').click();
@@ -114,8 +118,8 @@ export async function manualIntake(
   await page.getByTestId(`size-qty-${tag.size}`).fill(tag.qty ?? '1');
   await page.getByTestId('field-color').fill(tag.color);
   await page.getByTestId('field-style').fill(tag.style);
-  if (purchasePrice != null) {
-    await page.getByTestId('purchase-price-input').fill(purchasePrice);
+  if (purchasePriceUsd != null) {
+    await page.getByTestId('purchase-price-input').fill(purchasePriceUsd);
   }
   await page.getByTestId('intake-save-finish').click();
   await expect(page.getByTestId('home-greeting')).toBeVisible();

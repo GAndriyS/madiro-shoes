@@ -90,9 +90,12 @@ export const en: Messages = {
     materialSuede: 'Suede',
     lowConfidenceHint: 'Low-confidence read — check the digits against the tag before saving.',
     rescan: 'Scan again',
-    priceLabel: 'PURCHASE PRICE',
+    priceLabel: 'PURCHASE PRICE, $',
     pricePlaceholder: 'Price',
     priceHintNote: "Prefilled with this variant's price — change it if needed",
+    priceConverted: 'Saved as {{amount}}',
+    rateStale: 'last known rate',
+    rateUnavailable: 'Exchange rate unavailable — try again in a minute',
     noPriceToggle: 'No price — old stock',
     withPriceToggle: 'Set a price',
     sellerDraftNote:
