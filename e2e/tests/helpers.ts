@@ -29,6 +29,43 @@ export const adminToken = (request: APIRequestContext): Promise<string> =>
 
 export const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
 
+/** What `POST /intake` answers with — one variant, one entry per pair created. */
+export interface IntakeResult {
+  variantId: string;
+  pairs: { pairId: string; size: number }[];
+}
+
+/**
+ * Seed pairs straight through the API, the way a fixture wants to: a tag and
+ * how many of it.
+ *
+ * The request shape lives HERE and nowhere else. Five specs used to build it
+ * inline, and all five broke together the day `size` became `sizes` — the
+ * unit tests and the api e2e suite were already updated, so nothing caught it
+ * until CI ran Playwright on main (run 30925696316).
+ */
+export async function apiIntake(
+  request: APIRequestContext,
+  token: string,
+  tag: { size: number | string; color: string; style: string; season?: string },
+  options: { qty?: number; purchasePriceUsd?: number } = {},
+): Promise<IntakeResult> {
+  const res = await request.post(`${API}/intake`, {
+    headers: bearer(token),
+    data: {
+      sizes: [{ size: Number(tag.size), qty: options.qty ?? 1 }],
+      color: tag.color,
+      style: tag.style,
+      ...(tag.season ? { season: tag.season } : {}),
+      // Dollars — the api converts and stores hryvnia. Sellers cannot price at
+      // all, so a fixture that omits this is exactly how a draft is made.
+      ...(options.purchasePriceUsd != null ? { purchasePriceUsd: options.purchasePriceUsd } : {}),
+    },
+  });
+  expect(res.ok(), `intake ${tag.style}: ${res.status()}`).toBeTruthy();
+  return (await res.json()) as IntakeResult;
+}
+
 /**
  * A seller nobody else's spec shares. Created through the admin API and
  * recreated idempotently, so a re-run never trips over its own leftovers.

@@ -4,6 +4,7 @@ import {
   ADMIN,
   API,
   adminToken,
+  apiIntake,
   bearer,
   dashboardSignIn,
   manualSale,
@@ -28,11 +29,7 @@ const tag = { size: '39', color: '51', style: uniqueStyle() };
 test.beforeAll(async ({ browser, request }) => {
   seller = await seedSeller(request, 'overview');
   // A priced pair the seller can sell: intake as the seller, price as the admin.
-  const intake = await request.post(`${API}/intake`, {
-    headers: bearer(seller.token),
-    data: { size: Number(tag.size), color: tag.color, style: tag.style },
-  });
-  const { variantId } = (await intake.json()) as { variantId: string };
+  const { variantId } = await apiIntake(request, seller.token, tag);
   await request.patch(`${API}/stock/variants/${variantId}/price`, {
     headers: bearer(await adminToken(request)),
     data: { purchasePriceUsd: 25 }, // $25 → 1 000 ₴

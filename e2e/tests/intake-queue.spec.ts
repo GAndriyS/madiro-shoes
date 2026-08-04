@@ -4,6 +4,7 @@ import {
   ADMIN,
   API,
   adminToken,
+  apiIntake,
   bearer,
   dashboardSignIn,
   seedSeller,
@@ -27,8 +28,7 @@ test.beforeAll(async ({ browser, request }) => {
   const seller = await seedSeller(request, 'queue');
   // Only a seller can create a draft: an admin always decides the price.
   for (const tag of [priced, oldStock]) {
-    const res = await request.post(`${API}/intake`, { headers: bearer(seller.token), data: tag });
-    expect(res.ok(), `intake ${tag.style}: ${res.status()}`).toBeTruthy();
+    await apiIntake(request, seller.token, tag);
   }
 
   page = await browser.newPage({ viewport: { width: 1280, height: 800 } });

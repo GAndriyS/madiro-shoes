@@ -1,8 +1,7 @@
 import { expect, test, type Page } from '@playwright/test';
 
 import {
-  API,
-  bearer,
+  apiIntake,
   manualIntake,
   manualSale,
   scannerSignIn,
@@ -30,8 +29,7 @@ const draft = { size: 38, color: '33', style: uniqueStyle() };
 test.beforeAll(async ({ browser, request }) => {
   seller = await seedSeller(request, 'sales');
   // A draft to edit and delete later, made through the API as this seller.
-  const res = await request.post(`${API}/intake`, { headers: bearer(seller.token), data: draft });
-  expect(res.ok()).toBeTruthy();
+  await apiIntake(request, seller.token, draft);
 
   page = await browser.newPage({ viewport: { width: 393, height: 851 } });
   await scannerSignIn(page, seller.login, seller.password);
