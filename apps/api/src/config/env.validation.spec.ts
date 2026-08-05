@@ -52,16 +52,61 @@ describe('validateEnv', () => {
     expect(env.VISION_PROVIDER).toBe('mock');
   });
 
-  // The flag exists to make recognition testable, not to fake production.
-  it('забороняє мок у production', () => {
+  // The flag exists to make recognition testable, not to fake the real books.
+  it('забороняє мок при APP_ENV=production', () => {
     expect(() =>
-      validateEnv({ ...required, NODE_ENV: 'production', VISION_PROVIDER: 'mock' }),
-    ).toThrow(/mock заборонено в production/);
+      validateEnv({
+        ...required,
+        NODE_ENV: 'production',
+        APP_ENV: 'production',
+        VISION_PROVIDER: 'mock',
+      }),
+    ).toThrow(/mock заборонено при APP_ENV=production/);
   });
 
   it('gemini без ключа — помилка старту, а не 503 у рантаймі', () => {
     expect(() => validateEnv({ ...required, VISION_PROVIDER: 'gemini' })).toThrow(
       /потребує GEMINI_API_KEY/,
     );
+  });
+
+  describe('APP_ENV', () => {
+    it('за замовчуванням development', () => {
+      expect(validateEnv({ ...required }).APP_ENV).toBe('development');
+    });
+
+    // DEMO runs the same production build as PROD; what it may do differs.
+    it('demo — це production-збірка з іншими правами', () => {
+      const env = validateEnv({
+        ...required,
+        NODE_ENV: 'production',
+        APP_ENV: 'demo',
+        VISION_PROVIDER: 'mock',
+        EXCHANGE_RATE_USD: '40',
+      });
+
+      expect(env.APP_ENV).toBe('demo');
+      expect(env.VISION_PROVIDER).toBe('mock');
+      expect(env.EXCHANGE_RATE_USD).toBe(40);
+    });
+
+    // A deployed environment on a dev build would ship insecure cookies and
+    // debug logging to a public domain.
+    it.each(['demo', 'production'])('%s вимагає NODE_ENV=production', (appEnv) => {
+      expect(() => validateEnv({ ...required, APP_ENV: appEnv })).toThrow(
+        new RegExp(`APP_ENV=${appEnv} потребує NODE_ENV=production`),
+      );
+    });
+
+    it('фіксований курс заборонено при APP_ENV=production', () => {
+      expect(() =>
+        validateEnv({
+          ...required,
+          NODE_ENV: 'production',
+          APP_ENV: 'production',
+          EXCHANGE_RATE_USD: '40',
+        }),
+      ).toThrow(/EXCHANGE_RATE_USD заборонено при APP_ENV=production/);
+    });
   });
 });

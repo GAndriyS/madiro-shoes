@@ -4,6 +4,7 @@ export * from './lib/format';
 export * from './lib/useExchangeRate';
 export * from './stores/auth';
 export * from './i18n/core';
+export * from './components/ui/BuildBadge';
 export * from './components/ui/dialog';
 export * from './components/ui/QueryState';
 export * from './components/icons';

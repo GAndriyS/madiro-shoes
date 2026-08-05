@@ -2,7 +2,10 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    # `release` is what PROD deploys, so it gets the same gate as main — the
+    # commit is normally already green from main, but a release must never be
+    # the first time a branch is tested.
+    branches: [main, release]
   pull_request:
 
 jobs:

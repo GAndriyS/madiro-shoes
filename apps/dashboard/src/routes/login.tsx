@@ -4,7 +4,7 @@ import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router';
 import { useState, type FormEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { EyeIcon, EyeOffIcon } from '@madiro/web-core';
+import { BuildBadge, EyeIcon, EyeOffIcon } from '@madiro/web-core';
 import { getStoredLanguage, setLanguage, type AppLanguage } from '../i18n';
 import { api, ApiError } from '@madiro/web-core';
 import { isAuthenticatedAdmin, useAuthStore } from '@madiro/web-core';
@@ -146,6 +146,9 @@ function LoginPage() {
             {t('login.submit')}
           </button>
         </form>
+
+        {/* Which build this is — and a DEMO tag when it is not the real shop. */}
+        <BuildBadge version={__APP_VERSION__} className="mt-4" />
       </div>
     </div>
   );

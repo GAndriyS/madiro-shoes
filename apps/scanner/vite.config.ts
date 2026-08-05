@@ -1,3 +1,4 @@
+import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
 import tailwindcss from '@tailwindcss/vite';
@@ -12,10 +13,17 @@ import { defineConfig } from 'vitest/config';
 // configures both in one place instead of prefixing every command.
 const repoRoot = fileURLToPath(new URL('../..', import.meta.url));
 
+// The release version lives in the workspace root package.json (scripts/release.sh
+// bumps exactly that one file); inline it so the UI can name the build it is.
+const { version: APP_VERSION } = createRequire(import.meta.url)('../../package.json') as {
+  version: string;
+};
+
 export default defineConfig(({ mode }) => {
   const apiTarget = `http://localhost:${loadEnv(mode, repoRoot, '').API_PORT ?? 3000}`;
 
   return {
+    define: { __APP_VERSION__: JSON.stringify(APP_VERSION) },
     plugins: [
       tanstackRouter({ target: 'react', autoCodeSplitting: true }),
       react(),
