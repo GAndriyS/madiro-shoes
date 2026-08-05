@@ -1,0 +1,34 @@
+#!/bin/sh
+#
+# Run the same Prettier gate CI runs, but before the commit exists.
+#
+# CI's `pnpm format:check` is otherwise the first time a file is ever formatted,
+# and a red main is an expensive way to learn that a markdown table has the
+# wrong column widths.
+#
+# This judges the working tree, not the staged content. For a partially staged
+# file (`git add -p`) the two differ, and the file on disk is what gets checked.
+# That is the honest trade for this repo — one maintainer, whole files — and the
+# alternative is stashing gymnastics for a case that does not come up.
+#
+# To commit past it anyway: `git commit --no-verify`.
+set -eu
+
+# Nothing staged to check — e.g. `git commit --amend --no-edit`.
+if git diff --cached --quiet --diff-filter=ACMR; then
+  exit 0
+fi
+
+# --diff-filter=ACMR drops paths the commit deletes or renames away, since there
+# is nothing left on disk to format; -z keeps paths with spaces in one piece.
+# Prettier applies .prettierignore to files named explicitly too, so a commit
+# that only touches `docs/` checks nothing and passes rather than erroring.
+if ! git diff --cached --name-only --diff-filter=ACMR -z |
+  xargs -0 pnpm exec prettier --ignore-unknown --check; then
+  echo
+  echo 'Prettier found unformatted files. Fix them with:'
+  echo
+  echo '    pnpm format && git add -u'
+  echo
+  exit 1
+fi
