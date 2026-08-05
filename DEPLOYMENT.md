@@ -10,9 +10,9 @@ environment — inside the Railway project `splendid-youthfulness`:
 
 Domains, all under `.up.railway.app`:
 
-| Service     | `demo`                        | `production`             |
-| ----------- | ----------------------------- | ------------------------ |
-| `api`       | `madiro-shoes-production`     | `api-production-bfcf`    |
+| Service     | `demo`                        | `production`                |
+| ----------- | ----------------------------- | --------------------------- |
+| `api`       | `madiro-shoes-production`     | `api-production-bfcf`       |
 | `scanner`   | `keen-warmth-production-8537` | `scanner-production-b680`   |
 | `dashboard` | `dashboard-production-2dab`   | `dashboard-production-fb99` |
 
