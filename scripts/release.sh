@@ -17,9 +17,11 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 
 BUMP="${1:-patch}"
-# Where to confirm the deploy landed. Overridable so a second PROD-like
-# environment can be verified with the same script.
-HEALTH_URL="${PROD_HEALTH_URL:-https://madiro-shoes-production.up.railway.app/api/health}"
+# Where to confirm the deploy landed: the PROD api, which tracks `release`.
+# (The similarly named madiro-shoes-production domain is DEMO — it kept its
+# original name when that environment was renamed.) Overridable so a
+# PROD-like environment can be verified with the same script.
+HEALTH_URL="${PROD_HEALTH_URL:-https://api-production-bfcf.up.railway.app/api/health}"
 POLL_TIMEOUT_SECONDS="${RELEASE_POLL_TIMEOUT:-900}"
 
 step() { printf '\n\033[1m▸ %s\033[0m\n' "$1"; }
