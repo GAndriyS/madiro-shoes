@@ -2,6 +2,7 @@ import { authResponseSchema, loginRequestSchema } from '@madiro/shared';
 import {
   api,
   ApiError,
+  BuildBadge,
   EyeIcon,
   EyeOffIcon,
   getStoredLanguage,
@@ -147,6 +148,9 @@ function LoginPage() {
       <p className="text-center text-xs leading-normal whitespace-pre-line text-text-faint">
         {t('login.footnote')}
       </p>
+
+      {/* Which build this is — and a DEMO tag when it is not the real shop. */}
+      <BuildBadge version={__APP_VERSION__} className="mt-3" />
     </div>
   );
 }

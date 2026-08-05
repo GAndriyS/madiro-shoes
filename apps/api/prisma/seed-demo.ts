@@ -6,9 +6,16 @@ import * as argon2 from 'argon2';
  * Purpose: de-risk the mock→real transition — once the scanner and real stock/
  * intake/overview endpoints land, they read representative data instead of an
  * empty DB, and this exercises the Prisma write paths today. The admin account
- * is left untouched. Never runs against production.
+ * is left untouched. Never runs against the production environment.
  *
  *   pnpm --filter @madiro/api db:seed:demo
+ *
+ * It is destructive by design (it wipes operations, pairs and variants), which
+ * is fine on a laptop and fine on DEMO — a demo is *meant* to be resettable —
+ * and unthinkable against the shop's real books. The guard below is therefore
+ * keyed on APP_ENV, not NODE_ENV: DEMO runs a production build too, so keying
+ * on NODE_ENV would have locked the seed out of the one deployed environment
+ * that wants it.
  *
  * The dataset is DETERMINISTIC by contract — docs/manual-test-plan.md asserts
  * exact figures against it. Every pair states who created it and the sold pair
@@ -36,8 +43,17 @@ async function upsertSeller(name: string, login: string, password: string): Prom
 }
 
 async function main(): Promise<void> {
-  if (process.env.NODE_ENV === 'production') {
-    throw new Error('db:seed:demo is not allowed in production.');
+  // A plain ts-node CLI: it reads process.env directly, the same variables the
+  // container was started with, so `railway ssh` into DEMO sees APP_ENV=demo.
+  const appEnv = process.env.APP_ENV ?? 'development';
+  if (appEnv === 'production') {
+    throw new Error('db:seed:demo is not allowed when APP_ENV=production.');
+  }
+  // Belt and braces: an unset APP_ENV on a production build is not a laptop —
+  // it is a deployment someone forgot to label, and wiping its data would be
+  // the worst possible way to find that out.
+  if (process.env.NODE_ENV === 'production' && appEnv !== 'demo') {
+    throw new Error('db:seed:demo needs APP_ENV=demo on a production build.');
   }
 
   // Fresh inventory each run (demo-only), keep users/admin.
