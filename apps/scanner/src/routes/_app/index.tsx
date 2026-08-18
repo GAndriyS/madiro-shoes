@@ -111,12 +111,12 @@ function HomePage() {
 
         <div className="flex gap-3">
           <Link
-            data-testid="action-manual"
-            to="/manual"
+            data-testid="action-intake-manual"
+            to="/intake-manual"
             className="flex flex-1 items-center gap-2.5 rounded-2xl border border-border bg-surface px-4 py-3.5"
           >
             <PencilIcon size={18} className="text-accent-hover" />
-            <span className="text-[13.5px] font-bold text-ink">{t('home.manual')}</span>
+            <span className="text-[13.5px] font-bold text-ink">{t('home.manualIntake')}</span>
           </Link>
           <Link
             data-testid="action-search"

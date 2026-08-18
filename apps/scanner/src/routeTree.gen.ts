@@ -18,6 +18,7 @@ import { Route as AppReturnRouteImport } from './routes/_app/return'
 import { Route as AppMySalesRouteImport } from './routes/_app/my-sales'
 import { Route as AppMyDraftsRouteImport } from './routes/_app/my-drafts'
 import { Route as AppManualRouteImport } from './routes/_app/manual'
+import { Route as AppIntakeManualRouteImport } from './routes/_app/intake-manual'
 import { Route as AppIntakeRouteImport } from './routes/_app/intake'
 
 const LoginRoute = LoginRouteImport.update({
@@ -64,6 +65,11 @@ const AppManualRoute = AppManualRouteImport.update({
   path: '/manual',
   getParentRoute: () => AppRoute,
 } as any)
+const AppIntakeManualRoute = AppIntakeManualRouteImport.update({
+  id: '/intake-manual',
+  path: '/intake-manual',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppIntakeRoute = AppIntakeRouteImport.update({
   id: '/intake',
   path: '/intake',
@@ -74,6 +80,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/intake': typeof AppIntakeRoute
+  '/intake-manual': typeof AppIntakeManualRoute
   '/manual': typeof AppManualRoute
   '/my-drafts': typeof AppMyDraftsRoute
   '/my-sales': typeof AppMySalesRoute
@@ -84,6 +91,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/intake': typeof AppIntakeRoute
+  '/intake-manual': typeof AppIntakeManualRoute
   '/manual': typeof AppManualRoute
   '/my-drafts': typeof AppMyDraftsRoute
   '/my-sales': typeof AppMySalesRoute
@@ -97,6 +105,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/_app/intake': typeof AppIntakeRoute
+  '/_app/intake-manual': typeof AppIntakeManualRoute
   '/_app/manual': typeof AppManualRoute
   '/_app/my-drafts': typeof AppMyDraftsRoute
   '/_app/my-sales': typeof AppMySalesRoute
@@ -111,6 +120,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/intake'
+    | '/intake-manual'
     | '/manual'
     | '/my-drafts'
     | '/my-sales'
@@ -121,6 +131,7 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/intake'
+    | '/intake-manual'
     | '/manual'
     | '/my-drafts'
     | '/my-sales'
@@ -133,6 +144,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/_app/intake'
+    | '/_app/intake-manual'
     | '/_app/manual'
     | '/_app/my-drafts'
     | '/_app/my-sales'
@@ -212,6 +224,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppManualRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/intake-manual': {
+      id: '/_app/intake-manual'
+      path: '/intake-manual'
+      fullPath: '/intake-manual'
+      preLoaderRoute: typeof AppIntakeManualRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/intake': {
       id: '/_app/intake'
       path: '/intake'
@@ -224,6 +243,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppIntakeRoute: typeof AppIntakeRoute
+  AppIntakeManualRoute: typeof AppIntakeManualRoute
   AppManualRoute: typeof AppManualRoute
   AppMyDraftsRoute: typeof AppMyDraftsRoute
   AppMySalesRoute: typeof AppMySalesRoute
@@ -235,6 +255,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppIntakeRoute: AppIntakeRoute,
+  AppIntakeManualRoute: AppIntakeManualRoute,
   AppManualRoute: AppManualRoute,
   AppMyDraftsRoute: AppMyDraftsRoute,
   AppMySalesRoute: AppMySalesRoute,
