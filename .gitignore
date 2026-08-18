@@ -11,3 +11,7 @@ coverage/
 # Playwright artifacts
 e2e/test-results/
 e2e/playwright-report/
+
+# TanStack Router codegen scratch — the generated routeTree.gen.ts IS tracked,
+# this is only the plugin's temp dir, written whenever the dev server runs.
+apps/*/.tanstack/
