@@ -54,6 +54,8 @@ describe('ConfirmForm', () => {
       overrides?: Partial<typeof recognition>;
       /** null renders the manual-entry mode: no recognition at all. */
       recognition?: null;
+      /** Entered from «прийняти вручну»: no camera behind it, so no rescan. */
+      manual?: boolean;
       onSave?: (input: IntakeInput, mode: SaveMode) => void;
     } = {},
   ) => {
@@ -68,7 +70,7 @@ describe('ConfirmForm', () => {
             : { recognition: { ...recognition, ...opts.overrides } })}
           saving={false}
           onSave={opts.onSave ?? (() => {})}
-          onRescan={() => {}}
+          {...(opts.manual ? { manual: true } : { onRescan: () => {} })}
           onBack={() => {}}
         />
       </QueryClientProvider>,
@@ -392,6 +394,66 @@ describe('ConfirmForm', () => {
       expect(
         screen.getByRole('button', { name: 'У чернетки і сканувати наступну' }),
       ).toBeDisabled();
+    });
+  });
+
+  // Manual intake is the same form as the scan path, reached from the home
+  // screen instead of the camera (S-1.2). These pin the two things that must
+  // NOT drift apart from recognition, and the two that must differ.
+  describe('ручне приймання', () => {
+    const manualForm = (onSave?: (input: IntakeInput, mode: SaveMode) => void) =>
+      renderForm({ recognition: null, manual: true, ...(onSave ? { onSave } : {}) });
+
+    it('має ту саму сітку розмірів і ті самі поля, що й розпізнавання', () => {
+      asSeller();
+      manualForm();
+      // No standalone SIZE field here either — the grid carries that meaning.
+      expect(screen.queryByTestId('field-size')).not.toBeInTheDocument();
+      expect(screen.getByTestId('size-qty-35')).toHaveValue('');
+      expect(screen.getByTestId('size-qty-41')).toHaveValue('');
+      expect(screen.getByTestId('field-color')).toBeInTheDocument();
+      expect(screen.getByTestId('field-style')).toBeInTheDocument();
+    });
+
+    it('не пропонує «Сканувати ще раз» — скану не було', () => {
+      asSeller();
+      manualForm();
+      expect(screen.queryByText('Сканувати ще раз')).not.toBeInTheDocument();
+    });
+
+    it('кнопка партії каже «ввести наступну», а не «сканувати наступну»', () => {
+      asSeller();
+      manualForm();
+      expect(
+        screen.getByRole('button', { name: 'У чернетки і ввести наступну' }),
+      ).toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'У чернетки і сканувати наступну' }),
+      ).not.toBeInTheDocument();
+    });
+
+    it('кілька пар різних розмірів ідуть одним payload', async () => {
+      asSeller();
+      const onSave = vi.fn();
+      manualForm(onSave);
+
+      await userEvent.type(screen.getByTestId('size-qty-38'), '2');
+      await userEvent.type(screen.getByTestId('size-qty-40'), '3');
+      await userEvent.type(screen.getByTestId('field-color'), '36');
+      await userEvent.type(screen.getByTestId('field-style'), '7645');
+      await userEvent.click(screen.getByRole('button', { name: 'У чернетки і ввести наступну' }));
+
+      expect(onSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          color: '36',
+          style: '7645',
+          sizes: [
+            { size: 38, qty: 2 },
+            { size: 40, qty: 3 },
+          ],
+        }),
+        'next',
+      );
     });
   });
 

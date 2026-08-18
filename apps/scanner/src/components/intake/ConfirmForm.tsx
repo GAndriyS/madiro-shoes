@@ -37,9 +37,16 @@ export type SaveMode = 'next' | 'finish';
 interface ConfirmFormProps {
   /** Absent in manual entry — the form starts empty, no confidence banner. */
   recognition?: TagRecognition;
+  /**
+   * Reached from «прийняти вручну» rather than from the camera. Only the
+   * wording and the escape hatches differ: there is no scan to redo, and
+   * «сканувати наступну» would name a step this person never took.
+   */
+  manual?: boolean;
   saving: boolean;
   onSave: (input: IntakeInput, mode: SaveMode) => void;
-  onRescan: () => void;
+  /** Absent in manual entry — there is no scan to repeat. */
+  onRescan?: () => void;
   onBack: () => void;
 }
 
@@ -49,7 +56,14 @@ interface ConfirmFormProps {
  * that enters the awaiting-price queue. Both roles can save-and-scan-next
  * (batch) or save-and-finish.
  */
-export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: ConfirmFormProps) {
+export function ConfirmForm({
+  recognition,
+  manual = false,
+  saving,
+  onSave,
+  onRescan,
+  onBack,
+}: ConfirmFormProps) {
   const { t } = useTranslation();
   const isAdmin = useAuthStore((s) => s.user?.role) === 'ADMIN';
   // The scanned size only seeds the grid — there is no size *field* any more,
@@ -97,6 +111,15 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
   const materialLabels: Record<Material, string> = {
     LEATHER: t('intake.materialLeather'),
     SUEDE: t('intake.materialSuede'),
+  };
+
+  // Manual entry saves and moves to the next model without ever reaching the
+  // camera, so the batch button must not promise a scan.
+  const saveAndNextLabel = () => {
+    if (manual) {
+      return isAdmin ? t('intake.saveAndNextManualAdmin') : t('intake.saveAndNextManualSeller');
+    }
+    return isAdmin ? t('intake.saveAndNextAdmin') : t('intake.saveAndNextSeller');
   };
 
   const priceValue = Number(price);
@@ -279,7 +302,7 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
             isAdmin ? 'bg-accent text-white' : 'bg-ink text-page',
           )}
         >
-          {isAdmin ? t('intake.saveAndNextAdmin') : t('intake.saveAndNextSeller')}
+          {saveAndNextLabel()}
         </button>
         <button
           data-testid="intake-save-finish"
@@ -290,13 +313,15 @@ export function ConfirmForm({ recognition, saving, onSave, onRescan, onBack }: C
         >
           {t('intake.saveAndFinish')}
         </button>
-        <button
-          type="button"
-          onClick={onRescan}
-          className="p-1 text-center text-[13px] font-semibold text-text-faint"
-        >
-          {t('intake.rescan')}
-        </button>
+        {onRescan && (
+          <button
+            type="button"
+            onClick={onRescan}
+            className="p-1 text-center text-[13px] font-semibold text-text-faint"
+          >
+            {t('intake.rescan')}
+          </button>
+        )}
       </div>
     </div>
   );
