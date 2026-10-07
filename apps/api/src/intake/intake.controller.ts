@@ -1,14 +1,4 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Delete,
-  Get,
-  Param,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import {
   draftUpdateSchema,
   intakeSchema,
@@ -24,6 +14,7 @@ import {
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { IntakeService } from './intake.service';
+import { validationError } from '../common/validation-error';
 
 @Controller('intake')
 @Roles('ADMIN', 'SELLER')
@@ -34,7 +25,7 @@ export class IntakeController {
   create(@Body() body: unknown, @CurrentUser() user: AuthUser): Promise<IntakeResult> {
     const parsed = intakeSchema.safeParse(body);
     if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
+      throw validationError(parsed.error);
     }
     return this.intake.create(parsed.data, user);
   }
@@ -49,7 +40,7 @@ export class IntakeController {
   priceHint(@Query() query: Record<string, string>): Promise<PriceHintResponse> {
     const parsed = priceHintQuerySchema.safeParse(query);
     if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
+      throw validationError(parsed.error);
     }
     return this.intake.priceHint(parsed.data);
   }
@@ -77,7 +68,7 @@ export class IntakeController {
   ): Promise<MyDraft> {
     const parsed = draftUpdateSchema.safeParse(body);
     if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
+      throw validationError(parsed.error);
     }
     return this.intake.updateDraft(pairId, parsed.data, user.id);
   }

@@ -20,6 +20,7 @@ export const uk = {
     invalidCredentials: 'Невірний логін або пароль',
     adminOnly: 'Дашборд доступний лише адміністратору',
     genericError: 'Не вдалося увійти. Спробуйте ще раз.',
+    tooManyAttempts: 'Забагато спроб входу. Зачекайте хвилину і спробуйте знову.',
     showPassword: 'Показати пароль',
     hidePassword: 'Сховати пароль',
   },

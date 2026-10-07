@@ -52,6 +52,7 @@ export class RealtimeGateway implements OnGatewayConnection {
     try {
       const payload = await this.jwt.verifyAsync<AccessTokenPayload>(token, {
         secret: this.config.get('JWT_ACCESS_SECRET', { infer: true }),
+        algorithms: ['HS256'],
       });
       const user = await this.prisma.user.findFirst({
         where: { id: payload.sub, deletedAt: null },

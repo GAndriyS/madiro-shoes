@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Post, Query } from '@nestjs/common';
 import {
   pairLookupSchema,
   saleSchema,
@@ -13,6 +13,7 @@ import {
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { SaleService } from './sale.service';
+import { validationError } from '../common/validation-error';
 
 @Controller('sale')
 @Roles('ADMIN', 'SELLER')
@@ -25,7 +26,7 @@ export class SaleController {
   lookup(@Body() body: unknown): Promise<SaleLookupResponse> {
     const parsed = pairLookupSchema.safeParse(body);
     if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
+      throw validationError(parsed.error);
     }
     return this.sale.lookup(parsed.data);
   }
@@ -35,7 +36,7 @@ export class SaleController {
   search(@Query('style') style: unknown): Promise<StockSearchResponse> {
     const parsed = tagCodeSchema.safeParse(style);
     if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
+      throw validationError(parsed.error);
     }
     return this.sale.search(parsed.data);
   }
@@ -44,7 +45,7 @@ export class SaleController {
   sell(@Body() body: unknown, @CurrentUser() user: AuthUser): Promise<CheckoutResult> {
     const parsed = saleSchema.safeParse(body);
     if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
+      throw validationError(parsed.error);
     }
     return this.sale.sell(parsed.data, user.id);
   }
@@ -53,7 +54,7 @@ export class SaleController {
   writeoff(@Body() body: unknown, @CurrentUser() user: AuthUser): Promise<CheckoutResult> {
     const parsed = writeoffSchema.safeParse(body);
     if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
+      throw validationError(parsed.error);
     }
     return this.sale.writeoff(parsed.data, user.id);
   }

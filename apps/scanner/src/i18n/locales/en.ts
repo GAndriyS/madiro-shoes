@@ -21,6 +21,7 @@ export const en: Messages = {
     submit: 'Log in',
     invalidCredentials: 'Invalid login or password',
     genericError: 'Could not log in. Please try again.',
+    tooManyAttempts: 'Too many sign-in attempts. Wait a minute and try again.',
     showPassword: 'Show password',
     hidePassword: 'Hide password',
     footnote: 'Accounts are created by the administrator.\nForgot the password — ask them.',
