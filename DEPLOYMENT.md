@@ -182,31 +182,47 @@ PROD's Postgres is the shop's real books, and nothing in the repository
 protects it — a migration that goes wrong, a mistaken `DELETE`, or a volume
 failure is recovered from a backup or not at all.
 
-- **Platform backups**: Railway can snapshot the Postgres volume on a schedule
-  (the `Postgres` service → **Backups**). This is a dashboard setting, not
-  code, so it is not visible from the repository: confirm it is enabled on
-  `production` and note the retention there. The demo database needs none.
-- **Off-platform dump**: a platform backup lives on the platform. Take a logical
-  dump before any release whose migration touches existing rows, and on a
-  regular cadence besides:
+- **Platform backups are not available on the Hobby plan.** Scheduled
+  snapshots and point-in-time recovery are Pro-only; on Hobby the `Postgres`
+  service's **Backups** tab says "No backup schedule", and the only snapshot
+  there is one Railway took itself before a security patch. Do not count on
+  it.
+- **Off-platform dump — the `backup` cron service.** A fourth service in the
+  `production` environment, built from [ops/backup/Dockerfile](ops/backup/Dockerfile),
+  runs [ops/backup/backup.sh](ops/backup/backup.sh) on a schedule: `pg_dump`
+  (custom format) over the private network → `pg_restore --list` to prove the
+  file is readable → upload to a **Cloudflare R2** bucket → read it back from
+  the bucket → prune. Nothing about the database is exposed publicly; only the
+  finished dump leaves Railway. The image is based on `postgres:18-alpine` so
+  the client major matches Railway's `postgres-ssl:18` — a client older than
+  the server refuses to dump it, so bump both together.
+
+  Service settings: `RAILWAY_DOCKERFILE_PATH=ops/backup/Dockerfile`, branch
+  `release` (the script ships with releases like everything else), Watch Paths
+  `ops/backup/**`, **Cron Schedule** `0 3 * * *` (03:00 UTC, before the shop
+  opens). Variables: `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `R2_ACCOUNT_ID`,
+  `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (an R2 API token
+  with Object Read & Write on that one bucket). Retention: daily dumps for 35
+  days, and the dump taken on the 1st of each month is kept forever.
+
+  A failed run shows as a failed deployment on the service; check it after a
+  release that changed the Postgres image or the script. The demo database
+  needs no backups.
+
+- **Restore** — fetch the dump from R2, restore into an empty database, then
+  redeploy the api so `prisma migrate deploy` brings the schema up to the
+  running release:
 
   ```sh
-  # From the api container's console (Railway → api → Console), where the
-  # private DATABASE_URL already resolves:
-  pg_dump "$DATABASE_URL" --format=custom --file=/tmp/madiro-$(date +%F).dump
+  rclone copyto r2:madiro-backups/madiro-prod-YYYY-MM-DD.dump ./restore.dump
+  pg_restore --clean --if-exists --no-owner --no-privileges \
+    --dbname="$DATABASE_URL" ./restore.dump
   ```
 
-  then copy it out (`railway ssh` + `scp`, or the console's download) and keep
-  it somewhere that is not Railway.
-
-- **Restore** is the reverse — into an empty database, then redeploy the api so
-  `prisma migrate deploy` brings the schema to the running release:
-
-  ```sh
-  pg_restore --clean --if-exists --no-owner --dbname="$DATABASE_URL" madiro-YYYY-MM-DD.dump
-  ```
-
-  Rehearse this once against DEMO before it is ever needed against PROD.
+  (`rclone` reads the same `RCLONE_CONFIG_R2_*` variables the script sets; see
+  `backup.sh`.) The restore was rehearsed once against a local database when
+  the service was introduced; rehearse it against DEMO before it is ever needed
+  against PROD.
 
 ## Admin & seller accounts
 
