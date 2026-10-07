@@ -104,7 +104,7 @@ of this needs a rebuild. The images already running will serve the new domains.
 
 `sameSite: 'none'` in production
 ([apps/api/src/auth/refresh-cookie.ts](../apps/api/src/auth/refresh-cookie.ts))
-is a leftover from before the same-origin proxy existed. It now weakens CSRF
-protection for no benefit and should drop to `lax`. Worth doing around the same
-time, but in its own PR — a domain change and a cookie-policy change failing
-together would be miserable to diagnose.
+was a leftover from before the same-origin proxy existed; it weakened CSRF
+protection for no benefit. **Done** — the cookie is `Lax` everywhere since PR
+#45, in its own PR on purpose: a domain change and a cookie-policy change
+failing together would have been miserable to diagnose.

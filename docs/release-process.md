@@ -52,7 +52,7 @@ twice.
 ## Verifying a release
 
 ```bash
-curl -s https://<prod-api-domain>/api/health
+curl -s https://api-production-bfcf.up.railway.app/api/health
 # {"status":"ok","database":"up","version":"1.2.0","env":"production","commit":"a1b2c3d"}
 ```
 
