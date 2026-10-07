@@ -13,13 +13,13 @@ describe('refresh cookie', () => {
     expect(ttlToMs('0d')).toBe(2_592_000_000);
   });
 
-  it('прод: httpOnly + Secure + SameSite=None (фронти на інших origin-ах)', () => {
+  it('прод: httpOnly + Secure + SameSite=Lax (API за same-origin проксі)', () => {
     const options = refreshCookieOptions({ NODE_ENV: 'production', JWT_REFRESH_TTL: '30d' });
 
     expect(options).toMatchObject({
       httpOnly: true,
       secure: true,
-      sameSite: 'none',
+      sameSite: 'lax',
       path: '/api/auth',
       maxAge: 2_592_000_000,
     });

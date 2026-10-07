@@ -24,10 +24,13 @@ export function ttlToMs(ttl: string): number {
  *   compromised dependency can no longer walk off with 30 days of access.
  * - `path` scopes it to the auth routes, so it is not attached to every API
  *   call that already carries a Bearer token.
- * - In production the frontends live on their own origins, which makes the
- *   cookie cross-site: `SameSite=None` (and therefore `Secure`) is required.
- *   In development both apps talk to the API through the Vite proxy, so the
- *   cookie is same-site and `Secure` would only break plain-http localhost.
+ * - `SameSite=Lax` everywhere. Each frontend reaches the API through its own
+ *   proxy — Vite in development, Caddy in production — so the cookie is always
+ *   first-party and never needs to travel cross-site. It was `None` while the
+ *   apps and the API sat on separate up.railway.app hosts; keeping that after
+ *   the proxy would only have let a cross-site request carry the cookie for
+ *   no benefit. The client header remains the CSRF guard regardless.
+ * - `Secure` only in production: it would break plain-http localhost.
  */
 export function refreshCookieOptions(env: {
   NODE_ENV: string;
@@ -37,7 +40,7 @@ export function refreshCookieOptions(env: {
   return {
     httpOnly: true,
     secure: isProduction,
-    sameSite: isProduction ? 'none' : 'lax',
+    sameSite: 'lax',
     path: '/api/auth',
     maxAge: ttlToMs(env.JWT_REFRESH_TTL),
   };
