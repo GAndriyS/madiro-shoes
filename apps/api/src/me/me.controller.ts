@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import {
   mySalesQuerySchema,
   type AuthUser,
@@ -10,6 +10,7 @@ import {
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { MeService } from './me.service';
+import { validationError } from '../common/validation-error';
 
 @Controller('me')
 @Roles('ADMIN', 'SELLER')
@@ -33,7 +34,7 @@ export class MeController {
       ...(month ? { month } : {}),
     });
     if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
+      throw validationError(parsed.error);
     }
     return this.me.sales(user.id, parsed.data);
   }

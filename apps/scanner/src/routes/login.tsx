@@ -50,7 +50,9 @@ function LoginPage() {
       setError(
         err instanceof ApiError && err.status === 401
           ? t('login.invalidCredentials')
-          : t('login.genericError'),
+          : err instanceof ApiError && err.status === 429
+            ? t('login.tooManyAttempts')
+            : t('login.genericError'),
       );
     },
   });

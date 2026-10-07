@@ -1,5 +1,4 @@
 import {
-  BadRequestException,
   Body,
   Controller,
   Get,
@@ -31,6 +30,7 @@ import { Public } from './decorators/public.decorator';
 import { Roles } from './decorators/roles.decorator';
 import { ClientHeaderGuard } from './guards/client-header.guard';
 import { refreshCookieOptions } from './refresh-cookie';
+import { validationError } from '../common/validation-error';
 
 /**
  * Rate limits are read here, not injected: a decorator runs at class-definition
@@ -66,7 +66,7 @@ export class AuthController {
   ): Promise<AuthResponse> {
     const parsed = loginRequestSchema.safeParse(body);
     if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
+      throw validationError(parsed.error);
     }
     const { session, refreshToken } = await this.auth.login(
       parsed.data.login,

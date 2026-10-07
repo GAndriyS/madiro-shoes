@@ -24,6 +24,7 @@ export const en: Messages = {
     invalidCredentials: 'Invalid login or password',
     adminOnly: 'The dashboard is available to the administrator only',
     genericError: 'Could not log in. Please try again.',
+    tooManyAttempts: 'Too many sign-in attempts. Wait a minute and try again.',
     showPassword: 'Show password',
     hidePassword: 'Hide password',
   },

@@ -1,8 +1,9 @@
-import { BadRequestException, Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { overviewPeriodSchema, type OverviewResponse } from '@madiro/shared';
 
 import { Roles } from '../auth/decorators/roles.decorator';
 import { StatsService } from './stats.service';
+import { validationError } from '../common/validation-error';
 
 @Controller('stats')
 @Roles('ADMIN')
@@ -17,7 +18,7 @@ export class StatsController {
   ): Promise<OverviewResponse> {
     const parsed = overviewPeriodSchema.safeParse(period ?? 'today');
     if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
+      throw validationError(parsed.error);
     }
     return this.stats.overview(
       parsed.data,
