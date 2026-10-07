@@ -10,3 +10,9 @@ allowBuilds:
   msw: true
   prisma: true
   sharp: true
+
+# @nestjs/platform-express 11 pins multer to 2.2.0 exactly (GHSA-qvfw-j98x-7q72
+# and three sibling DoS advisories). Nest 12 ships 2.4.0 on the same API, so
+# lifting the nested copy is the fix until the Nest 12 upgrade lands.
+overrides:
+  multer: '>=2.4.0'

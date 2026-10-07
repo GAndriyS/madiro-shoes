@@ -48,6 +48,13 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @madiro/api prisma:generate
 
+      # Blocks only on critical advisories in production dependencies: a new
+      # high-severity CVE in a transitive package should not stop a hotfix from
+      # shipping, and Dependabot opens the PR for it anyway. A critical one
+      # should — that is the one case where the release is the smaller risk.
+      - name: Audit production dependencies
+        run: pnpm audit --prod --audit-level=critical
+
       - name: Lint
         run: pnpm lint
 
