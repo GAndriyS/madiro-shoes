@@ -19,6 +19,30 @@ import { PrismaService } from '../src/prisma/prisma.service';
  * in-stock combos and picks FIFO; sale locks the row (409 for the loser) and
  * never leaks purchase prices to sellers (FR-B-02).
  */
+/**
+ * FR-B-02: nothing a seller receives may carry a purchase price or a margin.
+ * Checked structurally — by key name and by value — rather than as a substring
+ * of the serialised body: a cuid is random, and one of them once contained
+ * "1400" (`cmuy8ja14002x…`), failing the suite on a bump of a GitHub Action.
+ */
+function expectNoPurchasePrice(body: unknown, path = 'body'): void {
+  if (Array.isArray(body)) {
+    body.forEach((item, i) => expectNoPurchasePrice(item, `${path}[${i}]`));
+    return;
+  }
+  if (body && typeof body === 'object') {
+    for (const [key, value] of Object.entries(body as Record<string, unknown>)) {
+      expect(`${path}.${key}`).not.toMatch(/purchase|margin|basis/i);
+      expectNoPurchasePrice(value, `${path}.${key}`);
+    }
+    return;
+  }
+  // The fixture's purchase price is 1400; no sale price in this suite is.
+  if (body === 1400 || body === '1400') {
+    throw new Error(`purchase price leaked to a seller at ${path}`);
+  }
+}
+
 describe('Sale (e2e, real Postgres)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
@@ -117,7 +141,7 @@ describe('Sale (e2e, real Postgres)', () => {
     expect(parsed.pair?.intakeDate).toBe('2026-07-01T12:00:00.000Z'); // oldest first
     expect(parsed.combos).toEqual([{ material: 'LEATHER', season: 'SHEEPSKIN', sizes: [38] }]);
     expect(parsed.salePriceHint).toBe(2850);
-    expect(JSON.stringify(res.body)).not.toContain('1400'); // FR-B-02
+    expectNoPurchasePrice(res.body); // FR-B-02
   });
 
   it('lookup: розмір відсутній → pair null і «схожі на складі» з кількістю', async () => {
@@ -142,7 +166,7 @@ describe('Sale (e2e, real Postgres)', () => {
     const result = checkoutResultSchema.parse(res.body);
     expect(result.status).toBe('SOLD');
     expect(result.salePrice).toBe(2900);
-    expect(JSON.stringify(res.body)).not.toContain('1400');
+    expectNoPurchasePrice(res.body);
 
     const op = await prisma.operation.findFirstOrThrow({ where: { pairId, type: 'SALE' } });
     expect(Number(op.salePrice)).toBe(2900);
@@ -183,7 +207,7 @@ describe('Sale (e2e, real Postgres)', () => {
 
     // Both size-38 pairs were checked out by earlier tests — nothing left in stock.
     // The seed guarantees at least the shape; assert seller safety regardless.
-    expect(JSON.stringify(res.body)).not.toContain('1400'); // FR-B-02
+    expectNoPurchasePrice(res.body); // FR-B-02
     for (const item of parsed.items) {
       expect(item.style.startsWith('76')).toBe(true);
     }
@@ -205,7 +229,7 @@ describe('Sale (e2e, real Postgres)', () => {
     const item = parsed.items.find((i) => i.sizes.some((s) => s.size === 44));
     expect(item).toBeDefined();
     expect(item!.awaitingPriceCount).toBeGreaterThan(0);
-    expect(JSON.stringify(res.body)).not.toContain('1400'); // FR-B-02 still holds
+    expectNoPurchasePrice(res.body); // FR-B-02 still holds
 
     await prisma.operation.deleteMany({ where: { pairId: draft.id } });
     await prisma.pair.delete({ where: { id: draft.id } });
