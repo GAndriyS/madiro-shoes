@@ -1,15 +1,4 @@
-import {
-  BadRequestException,
-  Body,
-  Controller,
-  Delete,
-  Get,
-  HttpCode,
-  Param,
-  Patch,
-  Post,
-  Query,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Param, Patch, Post, Query } from '@nestjs/common';
 import {
   setVariantPriceSchema,
   stockListQuerySchema,
@@ -20,6 +9,7 @@ import {
 
 import { Roles } from '../auth/decorators/roles.decorator';
 import { StockService } from './stock.service';
+import { validationError } from '../common/validation-error';
 
 // Admin-only: purchase prices and margins never reach sellers (FR-B-02).
 @Controller('stock')
@@ -31,7 +21,7 @@ export class StockController {
   list(@Query() query: Record<string, string>): Promise<StockListResponse> {
     const parsed = stockListQuerySchema.safeParse(query);
     if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
+      throw validationError(parsed.error);
     }
     return this.stock.list(parsed.data);
   }
@@ -45,7 +35,7 @@ export class StockController {
   setPrice(@Param('id') id: string, @Body() body: unknown): Promise<{ ok: true }> {
     const parsed = setVariantPriceSchema.safeParse(body);
     if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
+      throw validationError(parsed.error);
     }
     return this.stock.setPrice(id, parsed.data.purchasePriceUsd);
   }

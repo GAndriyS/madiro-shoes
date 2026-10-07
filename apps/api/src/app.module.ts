@@ -1,11 +1,12 @@
 import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_GUARD } from '@nestjs/core';
-import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import cookieParser from 'cookie-parser';
 import { LoggerModule } from 'nestjs-pino';
 
 import { AuthModule } from './auth/auth.module';
+import { PerUserThrottlerGuard } from './common/per-user-throttler.guard';
 import type { Env } from './config/env.validation';
 import { validateEnv } from './config/env.validation';
 import { HealthController } from './health/health.controller';
@@ -34,7 +35,9 @@ import { UsersModule } from './users/users.module';
         }),
     }),
     // Generous global rate limit (one store, one admin); login/refresh tighten
-    // it via @Throttle. In-memory store — swap for Redis if the API ever scales out.
+    // it via @Throttle. Buckets are keyed by identity, not IP — behind the
+    // frontend proxies every request shares one address (see the guard).
+    // In-memory store — swap for Redis if the API ever scales out.
     ThrottlerModule.forRoot([
       {
         name: 'default',
@@ -56,7 +59,7 @@ import { UsersModule } from './users/users.module';
     StatsModule,
   ],
   controllers: [HealthController],
-  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
+  providers: [{ provide: APP_GUARD, useClass: PerUserThrottlerGuard }],
 })
 export class AppModule implements NestModule {
   /**

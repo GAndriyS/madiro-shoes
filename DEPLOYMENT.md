@@ -140,6 +140,13 @@ is `APP_ENV`; `commit` is what Railway built. The same payload drives the badge
 under each login screen — version always, plus a **DEMO** tag when `env` is
 `demo`, so nobody mistakes one environment for the other.
 
+> `commit` is the **api's** commit, not the environment's. Watch Paths mean a
+> merge that touches only `apps/scanner` rebuilds the scanner and nothing else,
+> so DEMO can honestly report an older api commit while its scanner is on the
+> newest one. A release bumps `package.json`, which every service watches, so
+> after `pnpm release` all three are on the release commit — `version` is the
+> field that answers "what is PROD running?".
+
 ## Continuous deployment
 
 - **DEMO** — merging a PR into `main` deploys it. CI gates the PR first.
@@ -168,6 +175,38 @@ pnpm --filter @madiro/api db:seed:demo
 
 The same command in `production` refuses to run — the guard is `APP_ENV`, not a
 convention.
+
+## Backups
+
+PROD's Postgres is the shop's real books, and nothing in the repository
+protects it — a migration that goes wrong, a mistaken `DELETE`, or a volume
+failure is recovered from a backup or not at all.
+
+- **Platform backups**: Railway can snapshot the Postgres volume on a schedule
+  (the `Postgres` service → **Backups**). This is a dashboard setting, not
+  code, so it is not visible from the repository: confirm it is enabled on
+  `production` and note the retention there. The demo database needs none.
+- **Off-platform dump**: a platform backup lives on the platform. Take a logical
+  dump before any release whose migration touches existing rows, and on a
+  regular cadence besides:
+
+  ```sh
+  # From the api container's console (Railway → api → Console), where the
+  # private DATABASE_URL already resolves:
+  pg_dump "$DATABASE_URL" --format=custom --file=/tmp/madiro-$(date +%F).dump
+  ```
+
+  then copy it out (`railway ssh` + `scp`, or the console's download) and keep
+  it somewhere that is not Railway.
+
+- **Restore** is the reverse — into an empty database, then redeploy the api so
+  `prisma migrate deploy` brings the schema to the running release:
+
+  ```sh
+  pg_restore --clean --if-exists --no-owner --dbname="$DATABASE_URL" madiro-YYYY-MM-DD.dump
+  ```
+
+  Rehearse this once against DEMO before it is ever needed against PROD.
 
 ## Admin & seller accounts
 

@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, Post } from '@nestjs/common';
 import {
   pairLookupSchema,
   returnSchema,
@@ -10,6 +10,7 @@ import {
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ReturnsService } from './returns.service';
+import { validationError } from '../common/validation-error';
 
 @Controller('returns')
 @Roles('ADMIN', 'SELLER')
@@ -22,7 +23,7 @@ export class ReturnsController {
   lookup(@Body() body: unknown): Promise<ReturnLookupResponse> {
     const parsed = pairLookupSchema.safeParse(body);
     if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
+      throw validationError(parsed.error);
     }
     return this.returns.lookup(parsed.data);
   }
@@ -31,7 +32,7 @@ export class ReturnsController {
   register(@Body() body: unknown, @CurrentUser() user: AuthUser): Promise<CheckoutResult> {
     const parsed = returnSchema.safeParse(body);
     if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues);
+      throw validationError(parsed.error);
     }
     return this.returns.register(parsed.data.operationId, user.id);
   }

@@ -55,9 +55,10 @@ export default defineConfig(({ mode }) => {
           navigateFallbackDenylist: [/^\/api/],
           runtimeCaching: [
             {
-              // Match by pathname, not the full URL (S-14): in production the
-              // API lives on its own origin, and the old /^\/api\// regex never
-              // matched a full URL — the rule was dead, right by accident.
+              // Match by pathname (S-14): workbox tests a regex urlPattern against
+              // the FULL url, so the old /^\/api\// never matched anything and the
+              // rule was dead, right by accident. Same-origin via Caddy or not,
+              // the pathname is the thing to look at.
               urlPattern: ({ url }) => url.pathname.startsWith('/api'),
               handler: 'NetworkOnly',
             },
