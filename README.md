@@ -1,28 +1,50 @@
-# Madiro — облік взуття магазину
+# Madiro — shoe inventory for one shop
 
-Застосунок обліку взуття для одного магазину: PWA-сканер (vision-LLM читає рукописні бірки SIZE / COLOR / STYLE) + веб-дашборд адміністратора на спільному бекенді.
+Inventory for a single shoe shop in Lviv: a **PWA scanner** (a vision LLM reads
+the handwritten SIZE / COLOR / STYLE stickers on the box label) and an **admin
+dashboard**, on one backend.
 
-Специфікація продукту (фінальна, as-built): [docs/spec.md](docs/spec.md).
-Історичний аналіз вимог: [docs/requirements-analysis.md](docs/requirements-analysis.md).
+- Product spec, as built: [docs/spec.md](docs/spec.md)
+- Original requirements analysis (historical, Ukrainian):
+  [docs/requirements-analysis.md](docs/requirements-analysis.md)
+- Deployment and environments: [DEPLOYMENT.md](DEPLOYMENT.md)
+- How a release is cut: [docs/release-process.md](docs/release-process.md)
+- Manual / agent-driven test plan: [docs/manual-test-plan.md](docs/manual-test-plan.md)
+- Working agreements for contributors and agents: [CLAUDE.md](CLAUDE.md)
 
-## Стек
+## Stack
 
-React 19 · TypeScript · TanStack (Router / Query / Table) · Zustand · NestJS · Prisma · PostgreSQL · Socket.io · PWA · AI vision pipeline · Turborepo · Docker · GitHub Actions
+React 19 · TypeScript · TanStack (Router / Query / Table) · Zustand · NestJS ·
+Prisma · PostgreSQL · Socket.io · PWA · vision pipeline (OpenRouter / Gemini) ·
+Turborepo · Docker · GitHub Actions · Playwright
 
-## Структура монорепо
+## Monorepo layout
 
-| Шлях                | Призначення                                                              |
-| ------------------- | ------------------------------------------------------------------------ |
-| `apps/api`          | NestJS API: Prisma + PostgreSQL, JWT-auth (ролі admin/seller), Socket.io |
-| `apps/dashboard`    | Веб-дашборд адміністратора (Vite + React 19 + TanStack), порт 5173       |
-| `apps/scanner`      | PWA-сканер для персоналу (installable, offline-банер), порт 5174         |
-| `packages/shared`   | Спільні TypeScript-типи, Zod-схеми та константи (контракти фронт ↔ бек)  |
-| `packages/web-core` | Спільний фронтенд-код: api-клієнт, auth, i18n, токени, UI-примітиви      |
-| `docs/`             | Документація проєкту                                                     |
+| Path                | What it is                                                                  |
+| ------------------- | --------------------------------------------------------------------------- |
+| `apps/api`          | NestJS API: Prisma + PostgreSQL, JWT auth (admin / seller roles), Socket.io |
+| `apps/dashboard`    | Admin web dashboard (Vite + React 19 + TanStack), dev port 5173             |
+| `apps/scanner`      | Staff PWA scanner (installable, offline banner), dev port 5174              |
+| `packages/shared`   | Shared TypeScript types, Zod schemas and constants — the API contract       |
+| `packages/web-core` | Shared frontend code: API client, auth store, i18n, tokens, UI primitives   |
+| `e2e`               | Playwright suite over the built apps and a real API                         |
+| `docs/`             | Project documentation                                                       |
 
-## Запуск локально
+## Environments
 
-Потрібні: Node 22 (`nvm use`), pnpm (`corepack enable pnpm`), Docker.
+| Environment | Runs from                               | Database                  |
+| ----------- | --------------------------------------- | ------------------------- |
+| local       | your working tree                       | `docker compose` Postgres |
+| DEMO        | `main`, deployed on every merge         | its own Railway Postgres  |
+| PROD        | `release`, deployed by a tagged release | its own Railway Postgres  |
+
+DEMO is disposable and may be reseeded; PROD holds the shop's real books. The
+login screen shows the running version and a **DEMO** badge where applicable.
+See [DEPLOYMENT.md](DEPLOYMENT.md) for the Railway setup.
+
+## Running locally
+
+Requires Node 22 (`nvm use`), pnpm (`corepack enable pnpm`) and Docker.
 
 ```bash
 pnpm install
@@ -30,40 +52,51 @@ pnpm install
 # PostgreSQL
 docker compose up -d
 
-# Конфігурація
-cp .env.example .env        # заповніть ADMIN_PASSWORD і JWT-секрети (LOG_LEVEL — опційно)
+# Configuration
+cp .env.example .env        # fill in ADMIN_PASSWORD and the JWT secrets (LOG_LEVEL is optional)
 cp .env apps/api/.env
 
-# База: міграції + початковий адміністратор
+# Database: migrations + the initial administrator
 pnpm --filter @madiro/api db:migrate
 pnpm --filter @madiro/api db:seed
 
-# (опційно) демо-дані: продавці, варіанти, пари, операції
+# Optional demo data: sellers, variants, pairs, operations
 pnpm --filter @madiro/api db:seed:demo
 
-# API в режимі розробки (http://localhost:3000/api)
+# API in watch mode (http://localhost:3000/api)
 pnpm --filter @madiro/api dev
 
-# Дашборд адміна (http://localhost:5173) і PWA-сканер (http://localhost:5174)
+# Admin dashboard (http://localhost:5173) and the PWA scanner (http://localhost:5174)
 pnpm --filter @madiro/dashboard dev
 pnpm --filter @madiro/scanner dev
 ```
 
-> Ціна закупки вводиться **в доларах** і зберігається в гривні за готівковим
-> курсом (PrivatBank); для відтворюваних чисел у тестах курс фіксується
-> змінною `EXCHANGE_RATE_USD`.
+> Purchase prices are entered **in US dollars** and stored in hryvnia at the
+> PrivatBank cash rate; test runs pin the rate with `EXCHANGE_RATE_USD` so the
+> stored figures are reproducible.
 
-Демо-логіни після `db:seed:demo`: продавці `olia` / `olia-2026` та `iryna` / `iryna-2026` (сканер), адмін — із вашого `.env`.
+Demo logins after `db:seed:demo`: sellers `olia` / `olia-2026` and `iryna` /
+`iryna-2026` (scanner); the admin comes from your `.env`.
 
-## Команди
+## Commands
 
 ```bash
-pnpm build        # збірка всіх пакетів (turbo)
-pnpm typecheck    # перевірка типів
-pnpm test         # юніт-тести (vitest + jest)
-pnpm lint         # eslint
-pnpm format       # prettier
+pnpm build          # build every package (turbo)
+pnpm typecheck      # type check
+pnpm test           # unit tests (vitest + jest)
+pnpm lint           # eslint
+pnpm format         # prettier (a pre-commit hook runs the check for you)
 
-# Скидання пароля адміністратора (з доступом до сервера/БД)
+pnpm --filter @madiro/api test:e2e   # API integration tests against a real Postgres
+pnpm e2e:pw                          # Playwright: built scanner + dashboard over the real API
+pnpm test:reset                      # rebuild, migrate and reseed a local stack for manual testing
+
+pnpm release [patch|minor|major]     # cut a release to PROD (see docs/release-process.md)
+
+# Reset the administrator password (needs access to the server / database)
 pnpm --filter @madiro/api admin:reset-password
 ```
+
+## License
+
+[MIT](LICENSE).

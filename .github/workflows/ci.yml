@@ -48,6 +48,11 @@ jobs:
       - name: Generate Prisma client
         run: pnpm --filter @madiro/api prisma:generate
 
+      # CLAUDE.md and AGENTS.md carry the same working agreements for every
+      # coding agent; a symlink would be neater but Prettier refuses symlinks.
+      - name: Agent instructions in sync
+        run: diff -q CLAUDE.md AGENTS.md
+
       - name: Lint
         run: pnpm lint
 
