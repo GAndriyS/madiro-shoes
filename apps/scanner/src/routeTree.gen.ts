@@ -9,25 +9,25 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
-import { Route as AppSearchRouteImport } from './routes/_app/search'
-import { Route as AppSaleRouteImport } from './routes/_app/sale'
-import { Route as AppReturnRouteImport } from './routes/_app/return'
-import { Route as AppMySalesRouteImport } from './routes/_app/my-sales'
-import { Route as AppMyDraftsRouteImport } from './routes/_app/my-drafts'
-import { Route as AppManualRouteImport } from './routes/_app/manual'
-import { Route as AppIntakeManualRouteImport } from './routes/_app/intake-manual'
 import { Route as AppIntakeRouteImport } from './routes/_app/intake'
+import { Route as AppIntakeManualRouteImport } from './routes/_app/intake-manual'
+import { Route as AppManualRouteImport } from './routes/_app/manual'
+import { Route as AppMyDraftsRouteImport } from './routes/_app/my-drafts'
+import { Route as AppMySalesRouteImport } from './routes/_app/my-sales'
+import { Route as AppReturnRouteImport } from './routes/_app/return'
+import { Route as AppSaleRouteImport } from './routes/_app/sale'
+import { Route as AppSearchRouteImport } from './routes/_app/search'
 
+const AppRoute = AppRouteImport.update({
+  id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AppRoute = AppRouteImport.update({
-  id: '/_app',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppIndexRoute = AppIndexRouteImport.update({
@@ -35,34 +35,9 @@ const AppIndexRoute = AppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppSearchRoute = AppSearchRouteImport.update({
-  id: '/search',
-  path: '/search',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppSaleRoute = AppSaleRouteImport.update({
-  id: '/sale',
-  path: '/sale',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppReturnRoute = AppReturnRouteImport.update({
-  id: '/return',
-  path: '/return',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMySalesRoute = AppMySalesRouteImport.update({
-  id: '/my-sales',
-  path: '/my-sales',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppMyDraftsRoute = AppMyDraftsRouteImport.update({
-  id: '/my-drafts',
-  path: '/my-drafts',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppManualRoute = AppManualRouteImport.update({
-  id: '/manual',
-  path: '/manual',
+const AppIntakeRoute = AppIntakeRouteImport.update({
+  id: '/intake',
+  path: '/intake',
   getParentRoute: () => AppRoute,
 } as any)
 const AppIntakeManualRoute = AppIntakeManualRouteImport.update({
@@ -70,9 +45,34 @@ const AppIntakeManualRoute = AppIntakeManualRouteImport.update({
   path: '/intake-manual',
   getParentRoute: () => AppRoute,
 } as any)
-const AppIntakeRoute = AppIntakeRouteImport.update({
-  id: '/intake',
-  path: '/intake',
+const AppManualRoute = AppManualRouteImport.update({
+  id: '/manual',
+  path: '/manual',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMyDraftsRoute = AppMyDraftsRouteImport.update({
+  id: '/my-drafts',
+  path: '/my-drafts',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMySalesRoute = AppMySalesRouteImport.update({
+  id: '/my-sales',
+  path: '/my-sales',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppReturnRoute = AppReturnRouteImport.update({
+  id: '/return',
+  path: '/return',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSaleRoute = AppSaleRouteImport.update({
+  id: '/sale',
+  path: '/sale',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSearchRoute = AppSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
   getParentRoute: () => AppRoute,
 } as any)
 
@@ -161,18 +161,18 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/_app': {
       id: '/_app'
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/': {
@@ -182,46 +182,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/search': {
-      id: '/_app/search'
-      path: '/search'
-      fullPath: '/search'
-      preLoaderRoute: typeof AppSearchRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/sale': {
-      id: '/_app/sale'
-      path: '/sale'
-      fullPath: '/sale'
-      preLoaderRoute: typeof AppSaleRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/return': {
-      id: '/_app/return'
-      path: '/return'
-      fullPath: '/return'
-      preLoaderRoute: typeof AppReturnRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/my-sales': {
-      id: '/_app/my-sales'
-      path: '/my-sales'
-      fullPath: '/my-sales'
-      preLoaderRoute: typeof AppMySalesRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/my-drafts': {
-      id: '/_app/my-drafts'
-      path: '/my-drafts'
-      fullPath: '/my-drafts'
-      preLoaderRoute: typeof AppMyDraftsRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/manual': {
-      id: '/_app/manual'
-      path: '/manual'
-      fullPath: '/manual'
-      preLoaderRoute: typeof AppManualRouteImport
+    '/_app/intake': {
+      id: '/_app/intake'
+      path: '/intake'
+      fullPath: '/intake'
+      preLoaderRoute: typeof AppIntakeRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/intake-manual': {
@@ -231,11 +196,46 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppIntakeManualRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/intake': {
-      id: '/_app/intake'
-      path: '/intake'
-      fullPath: '/intake'
-      preLoaderRoute: typeof AppIntakeRouteImport
+    '/_app/manual': {
+      id: '/_app/manual'
+      path: '/manual'
+      fullPath: '/manual'
+      preLoaderRoute: typeof AppManualRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/my-drafts': {
+      id: '/_app/my-drafts'
+      path: '/my-drafts'
+      fullPath: '/my-drafts'
+      preLoaderRoute: typeof AppMyDraftsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/my-sales': {
+      id: '/_app/my-sales'
+      path: '/my-sales'
+      fullPath: '/my-sales'
+      preLoaderRoute: typeof AppMySalesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/return': {
+      id: '/_app/return'
+      path: '/return'
+      fullPath: '/return'
+      preLoaderRoute: typeof AppReturnRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/sale': {
+      id: '/_app/sale'
+      path: '/sale'
+      fullPath: '/sale'
+      preLoaderRoute: typeof AppSaleRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/search': {
+      id: '/_app/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof AppSearchRouteImport
       parentRoute: typeof AppRoute
     }
   }
