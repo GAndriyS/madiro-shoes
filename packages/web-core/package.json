@@ -19,7 +19,7 @@
   },
   "dependencies": {
     "@madiro/shared": "workspace:*",
-    "@radix-ui/react-dialog": "^1.1.23",
+    "@radix-ui/react-dialog": "^1.2.0",
     "clsx": "^2.1.0",
     "i18next": "^24.2.0",
     "react-i18next": "^15.4.0",
