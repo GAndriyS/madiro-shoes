@@ -208,6 +208,8 @@ export const en: Messages = {
     deleteBody: 'Pair {{label}} will leave the "awaiting price" queue. This cannot be undone.',
     cancel: 'Cancel',
     error: 'Could not save. Please try again.',
+    historyConflict:
+      'This pair has already been sold or written off — it can no longer be edited or deleted. If the pair is physically gone, write it off.',
   },
   manual: {
     title: 'Enter a pair manually',

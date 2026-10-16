@@ -14,6 +14,7 @@ import type {
 import { usdToUah } from '@madiro/shared';
 
 import { ExchangeService } from '../exchange/exchange.service';
+import { hasMovements, lockPair } from '../lib/pair-history';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 
@@ -260,12 +261,17 @@ export class StockService {
    * to decide what happens to a pair that may already be sold, and cancelling a
    * return would re-sell a pair the customer physically handed back. Both are
    * out of scope by decision, so they are refused loudly.
+   *
+   * And only the pair's latest movement is: after sale → return → sale, the
+   * pair is SOLD again, but by the second sale — cancelling the first would put
+   * the pair back on the shelf while the second sale and the return both stay
+   * on the books.
    */
   async cancelOperation(operationId: string): Promise<CancelOperationResult> {
     const result = await this.prisma.$transaction(async (tx) => {
       const op = await tx.operation.findUnique({
         where: { id: operationId },
-        select: { id: true, type: true, pairId: true, cancelledAt: true },
+        select: { id: true, type: true, pairId: true, cancelledAt: true, createdAt: true },
       });
       if (!op) {
         throw new NotFoundException('Операцію не знайдено');
@@ -284,6 +290,23 @@ export class StockService {
       const expected = op.type === 'SALE' ? 'SOLD' : 'WRITTEN_OFF';
       if (locked[0]?.status !== expected) {
         throw new ConflictException('Пара вже повернулася на склад');
+      }
+      // Under the lock, so a return or a sale cannot land between this check
+      // and the reversal. A tie on the timestamp counts as newer: when the
+      // order cannot be told, refusing is the safe answer.
+      const newer = await tx.operation.count({
+        where: {
+          pairId: op.pairId,
+          id: { not: op.id },
+          type: { in: ['SALE', 'RETURN', 'WRITEOFF'] },
+          cancelledAt: null,
+          createdAt: { gte: op.createdAt },
+        },
+      });
+      if (newer > 0) {
+        throw new ConflictException(
+          'Після цієї операції пара вже мала інші рухи — скасувати можна лише останню',
+        );
       }
 
       await tx.operation.update({ where: { id: op.id }, data: { cancelledAt: new Date() } });
@@ -355,17 +378,38 @@ export class StockService {
     return result;
   }
 
-  /** Delete a pair (FR-D-09): operations first (FK RESTRICT), one transaction. */
-  deletePair(pairId: string): Promise<{ ok: true }> {
-    return this.prisma.$transaction(async (tx) => {
-      const pair = await tx.pair.findUnique({ where: { id: pairId }, select: { id: true } });
-      if (!pair) {
+  /**
+   * Delete a mistakenly taken-in pair (FR-D-09): a pair on the shelf whose
+   * only operation is its own INTAKE. Anything sold, returned or written off is
+   * part of the books — deleting it would erase revenue and margin after the
+   * fact — so it is refused, and a pair that is physically gone is written off
+   * instead. The INTAKE goes first (FK RESTRICT), in one transaction.
+   */
+  async deletePair(pairId: string): Promise<{ ok: true }> {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const status = await lockPair(tx, pairId);
+      if (status == null) {
         throw new NotFoundException('Пару не знайдено');
       }
-      await tx.operation.deleteMany({ where: { pairId } });
+      if (status !== 'IN_STOCK') {
+        throw new ConflictException('Пари немає на складі — видалити можна лише пару на складі');
+      }
+      if (await hasMovements(tx, pairId)) {
+        throw new ConflictException(
+          'Пару вже продавали, повертали чи списували — видалення стерло б цю історію. Якщо пари фізично немає, оформіть списання.',
+        );
+      }
+      // Scoped to the INTAKE: if anything else were there, the pair delete
+      // below fails on the foreign key instead of silently taking it along.
+      await tx.operation.deleteMany({ where: { pairId, type: 'INTAKE' } });
       await tx.pair.delete({ where: { id: pairId } });
       return { ok: true as const };
     });
+
+    // The pair leaves the stock table, the counts and — if it was a draft —
+    // the queue on every open dashboard.
+    this.realtime.emit('pair-deleted');
+    return result;
   }
 
   /**

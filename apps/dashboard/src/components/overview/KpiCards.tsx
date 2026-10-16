@@ -15,6 +15,7 @@ function Card({
   value,
   sub,
   subOnMobile = false,
+  note,
   testId,
 }: {
   label: string;
@@ -22,6 +23,8 @@ function Card({
   value: string;
   sub?: string | null;
   subOnMobile?: boolean;
+  /** A line shown at every width — what the value leaves out. */
+  note?: { text: string; testId: string } | null;
   testId?: string;
 }) {
   return (
@@ -47,6 +50,11 @@ function Card({
           {sub}
         </span>
       )}
+      {note && (
+        <span data-testid={note.testId} className="text-[10px] text-text-muted md:text-[11.5px]">
+          {note.text}
+        </span>
+      )}
     </div>
   );
 }
@@ -56,6 +64,20 @@ export function KpiCards({ data, isToday }: { data: OverviewResponse; isToday: b
   const soldSub = `${t('overview.returns', { count: data.returns })} · ${t('overview.netPairs', {
     count: data.netPairs,
   })}`;
+  // FR-B-05: what the margin could not be computed over — sales still awaiting
+  // a price or «без ціни». Without this line a small margin on a busy day reads
+  // as a bad day rather than as unpriced stock.
+  const { soldWithoutBasis } = data;
+  const withoutBasisNote =
+    soldWithoutBasis.pairs !== 0 || soldWithoutBasis.revenue !== 0
+      ? {
+          testId: 'kpi-margin-without-basis',
+          text: t('overview.kpiMarginWithoutBasis', {
+            pairs: t('overview.pairs', { count: soldWithoutBasis.pairs }),
+            revenue: money(soldWithoutBasis.revenue),
+          }),
+        }
+      : null;
 
   return (
     <div className="grid grid-cols-2 gap-2.5 md:gap-3.5 lg:grid-cols-4">
@@ -101,6 +123,7 @@ export function KpiCards({ data, isToday }: { data: OverviewResponse; isToday: b
             ? t('overview.kpiMarginPct', { pct: data.marginPctOfRevenue })
             : null
         }
+        note={withoutBasisNote}
       />
 
       {/* Dark accent card — links to the intake queue (FR-D-02) */}

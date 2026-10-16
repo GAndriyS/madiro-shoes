@@ -1,4 +1,4 @@
-import { storeDayStart, storeMonthRange } from './time';
+import { shiftDateKey, storeDateKey, storeDayStart, storeMonthRange } from './time';
 
 describe('storeDayStart (Europe/Kyiv)', () => {
   it('повертає північ за київським часом у літній період (UTC+3)', () => {
@@ -49,5 +49,19 @@ describe('storeMonthRange', () => {
 
     expect(start.toISOString()).toBe('2026-02-28T22:00:00.000Z');
     expect(end.toISOString()).toBe('2026-03-31T21:00:00.000Z');
+  });
+});
+
+describe('storeDateKey / shiftDateKey', () => {
+  it('дата за київським часом, а не за UTC', () => {
+    // 2026-07-17 22:30 UTC is already 18 July in Kyiv.
+    expect(storeDateKey(new Date('2026-07-17T22:30:00.000Z'))).toBe('2026-07-18');
+  });
+
+  it('зсуває календарну дату через межі місяця й року', () => {
+    expect(shiftDateKey('2026-03-05', -13)).toBe('2026-02-20');
+    expect(shiftDateKey('2026-01-03', -13)).toBe('2025-12-21');
+    // The DST switch (29 March 2026) changes nothing in calendar arithmetic.
+    expect(shiftDateKey('2026-04-05', -13)).toBe('2026-03-23');
   });
 });
