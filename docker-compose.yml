@@ -1,6 +1,8 @@
 services:
   postgres:
-    image: postgres:16-alpine
+    # Same major as PROD (Railway's postgres-ssl:18) and CI, so a migration
+    # that only works on one version cannot pass here and fail there.
+    image: postgres:18-alpine
     restart: unless-stopped
     environment:
       POSTGRES_USER: madiro
@@ -12,7 +14,13 @@ services:
       # healthcheck and `docker compose exec` are unaffected.
       - '${POSTGRES_PORT:-5432}:5432'
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      # From 18 the image keeps its data in a version-named directory under
+      # /var/lib/postgresql and refuses to start with a mount at the old
+      # .../data path. The volume is named after the major because a data
+      # directory never opens under a different one: moving to 18 starts an
+      # empty database (re-run migrations and seeds), and the old 16 volume
+      # stays untouched until `docker volume rm` — see README.
+      - postgres-18-data:/var/lib/postgresql
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready -U madiro -d madiro']
       interval: 5s
@@ -20,4 +28,4 @@ services:
       retries: 10
 
 volumes:
-  postgres-data:
+  postgres-18-data:
