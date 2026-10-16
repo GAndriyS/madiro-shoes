@@ -71,6 +71,13 @@ pnpm --filter @madiro/dashboard dev
 pnpm --filter @madiro/scanner dev
 ```
 
+> **Postgres 18.** Local, CI and PROD all run the same major. A checkout that
+> used the earlier Postgres 16 container keeps its data in the old
+> `<project>_postgres-data` volume, which 18 cannot open: `docker compose up`
+> now starts an empty `postgres-18-data` volume, so run the migrations and seeds
+> above again. Remove the old volume when nothing in it is needed any more
+> (`docker volume ls | grep postgres-data`, then `docker volume rm …`).
+
 > Purchase prices are entered **in US dollars** and stored in hryvnia at the
 > PrivatBank cash rate; test runs pin the rate with `EXCHANGE_RATE_USD` so the
 > stored figures are reproducible.

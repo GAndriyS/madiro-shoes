@@ -411,7 +411,7 @@ an anonymous socket is disconnected. The socket's CORS allowlist is the same
 ## 7. Technical architecture
 
 - **Monorepo**: Turborepo + pnpm, Node 22, strict TypeScript.
-  - `apps/api` — NestJS 11, Prisma 6, PostgreSQL 16, a Socket.io gateway, pino
+  - `apps/api` — NestJS 11, Prisma 6, PostgreSQL 18, a Socket.io gateway, pino
     logging.
   - `apps/scanner`, `apps/dashboard` — Vite 7, React 19, TanStack
     Router/Query, Tailwind 4; the scanner uses vite-plugin-pwa.

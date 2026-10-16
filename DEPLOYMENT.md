@@ -44,6 +44,14 @@ The browser therefore talks to a single origin per app. That is not cosmetic:
 separate _sites_, the httpOnly refresh cookie was third-party, WebKit dropped
 it, and the installed PWA asked for a login on every launch.
 
+Caddy also owns the browser-facing policy for each app: security headers (CSP,
+HSTS, `frame-ancestors 'none'`, Referrer- and Permissions-Policy — the camera
+for the scanner only), `no-cache` on `index.html` and `sw.js` so a deploy is
+picked up, year-long `immutable` caching for the content-hashed `/assets/*`,
+and a plain 404 for an `/assets/*` file that does not exist instead of the SPA
+shell. A tab left open across a deploy then gets a clean chunk-load failure,
+which the app's router turns into a reload.
+
 Because the frontends take **no build arguments**, a bundle is environment-
 agnostic: the same artefact works in either environment, and everything that
 differs is a runtime variable.
@@ -68,16 +76,65 @@ For **each** of `api`, `scanner`, `dashboard`:
 - **Branch:** `main` in `demo`, `release` in `production`. This is what makes
   deployment automatic and is the only source-level difference between the two.
 - Generate a public domain (Settings → Networking → Generate Domain).
-- **Watch Paths** so a push only rebuilds what changed:
-  - api: `apps/api/**`, `packages/**`, `package.json`, `pnpm-lock.yaml`
-  - scanner: `apps/scanner/**`, `packages/**`, `package.json`, `pnpm-lock.yaml`
-  - dashboard: `apps/dashboard/**`, `packages/**`, `package.json`, `pnpm-lock.yaml`
-
-  > `package.json` matters: a release whose only change is the version bump
-  > touches nothing else, and without it the release would deploy nothing.
-
+- **Watch Paths**, **healthcheck** and **restart policy** as listed in
+  [Deploy settings](#deploy-settings) below — in both environments.
 - Enable **wait for CI** so a deploy starts only after the GitHub checks on that
   branch pass.
+
+#### Deploy settings
+
+Set in each service's **Settings** (Build / Deploy), identically in `demo` and
+`production`. This table is the source of truth: when the dashboard and the
+table disagree, one of them is a mistake.
+
+| Setting                   | `api`                 | `scanner`                 | `dashboard`                 | `backup` (production only) |
+| ------------------------- | --------------------- | ------------------------- | --------------------------- | -------------------------- |
+| `RAILWAY_DOCKERFILE_PATH` | `apps/api/Dockerfile` | `apps/scanner/Dockerfile` | `apps/dashboard/Dockerfile` | `ops/backup/Dockerfile`    |
+| Healthcheck path          | `/api/health`         | `/`                       | `/`                         | — (a cron job)             |
+| Healthcheck timeout       | 300 s                 | 60 s                      | 60 s                        | —                          |
+| Restart policy            | On Failure, 10 tries  | On Failure, 10 tries      | On Failure, 10 tries        | Never                      |
+| Cron schedule             | —                     | —                         | —                           | `0 3 * * *`                |
+
+**Watch paths**, so a push only rebuilds what changed:
+
+- api: `apps/api/**`, `packages/**`, `package.json`, `pnpm-lock.yaml`
+- scanner: `apps/scanner/**`, `packages/**`, `package.json`, `pnpm-lock.yaml`
+- dashboard: `apps/dashboard/**`, `packages/**`, `package.json`, `pnpm-lock.yaml`
+- backup: `ops/backup/**`
+
+> `package.json` in the watch paths matters: a release whose only change is
+> the version bump touches nothing else, and without it the release would
+> deploy nothing.
+
+**Why the api healthcheck is the important one.** The api migrates the database
+on boot (`apps/api/docker-entrypoint.sh`, `set -e`): a migration that fails
+exits the container before Nest starts. With a healthcheck, Railway keeps the
+previous deployment serving until the new one answers `/api/health` with a 2xx
+— a crashing boot is retried by the restart policy, never answers, and after
+the timeout the deploy is marked **failed** while the old one goes on serving.
+Without a healthcheck Railway switches traffic as soon as the container starts,
+so the same failure is an outage. `/api/health` answers 503 when the database
+is unreachable, so a deploy that cannot see its database is refused the same
+way. The 300 s cover migrations, the admin seed and boot; a deploy that has not
+answered by then is a broken deploy, not a slow one.
+
+Two limits to keep in mind:
+
+- The healthcheck gates a deploy; Railway does **not** keep polling it
+  afterwards. Watching a live service is the external uptime monitor's job
+  (see [Monitoring](#monitoring)).
+- A migration that failed half-way stays half-applied while the old code keeps
+  serving — which is exactly what the expand–contract rule in
+  [docs/release-process.md](docs/release-process.md) makes safe, and why a
+  release with migrations takes a fresh dump first.
+
+> **Why this is a table and not a `railway.toml`.** Railway retired Config as
+> Code: services that do not already use it cannot opt in, and existing files
+> stop being read on 2026-12-01. Its successor, Infrastructure as Code
+> (`.railway/railway.ts`, applied with `railway config apply`), describes the
+> _whole_ project — a resource the file omits is deleted on apply — so it must
+> start from `railway config pull` of the live project, reviewed, not be written
+> by hand. Until that is done, this table is the record.
 
 ### 3. Environment variables
 
@@ -94,6 +151,11 @@ For **each** of `api`, `scanner`, `dashboard`:
 | `OPENROUTER_API_KEY` | recognition backend                    | recognition backend                    |
 | `ADMIN_PASSWORD`     | seeds the admin on a fresh database    | **a different password**               |
 | `PORT`               | `3000`                                 | `3000`                                 |
+
+The api refuses to boot in `demo` or `production` with the `.env.example`
+placeholder as either JWT secret, or with the two secrets equal (the placeholder
+is long enough to pass the length rule, and one key for both would make a
+refresh token a valid access token).
 
 Reference variables (`${{Postgres.DATABASE_URL}}`) resolve **within the
 environment**, so the same expression points at each environment's own database.
@@ -197,24 +259,44 @@ failure is recovered from a backup or not at all.
   the client major matches Railway's `postgres-ssl:18` — a client older than
   the server refuses to dump it, so bump both together.
 
-  Service settings: `RAILWAY_DOCKERFILE_PATH=ops/backup/Dockerfile`, branch
-  `release` (the script ships with releases like everything else), Watch Paths
-  `ops/backup/**`, **Cron Schedule** `0 3 * * *` (03:00 UTC, before the shop
-  opens). Variables: `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `R2_ACCOUNT_ID`,
-  `R2_BUCKET`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (an R2 API token
-  with Object Read & Write on that one bucket). Retention: daily dumps for 35
-  days, and the dump taken on the 1st of each month is kept forever.
+  Service settings: see [Deploy settings](#deploy-settings) — branch
+  `release` (the script ships with releases like everything else), cron
+  `0 3 * * *` (03:00 UTC, before the shop opens), restart policy **Never** (a
+  failed night is reported, not retried into a pile of alerts). Variables:
+  `DATABASE_URL=${{Postgres.DATABASE_URL}}`, `R2_ACCOUNT_ID`, `R2_BUCKET`,
+  `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY` (an R2 API token with Object Read
+  & Write on that one bucket), and `HEALTHCHECK_PING_URL` (below).
 
-  A failed run shows as a failed deployment on the service; check it after a
-  release that changed the Postgres image or the script. The demo database
-  needs no backups.
+  Every run writes its own object, `madiro-prod-YYYY-MM-DDTHHMMSSZ.dump` (UTC),
+  and never overwrites one: besides the nightly run there is the one
+  `pnpm release` triggers before a migration, and any run by hand. Retention:
+  35 days, and every dump taken on the 1st of a month is kept forever. (Dumps
+  from before names carried a time are `madiro-prod-YYYY-MM-DD.dump`; the same
+  rules apply to them.)
+
+  Run it now, outside the schedule:
+
+  ```sh
+  railway cron run --service backup --environment production
+  railway cron list --service backup --environment production
+  ```
+
+- **Alerting — a dead man's switch.** A failed run is only a red mark in the
+  Railway UI, and a run that never starts is not even that. Set
+  `HEALTHCHECK_PING_URL` to a check on [healthchecks.io](https://healthchecks.io)
+  (or any service with the same `<url>` / `<url>/fail` convention): the script
+  pings it after a verified upload and pings `/fail` on any failure, including
+  a missing variable. Give the check a daily period and a grace of a few hours;
+  then a failed _or missing_ night alerts by e-mail. Without the variable the
+  script runs exactly as before. The demo database needs no backups.
 
 - **Restore** — fetch the dump from R2, restore into an empty database, then
   redeploy the api so `prisma migrate deploy` brings the schema up to the
   running release:
 
   ```sh
-  rclone copyto r2:madiro-backups/madiro-prod-YYYY-MM-DD.dump ./restore.dump
+  rclone lsf r2:madiro-backups | sort | tail -n 5   # newest last
+  rclone copyto r2:madiro-backups/madiro-prod-YYYY-MM-DDTHHMMSSZ.dump ./restore.dump
   pg_restore --clean --if-exists --no-owner --no-privileges \
     --dbname="$DATABASE_URL" ./restore.dump
   ```
@@ -223,6 +305,19 @@ failure is recovered from a backup or not at all.
   `backup.sh`.) The restore was rehearsed once against a local database when
   the service was introduced; rehearse it against DEMO before it is ever needed
   against PROD.
+
+## Monitoring
+
+Railway checks a deploy once and then stops looking, so PROD needs an outside
+observer — none of this is in the repository, all of it is free-tier:
+
+- **Uptime monitor** (UptimeRobot, Better Stack, healthchecks.io…) on
+  `https://api-production-bfcf.up.railway.app/api/health` — expect HTTP 200 and
+  the body to contain `"database":"up"` — plus a plain 200 check on the
+  scanner and dashboard domains. A 5-minute interval is plenty for one shop.
+- **Backup check** — the `HEALTHCHECK_PING_URL` dead man's switch above.
+
+Both alert the maintainer by e-mail; nobody has to remember to look.
 
 ## Admin & seller accounts
 
