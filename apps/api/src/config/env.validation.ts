@@ -14,7 +14,9 @@ const envSchema = z.object({
   APP_ENV: z.enum(['development', 'demo', 'production']).default('development'),
   PORT: z.coerce.number().int().positive().default(3000),
   DATABASE_URL: z.string().min(1),
-  // >= 32 chars (256-bit); generate with `openssl rand -hex 32`.
+  // >= 32 chars (256-bit); generate with `openssl rand -hex 32`. Deployed
+  // environments additionally refuse the .env.example placeholder and a pair of
+  // equal secrets — see validateEnv.
   JWT_ACCESS_SECRET: z.string().min(32),
   JWT_REFRESH_SECRET: z.string().min(32),
   JWT_ACCESS_TTL: z.string().default('15m'),
@@ -68,6 +70,15 @@ const envSchema = z.object({
 
 export type Env = z.infer<typeof envSchema>;
 
+/**
+ * The value .env.example ships for both JWT secrets. It is 38 characters, so
+ * the length rule alone lets a copied example straight through — and then the
+ * key that signs every token in the real books is a string printed in a
+ * public repository. env.validation.spec.ts reads .env.example to keep the two
+ * in step.
+ */
+export const JWT_SECRET_PLACEHOLDER = 'replace-with-openssl-rand-hex-32-value';
+
 export function validateEnv(config: Record<string, unknown>): Env {
   // A variable left blank in .env (`LOG_LEVEL=""`, as .env.example ships it)
   // arrives as an empty string, which is not the same thing as unset: an
@@ -86,6 +97,20 @@ export function validateEnv(config: Record<string, unknown>): Env {
   // ship insecure cookies and dev logging to a public domain.
   if (env.APP_ENV !== 'development' && env.NODE_ENV !== 'production') {
     throw new Error(`APP_ENV=${env.APP_ENV} потребує NODE_ENV=production.`);
+  }
+  if (env.APP_ENV !== 'development') {
+    for (const name of ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET'] as const) {
+      if (env[name] === JWT_SECRET_PLACEHOLDER) {
+        throw new Error(
+          `${name} — заглушка з .env.example; згенеруйте справжній: openssl rand -hex 32.`,
+        );
+      }
+    }
+    // The access strategy checks the signature, not a token type: with one key
+    // for both, a 30-day refresh token is also a valid bearer access token.
+    if (env.JWT_ACCESS_SECRET === env.JWT_REFRESH_SECRET) {
+      throw new Error('JWT_ACCESS_SECRET і JWT_REFRESH_SECRET мають бути різними.');
+    }
   }
   if (env.APP_ENV === 'production' && env.VISION_PROVIDER === 'mock') {
     throw new Error('VISION_PROVIDER=mock заборонено при APP_ENV=production.');
