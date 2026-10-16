@@ -56,7 +56,9 @@ async function main(): Promise<void> {
     throw new Error('db:seed:demo needs APP_ENV=demo on a production build.');
   }
 
-  // Fresh inventory each run (demo-only), keep users/admin.
+  // Fresh inventory each run (demo-only), keep users/admin. Stored idempotent
+  // responses describe the inventory being wiped, so they go with it.
+  await prisma.idempotencyKey.deleteMany();
   await prisma.operation.deleteMany();
   await prisma.pair.deleteMany();
   await prisma.variant.deleteMany();

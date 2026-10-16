@@ -7,7 +7,7 @@ import {
   type SaleLookupResponse,
   type TagRecognition,
 } from '@madiro/shared';
-import { ApiError, api, money } from '@madiro/web-core';
+import { ApiError, api, money, outcomeUnknown } from '@madiro/web-core';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
@@ -15,6 +15,7 @@ import { useTranslation } from 'react-i18next';
 
 import { CameraScreen } from '../intake/CameraScreen';
 import { RecognitionError } from '../intake/RecognitionError';
+import { failedWithUnknownOutcome, retryUnknownOutcome, useAttemptKey } from '../../lib/attempt';
 import { useFlashStore } from '../../lib/flash';
 import { SaleConfirm, type ComboChoice } from './SaleConfirm';
 import { SaleDetails, type CheckoutPayload } from './SaleDetails';
@@ -42,6 +43,7 @@ export function CheckoutFlow({ manual = false }: CheckoutFlowProps) {
   const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const photoUrlRef = useRef<string | null>(null);
+  const attempt = useAttemptKey();
 
   // The captured tag photo backs the «ФОТО БІРКИ» banner; free it on unmount.
   useEffect(
@@ -79,43 +81,39 @@ export function CheckoutFlow({ manual = false }: CheckoutFlowProps) {
     fields.color.length > 0 &&
     fields.style.length > 0;
 
-  const lookup = useQuery({
-    queryKey: ['sale', 'lookup', fields.size, fields.color, fields.style, combo ?? null],
-    enabled: (step === 'confirm' || step === 'details') && fieldsValid,
-    queryFn: async () => {
-      const body: PairLookupInput = {
-        size: sizeNum,
-        color: fields.color,
-        style: fields.style,
-        ...(combo ? { material: combo.material, season: combo.season } : {}),
-      };
-      return saleLookupResponseSchema.parse(
-        await api.post<SaleLookupResponse>('/sale/lookup', body),
-      );
-    },
-  });
-
   const checkout = useMutation({
-    mutationFn: async (payload: CheckoutPayload) => {
-      const pairId = lookup.data?.pair?.pairId;
-      if (!pairId) throw new Error('no pair');
+    ...retryUnknownOutcome,
+    // The pair travels with the attempt rather than being read from the lookup
+    // at send time: the automatic retry must check out the pair the seller
+    // confirmed, whatever the lookup has refetched since.
+    mutationFn: async ({
+      pairId,
+      payload,
+      idempotencyKey,
+    }: {
+      pairId: string;
+      payload: CheckoutPayload;
+      idempotencyKey: string;
+    }) => {
       if (payload.kind === 'sale') {
         return checkoutResultSchema.parse(
-          await api.post<CheckoutResult>('/sale', {
-            pairId,
-            salePrice: payload.salePrice,
-            paymentMethod: payload.paymentMethod,
-          }),
+          await api.post<CheckoutResult>(
+            '/sale',
+            { pairId, salePrice: payload.salePrice, paymentMethod: payload.paymentMethod },
+            { idempotencyKey },
+          ),
         );
       }
       return checkoutResultSchema.parse(
-        await api.post<CheckoutResult>('/sale/writeoff', {
-          pairId,
-          ...(payload.comment ? { comment: payload.comment } : {}),
-        }),
+        await api.post<CheckoutResult>(
+          '/sale/writeoff',
+          { pairId, ...(payload.comment ? { comment: payload.comment } : {}) },
+          { idempotencyKey },
+        ),
       );
     },
     onSuccess: (result) => {
+      attempt.settle();
       void queryClient.invalidateQueries({ queryKey: ['me', 'summary'] });
       const sold = result.status === 'SOLD';
       const paymentWord =
@@ -131,6 +129,18 @@ export function CheckoutFlow({ manual = false }: CheckoutFlowProps) {
       void navigate({ to: '/' });
     },
     onError: (err) => {
+      // No answer: the details screen says the sale may have gone through and
+      // keeps everything as it was for the retry — not «не вдалося зберегти».
+      if (outcomeUnknown(err)) return;
+      if (err instanceof ApiError && err.status === 422) {
+        // The earlier tap did go through, with other details (the price was
+        // edited, or sale became write-off). Nothing left to do on this pair.
+        attempt.settle();
+        void queryClient.invalidateQueries({ queryKey: ['me', 'summary'] });
+        showFlash({ title: t('sale.alreadySavedTitle'), subtitle: t('sale.alreadySavedBody') });
+        void navigate({ to: '/' });
+        return;
+      }
       if (err instanceof ApiError && err.status === 409) {
         // Someone checked this pair out first — back to confirm with fresh stock.
         setToast(t('sale.conflict'));
@@ -142,6 +152,35 @@ export function CheckoutFlow({ manual = false }: CheckoutFlowProps) {
       setTimeout(() => setToast(null), 3500);
     },
   });
+  // While a checkout is in flight or got no answer, the lookup holds still. A
+  // refetch on reconnect would otherwise swap in the next identical pair if the
+  // first sale did land — and the seller's retry would sell that one too.
+  const attemptOpen = checkout.isPending || failedWithUnknownOutcome(checkout);
+
+  // A different tag is a different attempt: the unknown outcome was about the
+  // pair on screen, and the new fields need a live lookup. Rescanning the same
+  // tag changes nothing here, so it lands back on the same pair and key.
+  useEffect(() => {
+    checkout.reset();
+  }, [fields.size, fields.color, fields.style, combo]);
+
+  const lookup = useQuery({
+    queryKey: ['sale', 'lookup', fields.size, fields.color, fields.style, combo ?? null],
+    enabled: (step === 'confirm' || step === 'details') && fieldsValid && !attemptOpen,
+    queryFn: async () => {
+      const body: PairLookupInput = {
+        size: sizeNum,
+        color: fields.color,
+        style: fields.style,
+        ...(combo ? { material: combo.material, season: combo.season } : {}),
+      };
+      return saleLookupResponseSchema.parse(
+        await api.post<SaleLookupResponse>('/sale/lookup', body),
+      );
+    },
+  });
+
+  const foundPair = lookup.data?.pair ?? null;
 
   const goManual = () => void navigate({ to: '/manual' });
   const rescan = () => {
@@ -161,12 +200,19 @@ export function CheckoutFlow({ manual = false }: CheckoutFlowProps) {
           {toast}
         </div>
       )}
-      {step === 'details' && lookup.data?.pair ? (
+      {step === 'details' && foundPair ? (
         <SaleDetails
-          pair={lookup.data.pair}
-          salePriceHint={lookup.data.salePriceHint}
+          pair={foundPair}
+          salePriceHint={lookup.data?.salePriceHint ?? null}
           saving={checkout.isPending}
-          onConfirm={(payload) => checkout.mutate(payload)}
+          outcomeUnknown={failedWithUnknownOutcome(checkout)}
+          onConfirm={(payload) =>
+            checkout.mutate({
+              pairId: foundPair.pairId,
+              payload,
+              idempotencyKey: attempt.keyFor(foundPair.pairId),
+            })
+          }
           onBack={() => setStep('confirm')}
         />
       ) : step === 'confirm' || step === 'details' ? (

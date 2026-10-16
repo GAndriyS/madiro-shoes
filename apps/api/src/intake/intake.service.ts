@@ -13,6 +13,7 @@ import type {
 } from '@madiro/shared';
 import { usdToUah } from '@madiro/shared';
 
+import { idempotent } from '../common/idempotency';
 import { ExchangeService } from '../exchange/exchange.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -94,9 +95,15 @@ export class IntakeService {
    * The whole batch is one transaction, so a delivery is taken in completely or
    * not at all — a half-received run would leave the admin reconciling a queue
    * against a paper invoice. It is also one advisory lock and one realtime
-   * event rather than N of each.
+   * event rather than N of each — and one idempotency key: a repeated
+   * `idempotencyKey` answers with the first batch instead of taking the
+   * delivery in twice.
    */
-  async create(input: IntakeInput, user: { id: string; role: Role }): Promise<IntakeResult> {
+  async create(
+    input: IntakeInput,
+    user: { id: string; role: Role },
+    idempotencyKey: string | null = null,
+  ): Promise<IntakeResult> {
     // A seller's price (if any is smuggled in) is ignored: sellers never price.
     const isAdmin = user.role === 'ADMIN';
     const priced = isAdmin && input.purchasePriceUsd != null;
@@ -114,50 +121,55 @@ export class IntakeService {
     // row with a count. Sizes keep the order they were sent in.
     const sizes = input.sizes.flatMap(({ size, qty }) => Array.from({ length: qty }, () => size));
 
-    const result = await this.prisma.$transaction(async (tx) => {
-      const variant = await findOrCreateVariant(tx, identityOf(input));
+    const request = { userId: user.id, key: idempotencyKey, type: 'INTAKE' as const, body: input };
+    const { result, replayed } = await this.prisma.$transaction((tx) =>
+      idempotent(tx, request, async () => {
+        const variant = await findOrCreateVariant(tx, identityOf(input));
 
-      // An admin's explicit price becomes the variant's single purchase price
-      // (rule 3.3 #1); a draft or "no price" leaves any existing price untouched.
-      if (priced) {
-        await tx.variant.update({ where: { id: variant.id }, data: { purchasePrice } });
-      }
+        // An admin's explicit price becomes the variant's single purchase price
+        // (rule 3.3 #1); a draft or "no price" leaves any existing price untouched.
+        if (priced) {
+          await tx.variant.update({ where: { id: variant.id }, data: { purchasePrice } });
+        }
 
-      // createManyAndReturn keeps a batch at two statements instead of 2N while
-      // still handing back the ids the INTAKE operations have to reference.
-      const pairs = await tx.pair.createManyAndReturn({
-        data: sizes.map((size) => ({
+        // createManyAndReturn keeps a batch at two statements instead of 2N while
+        // still handing back the ids the INTAKE operations have to reference.
+        const pairs = await tx.pair.createManyAndReturn({
+          data: sizes.map((size) => ({
+            variantId: variant.id,
+            size,
+            status: 'IN_STOCK' as const,
+            awaitingPrice,
+            createdById: user.id,
+          })),
+          select: { id: true, size: true, status: true, awaitingPrice: true },
+        });
+
+        await tx.operation.createMany({
+          data: pairs.map((pair) => ({
+            type: 'INTAKE' as const,
+            pairId: pair.id,
+            userId: user.id,
+            purchasePriceAtTime: purchasePrice,
+          })),
+        });
+
+        const first = pairs[0]!;
+        return {
           variantId: variant.id,
-          size,
-          status: 'IN_STOCK' as const,
-          awaitingPrice,
-          createdById: user.id,
-        })),
-        select: { id: true, size: true, status: true, awaitingPrice: true },
-      });
-
-      await tx.operation.createMany({
-        data: pairs.map((pair) => ({
-          type: 'INTAKE' as const,
-          pairId: pair.id,
-          userId: user.id,
-          purchasePriceAtTime: purchasePrice,
-        })),
-      });
-
-      const first = pairs[0]!;
-      return {
-        variantId: variant.id,
-        pairs: pairs.map((pair) => ({ pairId: pair.id, size: pair.size })),
-        // Per-batch by construction: same author, same transaction, same role.
-        status: first.status,
-        awaitingPrice: first.awaitingPrice,
-      };
-    });
+          pairs: pairs.map((pair) => ({ pairId: pair.id, size: pair.size })),
+          // Per-batch by construction: same author, same transaction, same role.
+          status: first.status,
+          awaitingPrice: first.awaitingPrice,
+        };
+      }),
+    );
 
     // A seller's draft moves the queue and its badge; a priced admin intake
-    // only moves stock — the dashboard reacts to both.
-    this.realtime.emit(result.awaitingPrice ? 'intake-draft' : 'intake-priced');
+    // only moves stock — the dashboard reacts to both. A replay moved nothing.
+    if (!replayed) {
+      this.realtime.emit(result.awaitingPrice ? 'intake-draft' : 'intake-priced');
+    }
     return result;
   }
 

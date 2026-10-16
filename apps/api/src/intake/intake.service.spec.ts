@@ -18,8 +18,12 @@ function makeTx() {
     // Batched on purpose: one delivery is 2 statements, not 2 per pair.
     pair: { createManyAndReturn: jest.fn() },
     operation: { createMany: jest.fn() },
+    idempotencyKey: { createMany: jest.fn(), findUniqueOrThrow: jest.fn(), update: jest.fn() },
   };
 }
+
+/** A key whose first request has already committed — every call below is its repeat. */
+const SPENT_KEY = '5f0c7c1e-3c1b-4f5e-9d7a-2b8e6f4a1c3d';
 
 interface PairRow {
   size: number;
@@ -209,6 +213,31 @@ describe('IntakeService', () => {
     expect(tx.$executeRaw.mock.invocationCallOrder[0]!).toBeLessThan(
       tx.variant.findFirst.mock.invocationCallOrder[0]!,
     );
+  });
+
+  // Re-POSTing the same body used to take the delivery in twice (10 pairs → 20).
+  it('повтор з тим самим ключем: та сама партія у відповіді, нових пар немає', async () => {
+    const first = {
+      variantId: 'v1',
+      pairs: [{ pairId: 'p1', size: 38 }],
+      status: 'IN_STOCK',
+      awaitingPrice: true,
+    };
+    tx.idempotencyKey.createMany.mockResolvedValue({ count: 0 });
+    tx.idempotencyKey.findUniqueOrThrow.mockImplementation(() =>
+      Promise.resolve({
+        type: 'INTAKE',
+        requestHash: tx.idempotencyKey.createMany.mock.calls[0][0].data[0].requestHash,
+        response: first,
+      }),
+    );
+
+    const res = await service.create(input, { id: 'u1', role: 'SELLER' }, SPENT_KEY);
+
+    expect(res).toEqual(first);
+    expect(tx.pair.createManyAndReturn).not.toHaveBeenCalled();
+    expect(tx.operation.createMany).not.toHaveBeenCalled();
+    expect(realtime.emit).not.toHaveBeenCalled();
   });
 
   // «Без утеплення» is a value, so an omitted insulation must resolve to the

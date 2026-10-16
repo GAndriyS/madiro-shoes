@@ -1,6 +1,7 @@
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import type { CheckoutResult, PairLookupInput, ReturnLookupResponse } from '@madiro/shared';
 
+import { idempotent } from '../common/idempotency';
 import { storeDayStart } from '../lib/time';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
@@ -118,58 +119,71 @@ export class ReturnsService {
    * `userId` is whoever is at the counter; the money comes off the seller who
    * made the sale (`attributedToId`). Whoever happens to serve the customer
    * must not have their own day go negative for a colleague's sale.
+   *
+   * A repeated `idempotencyKey` answers with the first return rather than the
+   * 409 — the same reasoning as a sale: told «already returned», the seller
+   * rescans and reverses the next identical sale.
    */
-  async register(operationId: string, userId: string): Promise<CheckoutResult> {
-    const result = await this.prisma.$transaction(async (tx) => {
-      const sale = await tx.operation.findFirst({
-        where: { id: operationId, type: 'SALE', cancelledAt: null },
-        include: { pair: { select: { id: true } } },
-      });
-      if (!sale || sale.salePrice == null) {
-        throw new NotFoundException('Продаж не знайдено');
-      }
+  async register(
+    operationId: string,
+    userId: string,
+    idempotencyKey: string | null = null,
+  ): Promise<CheckoutResult> {
+    const request = { userId, key: idempotencyKey, type: 'RETURN' as const, body: { operationId } };
+    const { result, replayed } = await this.prisma.$transaction((tx) =>
+      idempotent(tx, request, async () => {
+        const sale = await tx.operation.findFirst({
+          where: { id: operationId, type: 'SALE', cancelledAt: null },
+          include: { pair: { select: { id: true } } },
+        });
+        if (!sale || sale.salePrice == null) {
+          throw new NotFoundException('Продаж не знайдено');
+        }
 
-      const locked = await tx.$queryRaw<{ id: string; status: string }[]>`
+        const locked = await tx.$queryRaw<{ id: string; status: string }[]>`
         SELECT id, status FROM pairs WHERE id = ${sale.pair.id} FOR UPDATE`;
-      const row = locked[0];
-      if (!row) {
-        throw new NotFoundException('Пару не знайдено');
-      }
-      if (row.status !== 'SOLD') {
-        throw new ConflictException('Пара вже на складі або списана');
-      }
+        const row = locked[0];
+        if (!row) {
+          throw new NotFoundException('Пару не знайдено');
+        }
+        if (row.status !== 'SOLD') {
+          throw new ConflictException('Пара вже на складі або списана');
+        }
 
-      const pair = await tx.pair.update({
-        where: { id: sale.pair.id },
-        data: { status: 'IN_STOCK' },
-        include: { variant: { select: { style: true, color: true } } },
-      });
+        const pair = await tx.pair.update({
+          where: { id: sale.pair.id },
+          data: { status: 'IN_STOCK' },
+          include: { variant: { select: { style: true, color: true } } },
+        });
 
-      await tx.operation.create({
-        data: {
-          type: 'RETURN',
+        await tx.operation.create({
+          data: {
+            type: 'RETURN',
+            pairId: pair.id,
+            userId,
+            attributedToId: sale.userId,
+            salePrice: sale.salePrice,
+            paymentMethod: sale.paymentMethod,
+            // Mirror the sale's frozen margin basis so the reversal is symmetric.
+            purchasePriceAtTime: sale.purchasePriceAtTime,
+          },
+        });
+
+        return {
           pairId: pair.id,
-          userId,
-          attributedToId: sale.userId,
-          salePrice: sale.salePrice,
+          style: pair.variant.style,
+          color: pair.variant.color,
+          size: pair.size,
+          status: pair.status,
+          salePrice: Number(sale.salePrice),
           paymentMethod: sale.paymentMethod,
-          // Mirror the sale's frozen margin basis so the reversal is symmetric.
-          purchasePriceAtTime: sale.purchasePriceAtTime,
-        },
-      });
+        };
+      }),
+    );
 
-      return {
-        pairId: pair.id,
-        style: pair.variant.style,
-        color: pair.variant.color,
-        size: pair.size,
-        status: pair.status,
-        salePrice: Number(sale.salePrice),
-        paymentMethod: sale.paymentMethod,
-      };
-    });
-
-    this.realtime.emit('return');
+    if (!replayed) {
+      this.realtime.emit('return');
+    }
     return result;
   }
 }

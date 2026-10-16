@@ -13,6 +13,7 @@ import {
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { IdempotencyKey } from '../common/idempotency';
 import { IntakeService } from './intake.service';
 import { validationError } from '../common/validation-error';
 
@@ -22,12 +23,16 @@ export class IntakeController {
   constructor(private readonly intake: IntakeService) {}
 
   @Post()
-  create(@Body() body: unknown, @CurrentUser() user: AuthUser): Promise<IntakeResult> {
+  create(
+    @Body() body: unknown,
+    @CurrentUser() user: AuthUser,
+    @IdempotencyKey() idempotencyKey: string | null,
+  ): Promise<IntakeResult> {
     const parsed = intakeSchema.safeParse(body);
     if (!parsed.success) {
       throw validationError(parsed.error);
     }
-    return this.intake.create(parsed.data, user);
+    return this.intake.create(parsed.data, user, idempotencyKey);
   }
 
   /**

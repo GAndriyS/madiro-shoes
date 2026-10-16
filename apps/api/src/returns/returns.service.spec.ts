@@ -10,8 +10,12 @@ function makeTx() {
     $queryRaw: jest.fn(),
     operation: { findFirst: jest.fn(), create: jest.fn() },
     pair: { update: jest.fn() },
+    idempotencyKey: { createMany: jest.fn(), findUniqueOrThrow: jest.fn(), update: jest.fn() },
   };
 }
+
+/** A key whose first request has already committed — every call below is its repeat. */
+const SPENT_KEY = '5f0c7c1e-3c1b-4f5e-9d7a-2b8e6f4a1c3d';
 
 describe('ReturnsService', () => {
   /** Realtime is fire-and-forget: assert it fires, never let it fail a write. */
@@ -180,6 +184,25 @@ describe('ReturnsService', () => {
     await expect(service.register('op1', 'seller-1')).rejects.toBeInstanceOf(ConflictException);
     expect(tx.pair.update).not.toHaveBeenCalled();
     // A rejected return announces nothing.
+    expect(realtime.emit).not.toHaveBeenCalled();
+  });
+
+  // A repeat of a return that went through: the first result again, not the
+  // 409 «already returned» that would send the seller after the next sale.
+  it('повтор з тим самим ключем: перше повернення назад, нічого не пишеться', async () => {
+    const first = { pairId: 'p1', style: '7645', color: '36', size: 38, status: 'IN_STOCK' };
+    tx.idempotencyKey.createMany.mockResolvedValue({ count: 0 });
+    tx.idempotencyKey.findUniqueOrThrow.mockImplementation(() =>
+      Promise.resolve({
+        type: 'RETURN',
+        requestHash: tx.idempotencyKey.createMany.mock.calls[0][0].data[0].requestHash,
+        response: first,
+      }),
+    );
+
+    await expect(service.register('op1', 'seller-1', SPENT_KEY)).resolves.toEqual(first);
+    expect(tx.operation.findFirst).not.toHaveBeenCalled();
+    expect(tx.operation.create).not.toHaveBeenCalled();
     expect(realtime.emit).not.toHaveBeenCalled();
   });
 

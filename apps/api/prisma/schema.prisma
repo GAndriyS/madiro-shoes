@@ -63,9 +63,10 @@ model User {
   lastActiveAt DateTime?
   deletedAt    DateTime?
 
-  pairsCreated        Pair[]      @relation("PairCreatedBy")
+  pairsCreated        Pair[]           @relation("PairCreatedBy")
   operations          Operation[]
-  operationsAffecting Operation[] @relation("OperationAttributedTo")
+  operationsAffecting Operation[]      @relation("OperationAttributedTo")
+  idempotencyKeys     IdempotencyKey[]
 
   @@map("users")
 }
@@ -146,6 +147,32 @@ model Operation {
   @@index([userId, createdAt])
   @@index([attributedToId, createdAt])
   @@map("operations")
+}
+
+// One row per attempt at a request that moves stock or money (spec §5.2). The
+// scanner names each attempt with an Idempotency-Key and resends it on a retry;
+// the first request claims the key inside its own transaction, and a repeat is
+// answered from `response` instead of selling a second pair. A table rather
+// than a column on operations: one intake writes many operations, and a replay
+// has to hand back the original response, not just know that one existed.
+model IdempotencyKey {
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key         String
+  /// The endpoint the key was spent on, named by the operation it creates — the
+  /// same key on another endpoint is a different request, not a repeat.
+  type        OperationType
+  /// sha256 of the validated request body: a repeat must be the same request.
+  requestHash String
+  /// What the first request answered. Null only inside the transaction that
+  /// claimed the key, so a committed row always carries it.
+  response    Json?
+  createdAt   DateTime      @default(now())
+
+  // The primary key is what makes a repeat impossible to write twice: a
+  // concurrent second claim waits on the first and then finds it taken.
+  @@id([userId, key])
+  @@map("idempotency_keys")
 }
 
 // Last known FX rate, one row per currency. Purchase prices are entered in USD

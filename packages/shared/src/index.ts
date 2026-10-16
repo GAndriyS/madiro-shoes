@@ -11,3 +11,4 @@ export * from './schemas/intake.js';
 export * from './schemas/me.js';
 export * from './schemas/realtime.js';
 export * from './schemas/exchange.js';
+export * from './schemas/idempotency.js';
