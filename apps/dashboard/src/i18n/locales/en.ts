@@ -15,6 +15,11 @@ export const en: Messages = {
     errorBody: 'Check your connection and try again.',
     retry: 'Try again',
     actionError: 'The action failed. Please try again.',
+    updateTitle: 'The app has been updated',
+    updateBody: 'A new version came out while this screen was open. Reload the page to continue.',
+    crashTitle: 'Something went wrong',
+    crashBody: 'An unexpected error occurred. Reload the page.',
+    reload: 'Reload',
   },
   login: {
     subtitle: 'Admin panel',
