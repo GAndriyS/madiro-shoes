@@ -32,5 +32,13 @@ export default tseslint.config(
       globals: { Buffer: 'readonly', console: 'readonly', process: 'readonly' },
     },
   },
+  {
+    // The boot guard is a classic browser script served as-is from public/
+    files: ['apps/*/public/boot-guard.js'],
+    languageOptions: {
+      sourceType: 'script',
+      globals: { addEventListener: 'readonly', document: 'readonly' },
+    },
+  },
   prettier,
 );

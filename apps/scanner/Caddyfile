@@ -20,14 +20,53 @@
 	# `handle` (not `handle_path`) — the API's global prefix IS /api, so the
 	# path must reach it intact. Keeping this block separate from the static
 	# one also means an unknown /api route returns the API's own 404 instead
-	# of the SPA shell.
+	# of the SPA shell. The API sets its own security headers (helmet); the
+	# ones below would only duplicate them.
 	handle /api/* {
 		reverse_proxy {$API_UPSTREAM}
 	}
 
 	handle {
 		root * /srv
-		try_files {path} /index.html
-		file_server
+
+		# Railway terminates TLS in front of this container, so HSTS is the
+		# only thing keeping a typed-in http:// off the network in clear. No
+		# includeSubDomains: the parent domain is Railway's, not ours.
+		#
+		# The CSP allows exactly what the bundle uses: its own scripts (no
+		# inline ones — the boot guard is a file for that reason), Google
+		# Fonts (the stylesheet, the font files, and the service worker
+		# fetching both into its cache), photos shown from blob: URLs, and
+		# inline styles, which React UI libraries inject at runtime.
+		header {
+			Strict-Transport-Security "max-age=31536000"
+			Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; media-src 'self' blob:; connect-src 'self' https://fonts.googleapis.com https://fonts.gstatic.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+			X-Content-Type-Options "nosniff"
+			Referrer-Policy "strict-origin-when-cross-origin"
+			# The camera is the scanner's whole job; nothing else is wanted.
+			Permissions-Policy "camera=(self), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), serial=(), hid=()"
+		}
+
+		# Vite names everything here by content hash, so a file never changes
+		# under its name and may be cached for good. A name that is not here
+		# belongs to another build: answer 404, never the SPA shell — HTML
+		# served as a script is a confusing MIME error, a 404 is a clean
+		# chunk-load failure the app knows how to recover from.
+		handle /assets/* {
+			@exists file
+			header @exists Cache-Control "public, max-age=31536000, immutable"
+			file_server
+		}
+
+		# Everything else keeps its name across deploys (index.html, sw.js,
+		# registerSW.js, the manifest, icons): revalidate on every use, or a
+		# browser holds on to an index.html that points at deleted chunks.
+		# Unknown paths fall back to index.html (SPA routing); the PWA lives at
+		# the domain root, matching its manifest start_url.
+		handle {
+			header Cache-Control "no-cache"
+			try_files {path} /index.html
+			file_server
+		}
 	}
 }
