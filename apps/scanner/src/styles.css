@@ -3,3 +3,10 @@
 
 /* Make Tailwind see utility classes used inside the shared package */
 @source '../../../packages/web-core/src';
+
+/* The root shell pads the iOS status bar off with env(safe-area-inset-top),
+   and that strip shows the body. Dark camera screens tint it to match, so the
+   status bar does not sit on a light band above them. */
+body:has([data-backdrop='dark']) {
+  background-color: #1b1712;
+}

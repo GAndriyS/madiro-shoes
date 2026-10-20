@@ -5,11 +5,11 @@ import {
   type ReturnLookupResponse,
   type Season,
 } from '@madiro/shared';
-import { AlertIcon, ChevronRightIcon, cn, money, timeOf } from '@madiro/web-core';
+import { AlertIcon, ChevronRightIcon, money, timeOf } from '@madiro/web-core';
 import { useTranslation } from 'react-i18next';
 
 import type { ComboChoice } from '../sale/SaleConfirm';
-import { FieldCard } from '../scan/fields';
+import { ComboPill, FieldCard } from '../scan/fields';
 import { OutcomeUnknown } from '../scan/OutcomeUnknown';
 
 interface ReturnConfirmProps {
@@ -68,14 +68,6 @@ export function ReturnConfirm({
     NONE: t('intake.seasonNone'),
     BAIKA: t('intake.seasonBaika'),
     SHEEPSKIN: t('intake.seasonSheepskin'),
-  };
-
-  const comboLabel = (combo: ReturnCombo) => {
-    const parts = [
-      combo.material ? materialLabels[combo.material] : null,
-      combo.season ? seasonLabels[combo.season] : null,
-    ].filter((p): p is string => p != null);
-    return parts.length > 0 ? parts.join(' · ') : t('sale.comboNone');
   };
 
   const sale = lookup?.sale ?? null;
@@ -161,22 +153,15 @@ export function ReturnConfirm({
             {combos.map((combo) => {
               const active = effectiveCombo != null && sameCombo(effectiveCombo, combo);
               return (
-                <button
-                  key={`${combo.material ?? '-'}·${combo.season ?? '-'}`}
-                  type="button"
-                  aria-pressed={active}
+                <ComboPill
+                  key={`${combo.material ?? '-'}·${combo.season}`}
+                  material={combo.material}
+                  season={combo.season}
+                  active={active}
                   onClick={() =>
                     onComboSelect?.({ material: combo.material, season: combo.season })
                   }
-                  className={cn(
-                    'rounded-[20px] border-[1.5px] px-3.5 py-2 text-[13px]',
-                    active
-                      ? 'border-ink bg-ink font-semibold text-page'
-                      : 'border-border-input text-text-secondary',
-                  )}
-                >
-                  {comboLabel(combo)}
-                </button>
+                />
               );
             })}
           </div>

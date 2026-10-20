@@ -11,7 +11,7 @@ export function RecognitionError({ onRetry, onManual }: RecognitionErrorProps) {
   const { t } = useTranslation();
 
   return (
-    <div className="relative flex flex-1 flex-col bg-[#1b1712]">
+    <div data-backdrop="dark" className="relative flex flex-1 flex-col bg-[#1b1712]">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_45%,#3a2f1e_0%,#201a12_70%)]" />
       <div className="relative mt-auto flex flex-col gap-3.5 rounded-t-3xl bg-page px-5 pt-[22px] pb-9">
         <div className="flex items-center gap-2.5">

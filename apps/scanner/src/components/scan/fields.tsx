@@ -1,4 +1,6 @@
+import type { Material, Season } from '@madiro/shared';
 import { cn } from '@madiro/web-core';
+import { useTranslation } from 'react-i18next';
 
 /** Editable numeric tag field (SIZE / COLOR / STYLE) — shared by intake & sale. */
 interface FieldCardProps {
@@ -73,5 +75,53 @@ export function PillGroup<T extends string>({
         })}
       </div>
     </div>
+  );
+}
+
+/**
+ * One in-stock material/season combination under the scanned tag — shared by
+ * sale & return. Each value carries its own name: a bare «Без» left sellers
+ * guessing what was missing.
+ */
+interface ComboPillProps {
+  material: Material | null;
+  season: Season;
+  active: boolean;
+  onClick: () => void;
+  testId?: string;
+}
+
+export function ComboPill({ material, season, active, onClick, testId }: ComboPillProps) {
+  const { t } = useTranslation();
+
+  const materialLabels: Record<Material, string> = {
+    LEATHER: t('intake.materialLeather'),
+    SUEDE: t('intake.materialSuede'),
+  };
+  const seasonLabels: Record<Season, string> = {
+    NONE: t('intake.seasonNone'),
+    BAIKA: t('intake.seasonBaika'),
+    SHEEPSKIN: t('intake.seasonSheepskin'),
+  };
+  const name = (key: string) => <span className="font-normal opacity-70">{t(key)}:</span>;
+
+  return (
+    <button
+      data-testid={testId}
+      type="button"
+      aria-pressed={active}
+      onClick={onClick}
+      className={cn(
+        'rounded-[20px] border-[1.5px] px-3.5 py-2 text-[13px]',
+        active
+          ? 'border-ink bg-ink font-semibold text-page'
+          : 'border-border-input text-text-secondary',
+      )}
+    >
+      {name('sale.comboMaterial')}{' '}
+      {material ? materialLabels[material].toLowerCase() : t('sale.comboMaterialUnknown')}
+      {' · '}
+      {name('sale.comboSeason')} {seasonLabels[season].toLowerCase()}
+    </button>
   );
 }

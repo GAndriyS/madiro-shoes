@@ -2,7 +2,7 @@ import type { Material, SaleCombo, SaleLookupResponse, Season } from '@madiro/sh
 import { AlertIcon, BoxIcon, CheckIcon, ChevronRightIcon, cn } from '@madiro/web-core';
 import { useTranslation } from 'react-i18next';
 
-import { FieldCard } from '../scan/fields';
+import { ComboPill, FieldCard } from '../scan/fields';
 
 export interface ComboChoice {
   /** null = the combination with no material specified — a real thing to pick. */
@@ -63,23 +63,6 @@ export function SaleConfirm({
   onBack,
 }: SaleConfirmProps) {
   const { t } = useTranslation();
-
-  const materialLabels: Record<Material, string> = {
-    LEATHER: t('intake.materialLeather'),
-    SUEDE: t('intake.materialSuede'),
-  };
-  const seasonLabels: Record<Season, string> = {
-    NONE: t('intake.seasonNone'),
-    BAIKA: t('intake.seasonBaika'),
-    SHEEPSKIN: t('intake.seasonSheepskin'),
-  };
-  const comboLabel = (combo: SaleCombo) => {
-    const parts = [
-      combo.material ? materialLabels[combo.material] : null,
-      combo.season ? seasonLabels[combo.season] : null,
-    ].filter((p): p is string => p != null);
-    return parts.length > 0 ? parts.join(' · ') : t('sale.comboNone');
-  };
 
   const combos = lookup?.combos ?? [];
   // A single combination needs no explicit choice (the server auto-resolves it).
@@ -162,21 +145,14 @@ export function SaleConfirm({
             {combos.map((combo) => {
               const active = effectiveCombo != null && sameCombo(effectiveCombo, combo);
               return (
-                <button
-                  key={`${combo.material ?? '-'}·${combo.season ?? '-'}`}
-                  data-testid={`combo-${combo.material ?? 'ANY'}-${combo.season ?? 'ANY'}`}
-                  type="button"
-                  aria-pressed={active}
+                <ComboPill
+                  key={`${combo.material ?? '-'}·${combo.season}`}
+                  testId={`combo-${combo.material ?? 'ANY'}-${combo.season}`}
+                  material={combo.material}
+                  season={combo.season}
+                  active={active}
                   onClick={() => onComboSelect({ material: combo.material, season: combo.season })}
-                  className={cn(
-                    'rounded-[20px] border-[1.5px] px-3.5 py-2 text-[13px]',
-                    active
-                      ? 'border-ink bg-ink font-semibold text-page'
-                      : 'border-border-input text-text-secondary',
-                  )}
-                >
-                  {comboLabel(combo)}
-                </button>
+                />
               );
             })}
           </div>
