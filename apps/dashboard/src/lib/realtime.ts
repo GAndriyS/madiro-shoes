@@ -26,6 +26,7 @@ export function queryKeysFor(topic: RealtimeTopic): string[][] {
     case 'return':
     case 'writeoff':
     case 'operation-cancelled':
+    case 'pair-deleted':
       // Feed, KPIs, revenue chart and stock counts.
       return [['stats'], ['stock'], ['intake']];
   }

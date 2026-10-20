@@ -2,7 +2,7 @@ import type { VariantDetail, VariantPair } from '@madiro/shared';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { Trans, useTranslation } from 'react-i18next';
 
-import { api } from '@madiro/web-core';
+import { ApiError, api } from '@madiro/web-core';
 import { TrashIcon } from '@madiro/web-core';
 import {
   Dialog,
@@ -71,7 +71,16 @@ export function DeletePairModal({ target, onClose }: Props) {
               ` · ${t('stock.colPurchase').toLowerCase()} ${pricedPurchaseLabel(t, variant.purchasePrice)}`}
           </span>
         </div>
-        {mutation.isError && <p className="text-[13px] text-danger">{t('common.actionError')}</p>}
+        {mutation.isError && (
+          <p data-testid="delete-pair-error" className="text-[13px] text-danger">
+            {/* 409: the pair has a sale, return or write-off behind it — those
+                are the shop's books, so the server refuses and the way out is
+                a write-off. */}
+            {mutation.error instanceof ApiError && mutation.error.status === 409
+              ? t('stock.deleteConflict')
+              : t('common.actionError')}
+          </p>
+        )}
         <div className="flex gap-2.5">
           <button
             data-testid="delete-pair-confirm"

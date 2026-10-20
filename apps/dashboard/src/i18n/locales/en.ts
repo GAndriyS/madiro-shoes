@@ -55,6 +55,7 @@ export const en: Messages = {
     kpiMargin: 'MARGIN',
     kpiMarginShort: 'MARGIN',
     kpiMarginPct: '{{pct}}% of revenue',
+    kpiMarginWithoutBasis: 'without a purchase price: {{pairs}} · {{revenue}}',
     kpiAwaiting: 'AWAITING PRICE',
     kpiAwaitingShort: 'AWAITING',
     pairs_one: '{{count}} pair',
@@ -146,6 +147,8 @@ export const en: Messages = {
       'The pair disappears from stock and records — use this for pairs added by mistake. The variant sales history stays intact.',
     deleteIrreversible: 'This action cannot be undone.',
     deleteConfirm: 'Delete pair',
+    deleteConflict:
+      'This pair has already been sold, returned or written off — deleting it would erase that history from the books. If the pair is physically gone, write it off in the scanner.',
     cancelOperation: 'Cancel the operation',
     cancelSaleTitle: 'Cancel this sale?',
     cancelSaleBody:

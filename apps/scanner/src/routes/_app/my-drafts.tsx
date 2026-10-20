@@ -17,6 +17,7 @@ import {
   PencilIcon,
   QueryBoundary,
   TrashIcon,
+  ApiError,
   api,
   cn,
   dayLabel,
@@ -56,9 +57,21 @@ function MyDraftsPage() {
     void queryClient.invalidateQueries({ queryKey: ['me', 'drafts'] });
     void queryClient.invalidateQueries({ queryKey: ['me', 'summary'] });
   };
-  const fail = () => {
-    setToast(t('myDrafts.error'));
-    setTimeout(() => setToast(null), 3000);
+  const showToast = (message: string, ms: number) => {
+    setToast(message);
+    setTimeout(() => setToast(null), ms);
+  };
+  const fail = (err: Error) => {
+    // 409: the draft was sold (and returned) or written off since its intake.
+    // Its history is part of the books, so the server refuses to move or
+    // delete it — the sheet closes and the seller is told what to do instead.
+    if (err instanceof ApiError && err.status === 409) {
+      setEditing(null);
+      setDeleting(null);
+      showToast(t('myDrafts.historyConflict'), 6000);
+      return;
+    }
+    showToast(t('myDrafts.error'), 3000);
   };
 
   const update = useMutation({
@@ -93,7 +106,7 @@ function MyDraftsPage() {
   return (
     <div className="flex flex-1 flex-col gap-4 px-5 pt-4 pb-7">
       {toast && (
-        <div className="fixed inset-x-0 top-4 z-30 mx-auto w-fit rounded-full bg-ink px-4 py-2 text-[13px] font-semibold text-page shadow-modal">
+        <div className="fixed inset-x-0 top-4 z-30 mx-auto w-fit max-w-[90%] rounded-[18px] bg-ink px-4 py-2 text-center text-[13px] font-semibold text-page shadow-modal">
           {toast}
         </div>
       )}

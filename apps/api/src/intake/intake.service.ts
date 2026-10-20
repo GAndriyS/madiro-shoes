@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma, type Material, type Season, type Variant } from '@prisma/client';
 import type {
   DraftUpdateInput,
@@ -14,6 +14,7 @@ import type {
 import { usdToUah } from '@madiro/shared';
 
 import { ExchangeService } from '../exchange/exchange.service';
+import { hasMovements, lockPair } from '../lib/pair-history';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 
@@ -196,7 +197,9 @@ export class IntakeService {
   /**
    * Edit an own draft still awaiting price (FR-S-13): the five identity fields
    * only. Changing variant fields moves the pair via find-or-create; a variant
-   * left without pairs stays around for future reuse.
+   * left without pairs stays around for future reuse. A draft that was already
+   * sold (and returned) is not editable — moving it would move its sales to
+   * another variant too.
    */
   async updateDraft(pairId: string, input: DraftUpdateInput, userId: string): Promise<MyDraft> {
     const draft = await this.prisma.$transaction(async (tx) => {
@@ -226,13 +229,17 @@ export class IntakeService {
   }
 
   /**
-   * Delete an own draft awaiting price (FR-S-13). Operations reference the pair
-   * with FK RESTRICT, so the INTAKE operation goes first, in one transaction.
+   * Delete an own draft awaiting price (FR-S-13) — one that never moved since
+   * its intake. Operations reference the pair with FK RESTRICT, so the INTAKE
+   * operation goes first, in one transaction.
    */
   async deleteDraft(pairId: string, userId: string): Promise<{ pairId: string }> {
     const deleted = await this.prisma.$transaction(async (tx) => {
       await this.findOwnDraft(tx, pairId, userId);
-      await tx.operation.deleteMany({ where: { pairId } });
+      // Scoped to the INTAKE: findOwnDraft has just ruled anything else out,
+      // and if it were there the pair delete would fail on the foreign key
+      // rather than silently take a sale along.
+      await tx.operation.deleteMany({ where: { pairId, type: 'INTAKE' } });
       await tx.pair.delete({ where: { id: pairId } });
       return { pairId };
     });
@@ -375,18 +382,28 @@ export class IntakeService {
     };
   }
 
-  /** A draft is editable only while it is the caller's own and still awaits a price. */
+  /**
+   * A draft is editable only while it is the caller's own, still awaits a
+   * price and has no history beyond its intake. The pair's row lock comes
+   * first, so a sale cannot slip in between this check and the edit.
+   */
   private async findOwnDraft(
     tx: Prisma.TransactionClient,
     pairId: string,
     userId: string,
   ): Promise<void> {
+    await lockPair(tx, pairId);
     const draft = await tx.pair.findFirst({
       where: { id: pairId, createdById: userId, awaitingPrice: true, status: 'IN_STOCK' },
       select: { id: true },
     });
     if (!draft) {
       throw new NotFoundException('Чернетку не знайдено');
+    }
+    if (await hasMovements(tx, pairId)) {
+      throw new ConflictException(
+        'Цю пару вже продавали чи списували — змінити чи видалити її не можна, щоб не зламати облік. Якщо пари фізично немає, оформіть списання.',
+      );
     }
   }
 }

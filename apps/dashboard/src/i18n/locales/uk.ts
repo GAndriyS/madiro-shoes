@@ -55,6 +55,7 @@ export const uk = {
     kpiMargin: 'МАРЖА ДНЯ',
     kpiMarginShort: 'МАРЖА',
     kpiMarginPct: '{{pct}}% від виручки',
+    kpiMarginWithoutBasis: 'без ціни закупки: {{pairs}} · {{revenue}}',
     kpiAwaiting: 'ОЧІКУЮТЬ ЦІНИ',
     kpiAwaitingShort: 'ОЧІК. ЦІНИ',
     pairs_one: '{{count}} пара',
@@ -156,6 +157,8 @@ export const uk = {
       'Пара зникне зі складу та з обліку — використовуйте для помилково заведених пар. Історія продажів варіанта не зміниться.',
     deleteIrreversible: 'Дію не можна скасувати.',
     deleteConfirm: 'Видалити пару',
+    deleteConflict:
+      'Цю пару вже продавали, повертали чи списували — видалення стерло б її історію з обліку. Якщо пари фізично немає, оформіть списання в сканері.',
     cancelOperation: 'Скасувати операцію',
     cancelSaleTitle: 'Скасувати продаж?',
     cancelSaleBody:
