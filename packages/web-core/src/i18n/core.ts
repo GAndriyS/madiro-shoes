@@ -18,7 +18,7 @@ export function setLanguage(lang: AppLanguage): void {
 /**
  * Initializes i18next with app-provided resources. Each app supplies its own
  * locale files, but they MUST include the `common.*` keys consumed by shared
- * web-core components (QueryState).
+ * web-core components (QueryState, RouteErrorFallback).
  */
 export function initI18n(resources: Resource): void {
   void i18next.use(initReactI18next).init({

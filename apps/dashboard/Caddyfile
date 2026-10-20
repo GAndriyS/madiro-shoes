@@ -1,6 +1,7 @@
 # Static SPA plus a same-origin /api proxy — see apps/scanner/Caddyfile for why
 # the proxy exists (third-party refresh cookie died in WebKit; same origin fixes
-# it). The dashboard additionally needs the realtime socket proxied.
+# it) and for the reasoning behind the headers and cache rules below. The
+# dashboard additionally needs the realtime socket proxied.
 #
 # API_UPSTREAM points at the API over Railway's private network, e.g.
 # http://${{api.RAILWAY_PRIVATE_DOMAIN}}:${{api.PORT}}
@@ -12,7 +13,8 @@
 :{$PORT:8080} {
 	encode zstd gzip
 
-	# `handle` (not `handle_path`) — the API's global prefix IS /api.
+	# `handle` (not `handle_path`) — the API's global prefix IS /api. The API
+	# sets its own security headers.
 	handle /api/* {
 		reverse_proxy {$API_UPSTREAM}
 	}
@@ -26,7 +28,32 @@
 
 	handle {
 		root * /srv
-		try_files {path} /index.html
-		file_server
+
+		# As the scanner, plus the realtime socket: 'self' covers wss: to the
+		# same host in current browsers, and wss://{hostport} spells it out for
+		# the older WebKit that did not. No camera here.
+		header {
+			Strict-Transport-Security "max-age=31536000"
+			Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' wss://{hostport}; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+			X-Content-Type-Options "nosniff"
+			Referrer-Policy "strict-origin-when-cross-origin"
+			Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), serial=(), hid=()"
+		}
+
+		# Content-hashed build output: cache for good; a missing file is a 404,
+		# never the SPA shell.
+		handle /assets/* {
+			@exists file
+			header @exists Cache-Control "public, max-age=31536000, immutable"
+			file_server
+		}
+
+		# Stable names (index.html, icons): revalidate on every use. Unknown
+		# paths fall back to index.html (SPA routing).
+		handle {
+			header Cache-Control "no-cache"
+			try_files {path} /index.html
+			file_server
+		}
 	}
 }

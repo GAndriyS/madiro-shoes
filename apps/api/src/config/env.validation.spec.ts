@@ -1,4 +1,7 @@
-import { validateEnv } from './env.validation';
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
+import { JWT_SECRET_PLACEHOLDER, validateEnv } from './env.validation';
 
 const required = {
   DATABASE_URL: 'postgresql://madiro:madiro@localhost:5432/madiro?schema=public',
@@ -96,6 +99,57 @@ describe('validateEnv', () => {
       expect(() => validateEnv({ ...required, APP_ENV: appEnv })).toThrow(
         new RegExp(`APP_ENV=${appEnv} потребує NODE_ENV=production`),
       );
+    });
+
+    describe('JWT-секрети у розгорнутому середовищі', () => {
+      const deployed = { ...required, NODE_ENV: 'production' };
+
+      // The constant is only as good as its match with what people copy.
+      it('заглушка в коді збігається з тією, що в .env.example', () => {
+        const example = readFileSync(join(__dirname, '../../../../.env.example'), 'utf8');
+
+        for (const name of ['JWT_ACCESS_SECRET', 'JWT_REFRESH_SECRET']) {
+          expect(example).toContain(`${name}="${JWT_SECRET_PLACEHOLDER}"`);
+        }
+        // Long enough to pass min(32) — which is exactly why it needs its own rule.
+        expect(JWT_SECRET_PLACEHOLDER.length).toBeGreaterThanOrEqual(32);
+      });
+
+      it.each(['demo', 'production'])('%s відхиляє заглушку з .env.example', (appEnv) => {
+        expect(() =>
+          validateEnv({ ...deployed, APP_ENV: appEnv, JWT_ACCESS_SECRET: JWT_SECRET_PLACEHOLDER }),
+        ).toThrow(/JWT_ACCESS_SECRET — заглушка з .env.example/);
+        expect(() =>
+          validateEnv({ ...deployed, APP_ENV: appEnv, JWT_REFRESH_SECRET: JWT_SECRET_PLACEHOLDER }),
+        ).toThrow(/JWT_REFRESH_SECRET — заглушка з .env.example/);
+      });
+
+      it.each(['demo', 'production'])('%s відхиляє однакові access і refresh секрети', (appEnv) => {
+        expect(() =>
+          validateEnv({
+            ...deployed,
+            APP_ENV: appEnv,
+            JWT_ACCESS_SECRET: 'c'.repeat(64),
+            JWT_REFRESH_SECRET: 'c'.repeat(64),
+          }),
+        ).toThrow(/мають бути різними/);
+      });
+
+      it('приймає різні справжні секрети', () => {
+        expect(validateEnv({ ...deployed, APP_ENV: 'production' }).APP_ENV).toBe('production');
+      });
+
+      // A fresh checkout runs on the copied example until someone generates
+      // keys; that is fine on a laptop.
+      it('локально .env.example як є — дозволено', () => {
+        const env = validateEnv({
+          ...required,
+          JWT_ACCESS_SECRET: JWT_SECRET_PLACEHOLDER,
+          JWT_REFRESH_SECRET: JWT_SECRET_PLACEHOLDER,
+        });
+
+        expect(env.APP_ENV).toBe('development');
+      });
     });
 
     it('фіксований курс заборонено при APP_ENV=production', () => {
