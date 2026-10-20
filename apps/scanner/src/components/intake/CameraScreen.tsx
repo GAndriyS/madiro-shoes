@@ -45,7 +45,7 @@ export function CameraScreen({ title, processing, onCapture, onManual }: CameraS
   };
 
   return (
-    <div className="relative flex flex-1 flex-col bg-[#1b1712]">
+    <div data-backdrop="dark" className="relative flex flex-1 flex-col bg-[#1b1712]">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_50%_45%,#3a2f1e_0%,#201a12_70%)]" />
 
       <div className="relative flex items-center gap-2 px-5 pt-4 pb-3.5">

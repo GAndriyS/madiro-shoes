@@ -168,7 +168,7 @@ function HomePage() {
       {flash && (
         <div
           data-testid="toast-success"
-          className="fixed inset-x-5 bottom-6 z-30 mx-auto flex max-w-[390px] items-center gap-3 rounded-2xl bg-[#e2ecdc] px-4 py-3.5 shadow-modal"
+          className="fixed inset-x-5 bottom-[calc(env(safe-area-inset-bottom)+1.5rem)] z-30 mx-auto flex max-w-[390px] items-center gap-3 rounded-2xl bg-[#e2ecdc] px-4 py-3.5 shadow-modal"
         >
           <span className="flex h-8 w-8 flex-none items-center justify-center rounded-full bg-[#3c5c34] text-page">
             <CheckIcon size={16} />

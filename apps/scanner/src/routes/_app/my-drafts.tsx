@@ -106,7 +106,7 @@ function MyDraftsPage() {
   return (
     <div className="flex flex-1 flex-col gap-4 px-5 pt-4 pb-7">
       {toast && (
-        <div className="fixed inset-x-0 top-4 z-30 mx-auto w-fit max-w-[90%] rounded-[18px] bg-ink px-4 py-2 text-center text-[13px] font-semibold text-page shadow-modal">
+        <div className="fixed inset-x-0 top-[calc(env(safe-area-inset-top)+1rem)] z-30 mx-auto w-fit max-w-[90%] rounded-[18px] bg-ink px-4 py-2 text-center text-[13px] font-semibold text-page shadow-modal">
           {toast}
         </div>
       )}
