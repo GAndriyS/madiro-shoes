@@ -106,7 +106,7 @@ describe('ReturnConfirm', () => {
     expect(screen.queryByText('Продаж не знайдено')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /Повернути на склад/ })).not.toBeInTheDocument();
 
-    await userEvent.click(screen.getByRole('button', { name: 'Замша · Без' }));
+    await userEvent.click(screen.getByRole('button', { name: 'Матеріал: замша · Утеплення: без' }));
     expect(onComboSelect).toHaveBeenCalledWith({ material: 'SUEDE', season: 'NONE' });
   });
 

@@ -157,9 +157,30 @@ describe('SaleConfirm', () => {
 
   it('знайдено: комбінація і розміри показані, «Далі» активна', () => {
     renderConfirm(lookupFound);
-    expect(screen.getByRole('button', { name: 'Шкіра · Овчина' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Матеріал: шкіра · Утеплення: овчина' }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '37' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Далі — деталі виходу' })).toBeEnabled();
+  });
+
+  // A bare «Без» read as nothing in particular: every value names its field,
+  // and a pair stocked without a material says so instead of dropping it.
+  it('пігулки комбінацій підписують матеріал і утеплення, зокрема невказаний матеріал', () => {
+    renderConfirm({
+      ...lookupFound,
+      combos: [
+        { material: null, season: 'NONE', sizes: [36] },
+        { material: 'SUEDE', season: 'NONE', sizes: [38] },
+      ],
+      pair: null,
+    });
+    expect(
+      screen.getByRole('button', { name: 'Матеріал: не вказано · Утеплення: без' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Матеріал: замша · Утеплення: без' }),
+    ).toBeInTheDocument();
   });
 
   it('не знайдено: червона картка + схожі з кількістю пар', () => {
