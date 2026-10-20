@@ -73,8 +73,12 @@ a few taps with no typing.
    margin would never be computed. Operations with a basis already set are not
    touched.
 4. **"No price — old stock"** is a deliberate admin decision: price `0` (as
-   opposed to `null` = not entered yet). No margin is computed. Both paths — the
-   dashboard queue and intake in the scanner — write exactly `0`.
+   opposed to `null` = not entered yet). No margin is computed: a basis of `0`
+   counts exactly like a missing one, never as a 100% margin. Both paths — the
+   dashboard queue and intake in the scanner — write exactly `0`, and an admin's
+   intake **must** carry one or the other (a price or `0`): without it the API
+   answers 400, because a price-less admin intake would skip the "Awaiting
+   price" queue and its pairs would never get a basis.
 5. **Purchases are in dollars; the books are in hryvnia.** The shop buys in
    USD, so the purchase price is **entered in USD** (the intake form in the
    scanner and the price modal in the dashboard). The API converts it at the
@@ -105,10 +109,17 @@ a few taps with no typing.
    seller who helped a colleague would watch their own day go negative.
 8. **Signs**: a RETURN operation is stored with a **positive** price; every
    read (KPIs, lists, summaries) subtracts it. Margin is computed only over
-   operations with a basis.
+   operations with a basis above zero; sales without one (awaiting a price or
+   "no price") are reported on their own line instead (§4.1).
 9. **Shop time zone** is `Europe/Kyiv`: the "today / week / month" boundaries
    in statistics and the day counts are computed on the backend by the shop's
    clock, regardless of the server's zone.
+10. **The movement journal is append-only.** A pair that was ever sold,
+    returned or written off — a cancelled sale included — carries the shop's
+    books: it can be neither deleted nor moved to another variant (409, with a
+    hint to write it off instead). Only a pair whose single operation is its own
+    INTAKE can be deleted (§3.9, §4.2). Likewise, only a pair's **latest**
+    movement can be cancelled (§4.2).
 
 ---
 
@@ -185,8 +196,9 @@ quantities**, "Insulation" pills (None / Fleece / Sheepskin) and "Material"
 - **Seller**: no price; an explanation about the "Awaiting price" queue;
   buttons "To drafts and scan the next" / "Save and finish".
 - The server (`POST /intake`) accepts `sizes: [{size, qty}]` and **branches
-  by role**: a price from a seller is ignored even if sent. The price belongs
-  to the variant, so it applies to the whole batch. The variant is
+  by role**: a price from a seller is ignored even if sent; an admin's intake
+  without a price (neither an amount nor `0`) → 400 (§2.2 item 4). The price
+  belongs to the variant, so it applies to the whole batch. The variant is
   find-or-created by identity; **all** pairs + their INTAKE operations are
   written in one transaction, under one advisory lock, with one realtime
   event. Quantities expand into separate `Pair` rows: a pair is the unit that
@@ -271,7 +283,10 @@ The seller's own pairs: chips "AWAITING PRICE" (yellow) / "IN STOCK" (green).
 A draft awaiting a price can be **edited** (bottom sheet, 5 fields — the pair
 moves between variants through find-or-create) or **deleted** (dialog "This
 cannot be undone"; transactional: operation → pair). Others', confirmed and
-sold pairs → 404 from the server.
+sold pairs → 404 from the server. A draft that was sold and returned (or
+written off and the write-off cancelled) is back in stock and still awaits a
+price, but it has history: editing or deleting it → 409, and the scanner says
+so and suggests a write-off (§2.2 item 10).
 
 ---
 
@@ -283,10 +298,17 @@ A web app (dev port 5173), entirely on real data.
 
 - Period switch: Today / Week / Month / Custom range (date picker; the chosen
   period in the heading).
+- Custom range: `from`/`to` are `YYYY-MM-DD` dates (shop time zone), `from` ≤
+  `to`, at most 366 days; anything else → 400, never a 500. A range with one
+  end missing is completed first — it ends today and starts 13 days before its
+  end — and the completed range obeys the same rules (a lone future `from` →
+  400). The daily chart has one bar per day across the whole range.
 - KPIs: Revenue (with a "% vs yesterday" delta for "today"), Sold (sales ·
-  returns · net pairs), Margin (amount + % of revenue; only over operations
-  with a basis), the dark "Awaiting price" card (pairs / from N sellers → link
-  to the queue).
+  returns · net pairs), Margin (amount + % of the revenue **that has a basis**;
+  only over operations with a basis above zero — §2.2 items 4 and 8) with a
+  line "without a purchase price: N pairs · X ₴" (FR-B-05: what the margin
+  left out, net of returns), the dark "Awaiting price" card (pairs / from N
+  sellers → link to the queue).
 - Revenue chart: hourly for "today", daily otherwise (net, shop time zone).
 - The "Awaiting price" queue widget (latest drafts, sold-before-priced marked)
   + the "Recent operations" feed (time, pair, type, seller, payment, amount,
@@ -305,12 +327,19 @@ A web app (dev port 5173), entirely on real data.
 - Variant details (drawer): mini-KPIs (purchase / last sale / sold in 30
   days), the pair list (with deletion — confirmation, irreversible), movement
   history with historical prices.
+- **Deleting a pair** (FR-D-09) is for a pair taken in by mistake: only a pair
+  in stock whose single operation is its INTAKE. A pair that was ever sold,
+  returned or written off → 409, and the modal suggests a write-off instead
+  (§2.2 item 10). A deletion is announced over realtime (`pair-deleted`).
 - **Cancelling an operation** (FR-D-07): in a history row, a "cancel" action
   for a sale or write-off that currently keeps the pair out of stock. The modal
   explains the consequences; the pair returns to stock, the operation is marked
   `cancelledAt` (not deleted — the trace stays), revenue and margin are
   recomputed. A sale that was already returned, as well as intakes and returns,
-  cannot be cancelled — the amount would be subtracted twice.
+  cannot be cancelled — the amount would be subtracted twice. Only the pair's
+  **latest** movement is cancellable: after sale → return → sale, cancelling
+  the first sale → 409 (it would put a sold pair back on the shelf while the
+  second sale and the return stay on the books).
 - Price editing is per variant (one price for all sizes), including "No price
   — old stock".
 
@@ -351,7 +380,7 @@ without explicit roles = 403).
 | `GET /me/sales?period=today\|month&month=YYYY-MM`     | all                                            | own sales (no margin); `month` picks a calendar month                              |
 | `GET /me/drafts`                                      | all                                            | own pairs/drafts                                                                   |
 | `POST /tags/recognize`                                | all, 10/min per user                           | label recognition (OpenRouter)                                                     |
-| `POST /intake`                                        | all (the role branches the price)              | intake: one variant, N pairs by the size grid; `Idempotency-Key` (§5.2)            |
+| `POST /intake`                                        | all (the role branches the price)              | intake: one variant, N pairs by the size grid; ADMIN must send a price (0 allowed); `Idempotency-Key` (§5.2) |
 | `PATCH/DELETE /intake/:pairId`                        | all (own drafts only)                          | edit/delete a draft                                                                |
 | `GET /intake/queue`, `GET /intake/history`            | ADMIN                                          | the dashboard queue/history                                                        |
 | `GET /intake/price-hint`                              | ADMIN                                          | purchase-price hint (in USD) by variant identity                                   |
@@ -362,8 +391,8 @@ without explicit roles = 403).
 | `POST /returns/lookup`, `POST /returns`               | all                                            | return (the latest sale); `POST /returns` takes `Idempotency-Key` (§5.2)           |
 | `GET /stock/variants`, `GET /stock/variants/:id`      | ADMIN                                          | stock                                                                              |
 | `PATCH /stock/variants/:id/price`, `POST …/no-price`  | ADMIN                                          | price confirmation (+ basis backfill)                                              |
-| `DELETE /stock/pairs/:id`                             | ADMIN                                          | delete a pair                                                                      |
-| `POST /stock/operations/:id/cancel`                   | ADMIN                                          | cancel a sale/write-off (FR-D-07)                                                  |
+| `DELETE /stock/pairs/:id`                             | ADMIN                                          | delete a pair with no history beyond its intake                                    |
+| `POST /stock/operations/:id/cancel`                   | ADMIN                                          | cancel the pair's latest sale/write-off (FR-D-07)                                  |
 | `GET /stats/overview?period&from&to`                  | ADMIN                                          | KPIs/chart/queue/feed                                                              |
 | `GET /health`                                         | public                                         | health check with a database query (503 if the DB is down); reports `version`, `env` (APP_ENV) and the built `commit` |
 
@@ -375,8 +404,8 @@ schema's internals.
 ### 5.1 Realtime (Socket.io)
 
 Namespace `/realtime`, one event `changed` with a `topic` field (`intake-draft ·
-intake-priced · sale · return · writeoff · operation-cancelled`) and a
-timestamp. **The event carries no data** — the dashboard refetches the
+intake-priced · sale · return · writeoff · operation-cancelled · pair-deleted`)
+and a timestamp. **The event carries no data** — the dashboard refetches the
 ordinary authorised endpoints in response, so prices and margins never flow
 through the socket and the channel cannot become a way around FR-B-02.
 
@@ -470,7 +499,7 @@ delivery in twice, and a retried sale met a 409.
 ## 7. Technical architecture
 
 - **Monorepo**: Turborepo + pnpm, Node 22, strict TypeScript.
-  - `apps/api` — NestJS 11, Prisma 6, PostgreSQL 16, a Socket.io gateway, pino
+  - `apps/api` — NestJS 11, Prisma 6, PostgreSQL 18, a Socket.io gateway, pino
     logging.
   - `apps/scanner`, `apps/dashboard` — Vite 7, React 19, TanStack
     Router/Query, Tailwind 4; the scanner uses vite-plugin-pwa.

@@ -1,5 +1,6 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import {
+  adminIntakeSchema,
   draftUpdateSchema,
   intakeSchema,
   priceHintQuerySchema,
@@ -28,7 +29,9 @@ export class IntakeController {
     @CurrentUser() user: AuthUser,
     @IdempotencyKey() idempotencyKey: string | null,
   ): Promise<IntakeResult> {
-    const parsed = intakeSchema.safeParse(body);
+    // An admin must decide the price (a seller's is ignored by the service).
+    const schema = user.role === 'ADMIN' ? adminIntakeSchema : intakeSchema;
+    const parsed = schema.safeParse(body);
     if (!parsed.success) {
       throw validationError(parsed.error);
     }

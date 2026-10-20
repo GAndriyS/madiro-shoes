@@ -52,6 +52,17 @@ export const intakeSchema = z.object({
 export type IntakeInput = z.infer<typeof intakeSchema>;
 
 /**
+ * The same intake as sent by an admin, who must decide the price: an amount,
+ * or `0` for «без ціни — старий товар». Leaving it out is how a seller's draft
+ * looks, and an admin's draft would be one nobody is asked to price — it skips
+ * the «Очікують ціни» queue, so its pairs would never get a margin basis.
+ */
+export const adminIntakeSchema = intakeSchema.refine((input) => input.purchasePriceUsd != null, {
+  message: 'Вкажіть ціну закупки або оберіть «без ціни — старий товар»',
+  path: ['purchasePriceUsd'],
+});
+
+/**
  * Editing an own draft awaiting price (FR-S-13): the same five identity fields
  * a seller enters on intake — never the price.
  */

@@ -28,19 +28,71 @@ What the script does, in order:
 1. **Refuses to start** unless the tree is clean, you are on `main`, `main` is
    in sync with `origin/main`, `release` is an ancestor of `main`, and CI on
    this exact commit is green.
-2. Bumps `version` in the **root `package.json`** — the single source of truth
+2. **If the release brings migrations** (anything under
+   `apps/api/prisma/migrations` differs from `origin/release`), has PROD's
+   `backup` service take a fresh dump and waits for it to succeed — see
+   [Backup before migrations](#backup-before-migrations). Nothing has been
+   committed or pushed yet, so a failed backup leaves no trace.
+3. Bumps `version` in the **root `package.json`** — the single source of truth
    for the whole workspace — and commits it as `chore(release): vX.Y.Z`.
-3. Creates an annotated tag `vX.Y.Z`.
-4. Pushes `main`, the tag, and fast-forwards `release` to `main`. **There is no
+4. Creates an annotated tag `vX.Y.Z`.
+5. Pushes `main`, the tag, and fast-forwards `release` to `main`. **There is no
    `--force` anywhere in the script**: if the fast-forward is rejected, the
    branches genuinely diverged and that needs a human.
-5. Creates a GitHub Release with generated notes.
-6. Polls PROD `/api/health` until it reports the new version, then exits.
+6. Creates a GitHub Release with generated notes.
+7. Polls PROD `/api/health` until it reports the new version, then exits.
 
 Every step is guarded and the script is **re-runnable**. If the network dies
 after the tag is pushed, run the same command again: it recognises the release
 commit, skips what is done, and finishes the rest. It will not bump the version
 twice.
+
+### Backup before migrations
+
+PROD runs `prisma migrate deploy` the moment it boots a new release, and the
+nightly dump can be almost a day old by then. So when the release carries
+migrations, the script first runs PROD's off-platform backup service (see
+[DEPLOYMENT.md → Backups](../DEPLOYMENT.md#backups)) on demand:
+
+```bash
+railway cron run --service backup --environment production   # what the script does
+```
+
+and polls `railway cron list` until that run has **exited** — the script's own
+checks (dump, `pg_restore --list`, upload, read-back from R2) passed — or fails
+the release if it crashed, was skipped or took longer than 15 minutes. The dump
+is made on Railway over the private network, exactly like the nightly one; the
+database and its credentials never touch your machine. If a backup is already
+running when you release, the script waits for that one instead of starting
+another.
+
+What it needs:
+
+- The [Railway CLI](https://docs.railway.com/cli), logged in (`railway login`).
+  The project is addressed by name (`splendid-youthfulness`), so `railway link`
+  is not needed.
+- Optional overrides: `RELEASE_RAILWAY_PROJECT`, `RELEASE_BACKUP_SERVICE`
+  (default `backup`), `RELEASE_BACKUP_TIMEOUT` (seconds, default 900).
+
+When the CLI route is unavailable, take a dump some other way you trust, check
+that the new object is in the R2 bucket, and run
+
+```bash
+RELEASE_BACKUP=manual pnpm release minor
+```
+
+which asks you to type «так» before publishing anything. A release without
+migrations skips this step entirely.
+
+Two things the dump does not cover:
+
+- **The gap until the deploy.** After the dump the script pushes `release`, CI
+  runs on it, and only then does Railway deploy and migrate — writes in those
+  minutes are not in the dump. Release migrations outside shop hours.
+- **A resumed run.** If the script died after pushing `release`, the next run
+  finds no difference between `release` and `main` and takes no dump — the
+  migration has already run by then. If it died _before_ that push, the next
+  run takes another dump, which is harmless.
 
 ### Choosing patch / minor / major
 
@@ -98,6 +150,13 @@ In practice: add columns as nullable or with a default; write the code that
 fills them in the same release; drop a column only in a release *after* the one
 that stopped reading it. Renames are two releases: add the new name, migrate
 the reads, drop the old one later.
+
+The same rule is what makes a **failed** migration survivable. The api's
+healthcheck keeps the previous deployment serving while the new one fails to
+boot (see [DEPLOYMENT.md → Deploy settings](../DEPLOYMENT.md#deploy-settings)),
+so the old code runs against whatever part of the migration got applied. If
+the data itself is damaged, restore the dump the release took (DEPLOYMENT.md →
+Backups → Restore).
 
 ## Hotfixes
 

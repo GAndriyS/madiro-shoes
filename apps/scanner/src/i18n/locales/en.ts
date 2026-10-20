@@ -13,6 +13,12 @@ export const en: Messages = {
     today: 'today',
     yesterday: 'yesterday',
     noPrice: 'no price',
+    updateTitle: 'The app has been updated',
+    updateBody: 'A new version came out while this screen was open. Reload the page to continue.',
+    crashTitle: 'Something went wrong',
+    crashBody:
+      'An unexpected error occurred. Reload the page; if that does not help, tell the administrator.',
+    reload: 'Reload',
   },
   login: {
     subtitle: 'Shoe inventory · staff sign-in',
@@ -219,6 +225,8 @@ export const en: Messages = {
     deleteBody: 'Pair {{label}} will leave the "awaiting price" queue. This cannot be undone.',
     cancel: 'Cancel',
     error: 'Could not save. Please try again.',
+    historyConflict:
+      'This pair has already been sold or written off — it can no longer be edited or deleted. If the pair is physically gone, write it off.',
   },
   manual: {
     title: 'Enter a pair manually',

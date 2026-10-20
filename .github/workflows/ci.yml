@@ -14,7 +14,9 @@ jobs:
 
     services:
       postgres:
-        image: postgres:16
+        # The major PROD runs (Railway's postgres-ssl:18) — migrations are
+        # tested against the server they will meet.
+        image: postgres:18
         env:
           POSTGRES_USER: madiro
           POSTGRES_PASSWORD: madiro
@@ -107,10 +109,28 @@ jobs:
 
       - name: Upload Playwright report
         if: failure()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: playwright-report
           path: |
             e2e/playwright-report/
             e2e/test-results/
           retention-days: 7
+
+  # Railway builds these Dockerfiles on deploy; a broken one should fail the PR,
+  # not the deploy. Built only — nothing is pushed anywhere.
+  docker:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        dockerfile:
+          - apps/api/Dockerfile
+          - apps/scanner/Dockerfile
+          - apps/dashboard/Dockerfile
+          - ops/backup/Dockerfile
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Build ${{ matrix.dockerfile }}
+        run: docker build --file ${{ matrix.dockerfile }} .

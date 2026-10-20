@@ -2,8 +2,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
   usdToUah,
+  adminIntakeSchema,
   intakeSchema,
   loginRequestSchema,
+  OVERVIEW_MAX_RANGE_DAYS,
+  overviewQuerySchema,
   SIZE_MAX,
   SIZE_MIN,
   tagRecognitionSchema,
@@ -88,6 +91,68 @@ describe('intakeSchema', () => {
   it('відхиляє розмір поза межами 16–50', () => {
     expect(
       intakeSchema.safeParse({ ...base, sizes: [{ size: SIZE_MAX + 1, qty: 1 }] }).success,
+    ).toBe(false);
+  });
+});
+
+describe('adminIntakeSchema', () => {
+  const base = { sizes: [{ size: 38, qty: 1 }], color: '36', style: '7645' };
+
+  // An admin's intake without a price skips the queue and never gets a basis.
+  it('вимагає від адміна ціну закупки', () => {
+    const missing = adminIntakeSchema.safeParse(base);
+    expect(missing.success).toBe(false);
+    expect(missing.error?.issues[0]?.path).toEqual(['purchasePriceUsd']);
+    expect(adminIntakeSchema.safeParse({ ...base, purchasePriceUsd: null }).success).toBe(false);
+  });
+
+  it('приймає ціну і 0 — «без ціни — старий товар»', () => {
+    expect(adminIntakeSchema.safeParse({ ...base, purchasePriceUsd: 35 }).success).toBe(true);
+    expect(adminIntakeSchema.safeParse({ ...base, purchasePriceUsd: 0 }).success).toBe(true);
+  });
+});
+
+describe('overviewQuerySchema', () => {
+  it('період за замовчуванням — сьогодні', () => {
+    expect(overviewQuerySchema.parse({})).toEqual({ period: 'today' });
+  });
+
+  it('приймає коректний довільний період, зокрема один день', () => {
+    expect(
+      overviewQuerySchema.safeParse({ period: 'custom', from: '2026-10-01', to: '2026-10-15' })
+        .success,
+    ).toBe(true);
+    expect(
+      overviewQuerySchema.safeParse({ period: 'custom', from: '2026-10-15', to: '2026-10-15' })
+        .success,
+    ).toBe(true);
+  });
+
+  it('відхиляє дату не у форматі РРРР-ММ-ДД і неіснуючу дату', () => {
+    for (const from of ['2026-1-01', '15.10.2026', 'yesterday', '2026-02-30', '2026-13-01']) {
+      expect(overviewQuerySchema.safeParse({ period: 'custom', from }).success).toBe(false);
+    }
+  });
+
+  it('відхиляє період, де початок пізніше за кінець', () => {
+    const parsed = overviewQuerySchema.safeParse({
+      period: 'custom',
+      from: '2026-10-15',
+      to: '2026-10-01',
+    });
+    expect(parsed.success).toBe(false);
+    expect(parsed.error?.issues[0]?.path).toEqual(['from']);
+  });
+
+  it(`відхиляє період довший за ${OVERVIEW_MAX_RANGE_DAYS} днів`, () => {
+    // 2025-01-01..2025-12-31 is 365 days; a leap year adds the 366th.
+    expect(
+      overviewQuerySchema.safeParse({ period: 'custom', from: '2024-01-01', to: '2024-12-31' })
+        .success,
+    ).toBe(true);
+    expect(
+      overviewQuerySchema.safeParse({ period: 'custom', from: '2024-01-01', to: '2025-01-01' })
+        .success,
     ).toBe(false);
   });
 });

@@ -11,7 +11,8 @@
 # in Settings → Deploy, and the variables listed in backup.sh. The container
 # exits when the dump is uploaded — that is what a cron service expects.
 FROM postgres:18-alpine
-RUN apk add --no-cache rclone ca-certificates tzdata
+# curl pings the dead man's switch (HEALTHCHECK_PING_URL, see backup.sh).
+RUN apk add --no-cache rclone ca-certificates tzdata curl
 COPY ops/backup/backup.sh /usr/local/bin/backup
 RUN chmod +x /usr/local/bin/backup
 # The postgres image's entrypoint would start a server; this image only dumps.

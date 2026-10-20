@@ -1,7 +1,18 @@
 import { Injectable } from '@nestjs/common';
-import type { OverviewPeriod, OverviewResponse } from '@madiro/shared';
+import type { Prisma } from '@prisma/client';
+import {
+  OVERVIEW_MAX_RANGE_DAYS,
+  type OverviewPeriod,
+  type OverviewResponse,
+} from '@madiro/shared';
 
-import { storeDayStart, storeDayStartOf, storeHourOf } from '../lib/time';
+import {
+  shiftDateKey,
+  storeDateKey,
+  storeDayStart,
+  storeDayStartOf,
+  storeHourOf,
+} from '../lib/time';
 import { PrismaService } from '../prisma/prisma.service';
 
 const DAY_MS = 86_400_000;
@@ -13,6 +24,21 @@ interface Range {
   /** Previous equivalent range for the revenue delta (today only). */
   prev: { start: Date; end: Date } | null;
   granularity: 'hour' | 'day';
+}
+
+/**
+ * The calendar days a custom range covers once its missing ends are filled in:
+ * it ends today unless told otherwise, and starts 13 days before its end — two
+ * weeks. The controller validates exactly this completed range, so the report
+ * and the check can never disagree about what was asked for.
+ */
+export function customRangeOf(
+  from: string | null | undefined,
+  to: string | null | undefined,
+  now: Date = new Date(),
+): { from: string; to: string } {
+  const end = to ?? storeDateKey(now);
+  return { from: from ?? shiftDateKey(end, -13), to: end };
 }
 
 /** Store-timezone period boundaries for the overview KPIs (section 7 #11). */
@@ -42,16 +68,27 @@ function rangeFor(period: OverviewPeriod, from: string | null, to: string | null
         granularity: 'day',
       };
     case 'custom': {
-      const start = from ? storeDayStartOf(from) : new Date(dayStart.getTime() - 13 * DAY_MS);
-      const endDay = to ? storeDayStartOf(to) : dayStart;
+      const days = customRangeOf(from, to);
       return {
-        start,
-        end: new Date(endDay.getTime() + DAY_MS),
+        start: storeDayStartOf(days.from),
+        // The midnight that opens the day after `to`, not `to` + 24 h: the two
+        // differ by an hour when `to` is the day of a DST switch.
+        end: storeDayStartOf(shiftDateKey(days.to, 1)),
         prev: null,
         granularity: 'day',
       };
     }
   }
+}
+
+/**
+ * The purchase price a margin is computed against, or null when there is none
+ * to compute: not entered yet (null) or «без ціни — старий товар» (0).
+ */
+function marginBasis(purchasePriceAtTime: Prisma.Decimal | null): number | null {
+  if (purchasePriceAtTime == null) return null;
+  const basis = Number(purchasePriceAtTime);
+  return basis > 0 ? basis : null;
 }
 
 @Injectable()
@@ -131,17 +168,29 @@ export class StatsService {
       }),
     ]);
 
-    // KPI totals: revenue and margin net of returns (rule 3.3 #6).
+    // KPI totals: revenue and margin net of returns (rule 3.3 #6). Margin only
+    // counts operations with a real basis: null is «ще не вказана», and 0 is
+    // «без ціни — старий товар», which has no margin either (spec §2.2 #4) —
+    // counting it would book the whole sale price as profit. Both kinds go to
+    // the «sold without a purchase price» line instead (FR-B-05).
     let revenue = 0;
     let margin = 0;
+    let revenueWithBasis = 0;
     let sales = 0;
     let returns = 0;
+    const withoutBasis = { pairs: 0, revenue: 0 };
     for (const op of ops) {
       const price = op.salePrice != null ? Number(op.salePrice) : 0;
-      const basis = op.purchasePriceAtTime != null ? Number(op.purchasePriceAtTime) : null;
+      const basis = marginBasis(op.purchasePriceAtTime);
       const sign = op.type === 'SALE' ? 1 : -1;
       revenue += sign * price;
-      if (basis != null) margin += sign * (price - basis);
+      if (basis != null) {
+        margin += sign * (price - basis);
+        revenueWithBasis += sign * price;
+      } else {
+        withoutBasis.pairs += sign;
+        withoutBasis.revenue += sign * price;
+      }
       if (op.type === 'SALE') sales += 1;
       else returns += 1;
     }
@@ -171,7 +220,10 @@ export class StatsService {
         });
       }
     } else {
-      const days = Math.min(92, Math.round((range.end.getTime() - range.start.getTime()) / DAY_MS));
+      const days = Math.min(
+        OVERVIEW_MAX_RANGE_DAYS,
+        Math.round((range.end.getTime() - range.start.getTime()) / DAY_MS),
+      );
       const buckets = new Array<number>(days).fill(0);
       for (const op of ops) {
         const index = Math.floor((op.createdAt.getTime() - range.start.getTime()) / DAY_MS);
@@ -199,7 +251,11 @@ export class StatsService {
       returns,
       netPairs: sales - returns,
       margin,
-      marginPctOfRevenue: revenue > 0 ? Math.round((margin / revenue) * 100) : null,
+      // A share of the revenue the margin was computed over — dividing by all
+      // revenue would let unpriced sales dilute the percentage.
+      marginPctOfRevenue:
+        revenueWithBasis > 0 ? Math.round((margin / revenueWithBasis) * 100) : null,
+      soldWithoutBasis: withoutBasis,
       awaitingPrice: {
         pairs: awaitingPairs.length,
         sellers: new Set(awaitingPairs.map((p) => p.createdById).filter(Boolean)).size,
@@ -218,6 +274,9 @@ export class StatsService {
       recentOperations: recentOps.map((op) => {
         const price = op.salePrice != null ? Number(op.salePrice) : null;
         const basis = op.purchasePriceAtTime != null ? Number(op.purchasePriceAtTime) : null;
+        // The feed shows the historical price as an intake's amount, 0 included,
+        // but a sale of an unpriced pair has no margin to show (spec §2.2 #4).
+        const costBasis = marginBasis(op.purchasePriceAtTime);
         const isReturn = op.type === 'RETURN';
         const amount = op.type === 'SALE' ? price : isReturn && price != null ? -price : basis;
         return {
@@ -231,7 +290,11 @@ export class StatsService {
           paymentMethod: op.paymentMethod,
           amount,
           margin:
-            price != null && basis != null ? (isReturn ? -(price - basis) : price - basis) : null,
+            price != null && costBasis != null
+              ? isReturn
+                ? -(price - costBasis)
+                : price - costBasis
+              : null,
           isDraft: op.type === 'INTAKE' && op.pair.awaitingPrice,
         };
       }),

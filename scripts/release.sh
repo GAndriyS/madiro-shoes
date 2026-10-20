@@ -12,6 +12,11 @@
 # Every step is guarded and re-runnable: if the network dies after the tag is
 # pushed, run the same command again and it finishes the remaining steps instead
 # of failing on "tag already exists".
+#
+# A release that brings database migrations first has PROD's `backup` cron
+# service take a fresh dump (Railway CLI, logged in), and publishes nothing
+# until that dump has succeeded. RELEASE_BACKUP=manual swaps that for a typed
+# confirmation — see docs/release-process.md.
 set -euo pipefail
 
 cd "$(dirname "$0")/.."
@@ -23,10 +28,99 @@ BUMP="${1:-patch}"
 # PROD-like environment can be verified with the same script.
 HEALTH_URL="${PROD_HEALTH_URL:-https://api-production-bfcf.up.railway.app/api/health}"
 POLL_TIMEOUT_SECONDS="${RELEASE_POLL_TIMEOUT:-900}"
+# The pre-migration backup: PROD's off-platform dump service (DEPLOYMENT.md →
+# Backups), addressed by name so no `railway link` is needed.
+RAILWAY_PROJECT="${RELEASE_RAILWAY_PROJECT:-splendid-youthfulness}"
+BACKUP_SERVICE="${RELEASE_BACKUP_SERVICE:-backup}"
+BACKUP_TIMEOUT_SECONDS="${RELEASE_BACKUP_TIMEOUT:-900}"
 
 step() { printf '\n\033[1m▸ %s\033[0m\n' "$1"; }
 info() { printf '  %s\n' "$1"; }
 fail() { printf '\n\033[31m✗ %s\033[0m\n' "$1" >&2; exit 1; }
+
+# "<id> <status>" of one run of the backup cron — the given id, or the newest
+# run when called without one. Prints nothing when there is no such run.
+backup_run() {
+  railway cron list --project "$RAILWAY_PROJECT" --environment production \
+    --service "$BACKUP_SERVICE" --limit 20 --json |
+    node -e '
+      const runs = JSON.parse(require("fs").readFileSync(0, "utf8"));
+      const wanted = process.argv[1];
+      const run = wanted ? runs.find((r) => r.id === wanted) : runs[0];
+      if (run) console.log(run.id + " " + run.status);
+    ' "${1:-}"
+}
+
+# Runs PROD's backup cron now, on Railway, and waits for the verdict. The dump
+# is then made exactly like every night's — over the private network, verified,
+# uploaded to R2 and read back — and nothing about the database or its
+# credentials touches this machine. Railway reports a run that exited non-zero
+# as CRASHED; backup.sh exits non-zero on any failed step, so EXITED is a dump
+# that is in the bucket.
+backup_via_railway() {
+  command -v railway >/dev/null ||
+    fail 'Потрібен Railway CLI (https://docs.railway.com/cli) — або RELEASE_BACKUP=manual, див. docs/release-process.md.'
+  railway whoami >/dev/null 2>&1 || fail 'Railway CLI не авторизований — виконайте: railway login'
+
+  local before before_id before_status watch_id='' run id status deadline
+  before=$(backup_run) ||
+    fail "Не вдалося прочитати запуски «$BACKUP_SERVICE» у production (railway cron list)."
+  before_id=${before%% *}
+  before_status=${before#* }
+
+  # A run already in progress started minutes ago at most, so its dump is as
+  # fresh as a new one — and a second trigger would only be SKIPPED meanwhile.
+  case "$before_status" in
+    CREATED | INITIALIZING | RUNNING | RESTARTING)
+      info "Бекап уже виконується (запуск $before_id) — чекаю на нього."
+      watch_id=$before_id
+      ;;
+    *)
+      railway cron run --project "$RAILWAY_PROJECT" --environment production \
+        --service "$BACKUP_SERVICE" --yes --json >/dev/null ||
+        fail "Не вдалося запустити «$BACKUP_SERVICE» (railway cron run)."
+      info "Запущено «$BACKUP_SERVICE» у production; чекаю на результат (до $((BACKUP_TIMEOUT_SECONDS / 60)) хв)…"
+      ;;
+  esac
+
+  deadline=$(($(date +%s) + BACKUP_TIMEOUT_SECONDS))
+  while [ "$(date +%s)" -lt "$deadline" ]; do
+    sleep 10
+    # A failed poll is a network blip, not a verdict — ask again.
+    run=$(backup_run "$watch_id") || continue
+    [ -n "$run" ] || continue
+    id=${run%% *}
+    status=${run#* }
+    # The triggered run takes a while to appear; until then the newest is
+    # still the one from before.
+    if [ -z "$watch_id" ]; then
+      [ "$id" != "$before_id" ] || continue
+      watch_id=$id
+    fi
+    case "$status" in
+      EXITED)
+        info "Свіжий дамп PROD у R2 (запуск $id)."
+        return 0
+        ;;
+      CREATED | INITIALIZING | RUNNING | RESTARTING) ;;
+      *)
+        fail "Бекап завершився зі статусом $status — нічого не опубліковано. Логи: railway logs --service $BACKUP_SERVICE --environment production"
+        ;;
+    esac
+  done
+  fail "Бекап не завершився за $((BACKUP_TIMEOUT_SECONDS / 60)) хв — нічого не опубліковано. Перевірте: railway cron list --service $BACKUP_SERVICE --environment production"
+}
+
+# The fallback when the CLI route is unavailable: the maintainer takes the dump
+# some other way and says so. A typed answer, not a flag, so it cannot be
+# satisfied by a stale environment variable alone.
+backup_confirmed_by_hand() {
+  [ -t 0 ] || fail 'RELEASE_BACKUP=manual потребує інтерактивного терміналу.'
+  info 'Зробіть свіжий дамп PROD (див. docs/release-process.md) і переконайтеся, що він є в R2.'
+  local answer
+  read -r -p '  Свіжий дамп PROD є в R2? Введіть «так», щоб продовжити: ' answer
+  [ "$answer" = 'так' ] || fail 'Без свіжого бекапу реліз із міграціями не публікується.'
+}
 
 case "$BUMP" in
   patch | minor | major) ;;
@@ -117,6 +211,29 @@ if existing=$(git rev-parse --quiet --verify "refs/tags/$tag^{commit}"); then
   info "Тег $tag уже вказує на цей коміт."
 elif [ "$resuming" = false ] && git ls-remote --exit-code --tags origin "$tag" >/dev/null 2>&1; then
   fail "Тег $tag уже існує на origin."
+fi
+
+# ─────────────────────────────────────────────────── pre-migration backup ──
+# PROD migrates the moment it boots the new release, and the nightly dump can
+# be almost a day old by then. Compared against origin/release — what PROD runs
+# now — so a resumed run whose `release` push already happened finds nothing
+# left to protect: that migration has already run.
+if git rev-parse --quiet --verify origin/release >/dev/null; then
+  prod_ref=origin/release
+else
+  prod_ref=$(git hash-object -t tree /dev/null) # no PROD yet: every migration is new
+fi
+migrations=$(git diff --name-only "$prod_ref" HEAD -- apps/api/prisma/migrations)
+
+if [ -n "$migrations" ]; then
+  step 'Свіжий бекап PROD перед міграціями'
+  printf '%s\n' "$migrations" |
+    sed -n 's#^apps/api/prisma/migrations/\([^/]*\)/.*#  · \1#p' | sort -u
+  case "${RELEASE_BACKUP:-railway}" in
+    railway) backup_via_railway ;;
+    manual) backup_confirmed_by_hand ;;
+    *) fail "Невідоме RELEASE_BACKUP=«${RELEASE_BACKUP}». Очікується railway | manual." ;;
+  esac
 fi
 
 # ─────────────────────────────────────────────────────────── bump and tag ──

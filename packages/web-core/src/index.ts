@@ -7,4 +7,5 @@ export * from './i18n/core';
 export * from './components/ui/BuildBadge';
 export * from './components/ui/dialog';
 export * from './components/ui/QueryState';
+export * from './components/ui/RouteErrorFallback';
 export * from './components/icons';

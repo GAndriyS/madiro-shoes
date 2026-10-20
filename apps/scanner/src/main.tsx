@@ -1,4 +1,4 @@
-import { restoreSession, setClientId } from '@madiro/web-core';
+import { RouteErrorFallback, restoreSession, setClientId } from '@madiro/web-core';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { RouterProvider, createRouter } from '@tanstack/react-router';
 import { StrictMode } from 'react';
@@ -24,7 +24,10 @@ export const queryClient = new QueryClient({
   },
 });
 
-const router = createRouter({ routeTree });
+// Every route falls back to RouteErrorFallback, which matters most right after
+// a deploy: a tab still running the previous build asks for chunk hashes that
+// no longer exist, and the fallback reloads it onto the new one.
+const router = createRouter({ routeTree, defaultErrorComponent: RouteErrorFallback });
 
 declare module '@tanstack/react-router' {
   interface Register {

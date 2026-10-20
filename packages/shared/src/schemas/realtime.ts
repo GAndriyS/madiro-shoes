@@ -26,6 +26,8 @@ export const REALTIME_TOPICS = [
   'writeoff',
   /** The admin reversed a sale or a write-off (FR-D-07). */
   'operation-cancelled',
+  /** The admin deleted a mistakenly taken-in pair (FR-D-09). */
+  'pair-deleted',
 ] as const;
 export type RealtimeTopic = (typeof REALTIME_TOPICS)[number];
 

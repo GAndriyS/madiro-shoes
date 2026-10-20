@@ -48,6 +48,27 @@ export function storeDayStartOf(date: string): Date {
   return storeDayStart(new Date(`${date}T12:00:00Z`));
 }
 
+/** Today's calendar date in the store timezone, as `YYYY-MM-DD`. */
+export function storeDateKey(now: Date = new Date()): string {
+  // en-CA formats a date as ISO year-month-day.
+  return new Intl.DateTimeFormat('en-CA', {
+    timeZone: STORE_TIMEZONE,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(now);
+}
+
+/**
+ * A `YYYY-MM-DD` calendar date moved by whole days. Pure calendar arithmetic
+ * in UTC, so no DST transition can turn "13 days back" into 12 or 14.
+ */
+export function shiftDateKey(date: string, days: number): string {
+  const shifted = new Date(`${date}T00:00:00Z`);
+  shifted.setUTCDate(shifted.getUTCDate() + days);
+  return shifted.toISOString().slice(0, 10);
+}
+
 /**
  * Half-open `[start, end)` range of a calendar month ("YYYY-MM") in the store
  * timezone. Unlike the open-ended "current month" range, this one is bounded on
