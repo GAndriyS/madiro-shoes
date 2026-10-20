@@ -10,6 +10,7 @@ import type {
   WriteoffInput,
 } from '@madiro/shared';
 
+import { idempotent } from '../common/idempotency';
 import { PrismaService } from '../prisma/prisma.service';
 import { RealtimeGateway } from '../realtime/realtime.gateway';
 
@@ -170,9 +171,16 @@ export class SaleService {
     };
   }
 
-  /** Sale (FR-S-07). A draft (awaitingPrice) sells too — margin waits (rule #2). */
-  sell(input: SaleInput, userId: string): Promise<CheckoutResult> {
-    return this.checkout(input.pairId, userId, {
+  /**
+   * Sale (FR-S-07). A draft (awaitingPrice) sells too — margin waits (rule #2).
+   * A repeated `idempotencyKey` answers with the first sale instead of a 409.
+   */
+  sell(
+    input: SaleInput,
+    userId: string,
+    idempotencyKey: string | null = null,
+  ): Promise<CheckoutResult> {
+    return this.checkout(input, userId, idempotencyKey, {
       type: 'SALE',
       status: 'SOLD',
       salePrice: new Prisma.Decimal(input.salePrice),
@@ -181,8 +189,12 @@ export class SaleService {
   }
 
   /** Write-off (FR-S-08): no price, optional reason comment. */
-  writeoff(input: WriteoffInput, userId: string): Promise<CheckoutResult> {
-    return this.checkout(input.pairId, userId, {
+  writeoff(
+    input: WriteoffInput,
+    userId: string,
+    idempotencyKey: string | null = null,
+  ): Promise<CheckoutResult> {
+    return this.checkout(input, userId, idempotencyKey, {
       type: 'WRITEOFF',
       status: 'WRITTEN_OFF',
       comment: input.comment ?? null,
@@ -193,10 +205,16 @@ export class SaleService {
    * Shared checkout transaction. Locks the pair row (SELECT … FOR UPDATE) so
    * two sellers cannot check out the same last pair (section 7 #12): the loser
    * sees a 409 and re-scans.
+   *
+   * The idempotency claim comes before the lock: a retry of a checkout that
+   * already went through must be answered with that checkout, not told the
+   * pair is gone — a seller who hears «already sold» rescans, and FIFO hands
+   * them the next identical pair.
    */
   private async checkout(
-    pairId: string,
+    input: SaleInput | WriteoffInput,
     userId: string,
+    idempotencyKey: string | null,
     op: {
       type: 'SALE' | 'WRITEOFF';
       status: 'SOLD' | 'WRITTEN_OFF';
@@ -205,49 +223,56 @@ export class SaleService {
       comment?: string | null;
     },
   ): Promise<CheckoutResult> {
-    const result = await this.prisma.$transaction(async (tx) => {
-      const locked = await tx.$queryRaw<{ id: string; status: string }[]>`
+    const { pairId } = input;
+    const request = { userId, key: idempotencyKey, type: op.type, body: input };
+    const { result, replayed } = await this.prisma.$transaction((tx) =>
+      idempotent(tx, request, async () => {
+        const locked = await tx.$queryRaw<{ id: string; status: string }[]>`
         SELECT id, status FROM pairs WHERE id = ${pairId} FOR UPDATE`;
-      const row = locked[0];
-      if (!row) {
-        throw new NotFoundException('Пару не знайдено');
-      }
-      if (row.status !== 'IN_STOCK') {
-        throw new ConflictException('Пара вже продана або списана');
-      }
+        const row = locked[0];
+        if (!row) {
+          throw new NotFoundException('Пару не знайдено');
+        }
+        if (row.status !== 'IN_STOCK') {
+          throw new ConflictException('Пара вже продана або списана');
+        }
 
-      const pair = await tx.pair.update({
-        where: { id: pairId },
-        data: { status: op.status },
-        include: { variant: { select: { style: true, color: true, purchasePrice: true } } },
-      });
+        const pair = await tx.pair.update({
+          where: { id: pairId },
+          data: { status: op.status },
+          include: { variant: { select: { style: true, color: true, purchasePrice: true } } },
+        });
 
-      await tx.operation.create({
-        data: {
-          type: op.type,
+        await tx.operation.create({
+          data: {
+            type: op.type,
+            pairId,
+            userId,
+            salePrice: op.salePrice ?? null,
+            paymentMethod: op.paymentMethod ?? null,
+            comment: op.comment ?? null,
+            // Margin basis frozen at checkout time (rule 3.3 #1); never returned to sellers.
+            purchasePriceAtTime: pair.variant.purchasePrice,
+          },
+        });
+
+        return {
           pairId,
-          userId,
-          salePrice: op.salePrice ?? null,
+          style: pair.variant.style,
+          color: pair.variant.color,
+          size: pair.size,
+          status: pair.status,
+          salePrice: op.salePrice != null ? Number(op.salePrice) : null,
           paymentMethod: op.paymentMethod ?? null,
-          comment: op.comment ?? null,
-          // Margin basis frozen at checkout time (rule 3.3 #1); never returned to sellers.
-          purchasePriceAtTime: pair.variant.purchasePrice,
-        },
-      });
+        };
+      }),
+    );
 
-      return {
-        pairId,
-        style: pair.variant.style,
-        color: pair.variant.color,
-        size: pair.size,
-        status: pair.status,
-        salePrice: op.salePrice != null ? Number(op.salePrice) : null,
-        paymentMethod: op.paymentMethod ?? null,
-      };
-    });
-
-    // The dashboard feed, KPIs and stock all move on a checkout.
-    this.realtime.emit(op.type === 'SALE' ? 'sale' : 'writeoff');
+    // The dashboard feed, KPIs and stock all move on a checkout — a replay
+    // moved nothing.
+    if (!replayed) {
+      this.realtime.emit(op.type === 'SALE' ? 'sale' : 'writeoff');
+    }
     return result;
   }
 }

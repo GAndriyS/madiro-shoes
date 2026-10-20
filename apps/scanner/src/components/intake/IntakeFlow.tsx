@@ -4,15 +4,22 @@ import {
   type IntakeInput,
   type TagRecognition,
 } from '@madiro/shared';
-import { api } from '@madiro/web-core';
+import { ApiError, api, outcomeUnknown } from '@madiro/web-core';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from '@tanstack/react-router';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { failedWithUnknownOutcome, retryUnknownOutcome, useAttemptKey } from '../../lib/attempt';
 import { CameraScreen } from './CameraScreen';
 import { ConfirmForm, type SaveMode } from './ConfirmForm';
 import { RecognitionError } from './RecognitionError';
+
+interface SaveVariables {
+  input: IntakeInput;
+  mode: SaveMode;
+  idempotencyKey: string;
+}
 
 interface IntakeFlowProps {
   /**
@@ -42,6 +49,10 @@ export function IntakeFlow({ manual = false }: IntakeFlowProps) {
   // Manual entry never leaves the form, so a saved batch cannot be cleared by
   // unmounting the way the camera path clears it. Remount it by key instead.
   const [formKey, setFormKey] = useState(0);
+  // One attempt per delivery being saved: it outlives a rescan of the same
+  // label, so saving that delivery again after «no answer» replays the first
+  // save rather than taking the pairs in twice.
+  const attempt = useAttemptKey();
 
   // Every toast self-dismisses; a new one restarts the clock (S-9).
   const showToast = (message: string, ms: number) => {
@@ -74,9 +85,11 @@ export function IntakeFlow({ manual = false }: IntakeFlowProps) {
   });
 
   const save = useMutation({
-    mutationFn: async ({ input }: { input: IntakeInput; mode: SaveMode }) =>
-      intakeResultSchema.parse(await api.post('/intake', input)),
+    ...retryUnknownOutcome,
+    mutationFn: async ({ input, idempotencyKey }: SaveVariables) =>
+      intakeResultSchema.parse(await api.post('/intake', input, { idempotencyKey })),
     onSuccess: (result, { mode }) => {
+      attempt.settle();
       // The home summary counts drafts in the queue — keep it fresh.
       void queryClient.invalidateQueries({ queryKey: ['me', 'summary'] });
       if (mode === 'finish') {
@@ -102,7 +115,20 @@ export function IntakeFlow({ manual = false }: IntakeFlowProps) {
       setRecognition(null);
       setStep('capture');
     },
-    onError: () => showToast(t('intake.saveError'), 3500),
+    onError: (err) => {
+      // No answer: the form stays as it was and says the save may have gone
+      // through — the retry it asks for carries the same key.
+      if (outcomeUnknown(err)) return;
+      if (err instanceof ApiError && err.status === 422) {
+        // The earlier save did land, and this one differs from it. Nothing was
+        // written now; the seller checks before deciding to save once more.
+        attempt.settle();
+        void queryClient.invalidateQueries({ queryKey: ['me', 'summary'] });
+        showToast(t('intake.alreadySaved'), 6000);
+        return;
+      }
+      showToast(t('intake.saveError'), 3500);
+    },
   });
 
   // Manual entry stays INSIDE the intake flow (S-1.2/S-1.3): an empty confirm
@@ -120,7 +146,7 @@ export function IntakeFlow({ manual = false }: IntakeFlowProps) {
   };
 
   const onSave = (input: IntakeInput, mode: SaveMode) => {
-    save.mutate({ input, mode });
+    save.mutate({ input, mode, idempotencyKey: attempt.keyFor('intake') });
   };
 
   return (
@@ -136,6 +162,7 @@ export function IntakeFlow({ manual = false }: IntakeFlowProps) {
           {...(recognition ? { recognition } : {})}
           manual={manual}
           saving={save.isPending}
+          outcomeUnknown={failedWithUnknownOutcome(save)}
           onSave={onSave}
           {...(manual ? {} : { onRescan: rescan })}
           onBack={() => void navigate({ to: '/' })}

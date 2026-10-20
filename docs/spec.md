@@ -206,6 +206,11 @@ quantities**, "Insulation" pills (None / Fleece / Sheepskin) and "Material"
   with a counter. A repeated size in the body → 400 (summing it would mean
   accepting pairs nobody ordered), an empty list → 400, and a cap of 99 per
   size guards against a stray digit.
+- **Saving twice cannot take a delivery in twice.** Every save carries an
+  `Idempotency-Key` (§5.2) that lives until the save succeeds — through the
+  automatic retry, the seller's second tap, even a rescan of the same label.
+  When a save gets no answer, the form stays filled and says the intake **may
+  already be saved**; saving again is answered with the first batch.
 - **Manual intake** (`/intake-manual`) is the same flow without the camera — a
   separate entry point from manual checkout (§3.6), because one "enter
   manually" cannot mean both receiving and selling.
@@ -223,6 +228,19 @@ editable) + Cash/Card, CTA "Confirm sale · N ₴"; write-off — no price, an
 optional comment. Success → home with a green toast; a conflict (the pair was
 just sold) → 409 → back to confirmation with fresh stock.
 
+**No answer is not "not saved".** A network error, a timeout or a 5xx from the
+proxy means the sale may well have gone through. The flow retries once by
+itself; if that also gets no answer, the details screen stays on **the same
+pair** with an amber "No answer — it may already have gone through" and asks
+for another tap. Every try carries the same `Idempotency-Key` (§5.2), so a
+sale that did land is answered with itself rather than with a 409 — which used
+to send the seller to rescan, where FIFO handed them the next identical pair.
+Until the attempt resolves, the stock lookup does not refetch (not even on
+reconnect), so the pair on screen cannot be swapped under the retry; editing
+the tag starts a new attempt. If the earlier tap landed with other details
+(the price was edited, or sale became write-off), the API answers 422 and the
+scanner goes home saying the pair was already checked out.
+
 ### 3.5 Customer return
 
 Scan → the system narrows to the insulation/material combinations that
@@ -232,7 +250,10 @@ someone else's sale) → finds the **latest sale** of exactly that pair → a
 card: "Sold dd.mm — N days ago · payment · seller" + price; past 14 days a
 yellow guideline (not blocking); the note "The pair returns to stock, the sale
 is cancelled in statistics"; CTA "Return to stock · −N ₴". The pair is
-IN_STOCK again (a draft regains "awaiting price").
+IN_STOCK again (a draft regains "awaiting price"). A return that gets no answer
+behaves as a sale does (§3.4): the same sale stays on screen, the lookup holds
+still, and the retry carries the same `Idempotency-Key` — so it cannot go on to
+reverse the next identical sale.
 
 ### 3.6 Manual entry
 
@@ -359,15 +380,15 @@ without explicit roles = 403).
 | `GET /me/sales?period=today\|month&month=YYYY-MM`     | all                                            | own sales (no margin); `month` picks a calendar month                              |
 | `GET /me/drafts`                                      | all                                            | own pairs/drafts                                                                   |
 | `POST /tags/recognize`                                | all, 10/min per user                           | label recognition (OpenRouter)                                                     |
-| `POST /intake`                                        | all (the role branches the price)              | intake: one variant, N pairs by the size grid; ADMIN must send a price (0 allowed) |
+| `POST /intake`                                        | all (the role branches the price)              | intake: one variant, N pairs by the size grid; ADMIN must send a price (0 allowed); `Idempotency-Key` (§5.2) |
 | `PATCH/DELETE /intake/:pairId`                        | all (own drafts only)                          | edit/delete a draft                                                                |
 | `GET /intake/queue`, `GET /intake/history`            | ADMIN                                          | the dashboard queue/history                                                        |
 | `GET /intake/price-hint`                              | ADMIN                                          | purchase-price hint (in USD) by variant identity                                   |
 | `GET /exchange/rate`                                  | ADMIN                                          | the USD→UAH rate for the price-form preview                                        |
 | `POST /sale/lookup`                                   | all                                            | scan-lookup of a pair in stock                                                     |
 | `GET /sale/search?style=`                             | all                                            | reference search (no prices)                                                       |
-| `POST /sale`, `POST /sale/writeoff`                   | all                                            | sale / write-off (row lock, 409)                                                   |
-| `POST /returns/lookup`, `POST /returns`               | all                                            | return (the latest sale)                                                           |
+| `POST /sale`, `POST /sale/writeoff`                   | all                                            | sale / write-off (row lock, 409); `Idempotency-Key` (§5.2)                         |
+| `POST /returns/lookup`, `POST /returns`               | all                                            | return (the latest sale); `POST /returns` takes `Idempotency-Key` (§5.2)           |
 | `GET /stock/variants`, `GET /stock/variants/:id`      | ADMIN                                          | stock                                                                              |
 | `PATCH /stock/variants/:id/price`, `POST …/no-price`  | ADMIN                                          | price confirmation (+ basis backfill)                                              |
 | `DELETE /stock/pairs/:id`                             | ADMIN                                          | delete a pair with no history beyond its intake                                    |
@@ -393,6 +414,44 @@ verified with the same secret, and the user is re-read from the database
 (`tokenVersion`, `deletedAt`). Only an admin is let into the room; a seller or
 an anonymous socket is disconnected. The socket's CORS allowlist is the same
 `CORS_ORIGINS`, applied when the server is created.
+
+### 5.2 Idempotent writes
+
+The four endpoints that move stock or money — `POST /intake`, `POST /sale`,
+`POST /sale/writeoff`, `POST /returns` — accept an `Idempotency-Key` header (a
+UUID). The scanner is used over mobile data, where a response can be lost after
+the server has committed: without a key, re-sending an intake took the
+delivery in twice, and a retried sale met a 409.
+
+- **The key names one attempt by the seller**, not one HTTP request: it is
+  minted at the first tap and resent on every retry of that attempt — the API
+  client's refresh-and-retry, the flow's one automatic retry, the seller's
+  second tap. An attempt is named by what it acts on: the pair being checked
+  out, the sale being reversed, the intake form being saved. It ends when the
+  write succeeds, and a new target is a new attempt with a new key.
+- **Server.** The key is claimed in the table `idempotency_keys` (primary key
+  `(userId, key)`) **inside the operation's own transaction, before the
+  work**: `INSERT … ON CONFLICT DO NOTHING`. The first request writes and
+  stores its response in the same row; a repeat finds the key taken and gets
+  that stored response back — same status, same body, nothing written, no
+  realtime event. A repeat sent while the first is still in flight waits on
+  the first one's row, so it cannot race the pair lock and lose with a 409 to
+  its own sale. A request that fails rolls the claim back with everything
+  else, so its retry is simply judged afresh.
+- **Same key, different request → 422.** The key is bound to its endpoint (by
+  the operation type) and to a SHA-256 of the validated body. A different body
+  under a used key means the earlier attempt landed with other details; the
+  scanner reports that instead of writing a second operation.
+- **Keys are per user**: a colleague's identical key is a different attempt. A
+  malformed key → 400 (dropping it silently would turn the protected retry
+  back into a duplicate). The header is optional — a scanner build still
+  cached on a phone works through a rollout, unguarded, as before.
+- **"Outcome unknown"** is a network error, a timeout, or a 5xx; the scanner
+  says the write **may already have gone through** rather than "save error",
+  and keeps everything on screen for the retry. A 4xx is the API refusing, and
+  nothing was written.
+- Rows are not pruned: one small row per write, kept with the user (deleted
+  only with a hard-deleted user, which the app never does).
 
 ---
 
@@ -452,9 +511,10 @@ an anonymous socket is disconnected. The socket's CORS allowlist is the same
 - **Concurrency**: sale, write-off, return and cancellation take
   `SELECT … FOR UPDATE` on the pair; variant find-or-create is serialised by a
   transaction-scoped advisory lock over the 5-field identity (the unique
-  constraint cannot cover a NULL material).
+  constraint cannot cover a NULL material); repeated writes are deduplicated by
+  an idempotency key claimed in the same transaction (§5.2).
 - **Tests**: unit (Jest/Vitest) + component (Testing Library) + API
-  integration against a real Postgres (supertest + a real socket.io client; 9
+  integration against a real Postgres (supertest + a real socket.io client; 10
   suites) + browser e2e (Playwright over the built scanner and dashboard and
   the real API; 13 spec files). CI on every PR and on every push to `main` and
   `release`: dependency audit, lint, format, typecheck, unit, build,

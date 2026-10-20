@@ -117,6 +117,11 @@ export const en: Messages = {
     savedDraft_one: 'Saved {{count}} draft',
     savedDraft_other: 'Saved {{count}} drafts',
     saveError: 'Could not save. Please try again.',
+    outcomeUnknownTitle: 'No answer — the intake may already be saved',
+    outcomeUnknownBody:
+      'Save again without changing anything: a retry will not add the pairs twice.',
+    alreadySaved:
+      'The previous save did go through, so this one was not recorded. Check the intake before saving again.',
   },
   sale: {
     title: 'Sale / out',
@@ -157,6 +162,10 @@ export const en: Messages = {
     writtenOffToast: 'Write-off registered',
     conflict: 'The pair was already sold or written off — stock refreshed',
     saveError: 'Could not save. Please try again.',
+    outcomeUnknownTitle: 'No answer — it may already have gone through',
+    outcomeUnknownBody: 'Tap “Confirm” again: a retry will not sell or write off a second pair.',
+    alreadySavedTitle: 'This pair was already checked out by the previous tap',
+    alreadySavedBody: 'The second tap changed nothing — see “My sales” for details',
     lookupErrorTitle: 'Could not check the stock',
     lookupErrorBody: 'Looks like a connection problem. Stock data did not load.',
     lookupRetry: 'Try again',
@@ -182,6 +191,8 @@ export const en: Messages = {
     registeredToast: 'Return registered',
     conflict: 'This pair was already returned or written off',
     saveError: 'Could not save. Please try again.',
+    outcomeUnknownTitle: 'No answer — the return may already have gone through',
+    outcomeUnknownBody: 'Tap “Return” again: a retry will not return a second pair.',
     lookupErrorTitle: 'Could not check the sales',
     lookupErrorBody: 'Looks like a connection problem. Sales data did not load.',
   },

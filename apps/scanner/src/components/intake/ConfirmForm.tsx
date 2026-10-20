@@ -27,6 +27,7 @@ import {
 } from '../../lib/sizeGrid';
 import { usePriceHint } from '../../lib/usePriceHint';
 import { FieldCard, PillGroup } from '../scan/fields';
+import { OutcomeUnknown } from '../scan/OutcomeUnknown';
 import { SizeGrid } from './SizeGrid';
 
 /** Recognitions below this read as "double-check me" in the UI (heuristic). */
@@ -44,6 +45,8 @@ interface ConfirmFormProps {
    */
   manual?: boolean;
   saving: boolean;
+  /** The last save got no answer — it may have gone through (spec §5.2). */
+  outcomeUnknown?: boolean;
   onSave: (input: IntakeInput, mode: SaveMode) => void;
   /** Absent in manual entry — there is no scan to repeat. */
   onRescan?: () => void;
@@ -60,6 +63,7 @@ export function ConfirmForm({
   recognition,
   manual = false,
   saving,
+  outcomeUnknown = false,
   onSave,
   onRescan,
   onBack,
@@ -292,6 +296,12 @@ export function ConfirmForm({
       )}
 
       <div className="mt-auto flex flex-col gap-2.5 pt-2">
+        {outcomeUnknown && (
+          <OutcomeUnknown
+            title={t('intake.outcomeUnknownTitle')}
+            body={t('intake.outcomeUnknownBody')}
+          />
+        )}
         <button
           data-testid="intake-save-next"
           type="button"

@@ -10,8 +10,12 @@ function makeTx() {
     $queryRaw: jest.fn(),
     pair: { update: jest.fn() },
     operation: { create: jest.fn() },
+    idempotencyKey: { createMany: jest.fn(), findUniqueOrThrow: jest.fn(), update: jest.fn() },
   };
 }
+
+/** A key whose first request has already committed — every call below is its repeat. */
+const SPENT_KEY = '5f0c7c1e-3c1b-4f5e-9d7a-2b8e6f4a1c3d';
 
 describe('SaleService', () => {
   /** Realtime is fire-and-forget: assert it fires, never let it fail a write. */
@@ -233,6 +237,32 @@ describe('SaleService', () => {
     ).rejects.toBeInstanceOf(ConflictException);
     expect(tx.pair.update).not.toHaveBeenCalled();
     // The loser of the race announces nothing.
+    expect(realtime.emit).not.toHaveBeenCalled();
+  });
+
+  // The lost-response case: the sale committed, the phone never heard. The
+  // retry must get that sale back — not a 409 that sends the seller to rescan.
+  it('повтор з тим самим ключем: перший продаж назад, без блокування пари і без події', async () => {
+    const first = { pairId: 'p1', style: '7645', color: '36', size: 38, status: 'SOLD' };
+    tx.idempotencyKey.createMany.mockResolvedValue({ count: 0 });
+    tx.idempotencyKey.findUniqueOrThrow.mockImplementation(() =>
+      Promise.resolve({
+        type: 'SALE',
+        // Whatever the first request hashed to: capture it from this very call.
+        requestHash: tx.idempotencyKey.createMany.mock.calls[0][0].data[0].requestHash,
+        response: first,
+      }),
+    );
+
+    const res = await service.sell(
+      { pairId: 'p1', salePrice: 2850, paymentMethod: 'CASH' },
+      'seller-1',
+      SPENT_KEY,
+    );
+
+    expect(res).toEqual(first);
+    expect(tx.$queryRaw).not.toHaveBeenCalled();
+    expect(tx.operation.create).not.toHaveBeenCalled();
     expect(realtime.emit).not.toHaveBeenCalled();
   });
 

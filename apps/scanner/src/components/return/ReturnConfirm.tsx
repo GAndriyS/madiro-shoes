@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next';
 
 import type { ComboChoice } from '../sale/SaleConfirm';
 import { FieldCard } from '../scan/fields';
+import { OutcomeUnknown } from '../scan/OutcomeUnknown';
 
 interface ReturnConfirmProps {
   size: string;
@@ -19,6 +20,8 @@ interface ReturnConfirmProps {
   lookup: ReturnLookupResponse | undefined;
   loading: boolean;
   saving: boolean;
+  /** The last confirm got no answer — it may have gone through (spec §5.2). */
+  outcomeUnknown?: boolean;
   /** The lookup request itself failed — show a retry, not «не знайдено». */
   lookupError?: boolean;
   onRetry?: () => void;
@@ -46,6 +49,7 @@ export function ReturnConfirm({
   lookup,
   loading,
   saving,
+  outcomeUnknown = false,
   lookupError = false,
   onRetry,
   selectedCombo,
@@ -263,6 +267,12 @@ export function ReturnConfirm({
       )}
 
       <div className="mt-auto flex flex-col gap-2.5 pt-2">
+        {sale && outcomeUnknown && (
+          <OutcomeUnknown
+            title={t('return.outcomeUnknownTitle')}
+            body={t('return.outcomeUnknownBody')}
+          />
+        )}
         {sale && (
           <button
             data-testid="return-confirm"

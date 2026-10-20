@@ -12,6 +12,7 @@ import {
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { IdempotencyKey } from '../common/idempotency';
 import { SaleService } from './sale.service';
 import { validationError } from '../common/validation-error';
 
@@ -42,20 +43,28 @@ export class SaleController {
   }
 
   @Post()
-  sell(@Body() body: unknown, @CurrentUser() user: AuthUser): Promise<CheckoutResult> {
+  sell(
+    @Body() body: unknown,
+    @CurrentUser() user: AuthUser,
+    @IdempotencyKey() idempotencyKey: string | null,
+  ): Promise<CheckoutResult> {
     const parsed = saleSchema.safeParse(body);
     if (!parsed.success) {
       throw validationError(parsed.error);
     }
-    return this.sale.sell(parsed.data, user.id);
+    return this.sale.sell(parsed.data, user.id, idempotencyKey);
   }
 
   @Post('writeoff')
-  writeoff(@Body() body: unknown, @CurrentUser() user: AuthUser): Promise<CheckoutResult> {
+  writeoff(
+    @Body() body: unknown,
+    @CurrentUser() user: AuthUser,
+    @IdempotencyKey() idempotencyKey: string | null,
+  ): Promise<CheckoutResult> {
     const parsed = writeoffSchema.safeParse(body);
     if (!parsed.success) {
       throw validationError(parsed.error);
     }
-    return this.sale.writeoff(parsed.data, user.id);
+    return this.sale.writeoff(parsed.data, user.id, idempotencyKey);
   }
 }

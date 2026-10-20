@@ -9,6 +9,7 @@ import {
 
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { IdempotencyKey } from '../common/idempotency';
 import { ReturnsService } from './returns.service';
 import { validationError } from '../common/validation-error';
 
@@ -29,11 +30,15 @@ export class ReturnsController {
   }
 
   @Post()
-  register(@Body() body: unknown, @CurrentUser() user: AuthUser): Promise<CheckoutResult> {
+  register(
+    @Body() body: unknown,
+    @CurrentUser() user: AuthUser,
+    @IdempotencyKey() idempotencyKey: string | null,
+  ): Promise<CheckoutResult> {
     const parsed = returnSchema.safeParse(body);
     if (!parsed.success) {
       throw validationError(parsed.error);
     }
-    return this.returns.register(parsed.data.operationId, user.id);
+    return this.returns.register(parsed.data.operationId, user.id, idempotencyKey);
   }
 }

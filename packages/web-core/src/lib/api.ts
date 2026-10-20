@@ -1,4 +1,9 @@
-import { CLIENT_HEADER, authResponseSchema, type ClientId } from '@madiro/shared';
+import {
+  CLIENT_HEADER,
+  IDEMPOTENCY_HEADER,
+  authResponseSchema,
+  type ClientId,
+} from '@madiro/shared';
 
 import { useAuthStore } from '../stores/auth';
 
@@ -33,6 +38,34 @@ export class ApiError extends Error {
 }
 
 /**
+ * True when a failed write may still have happened: the request never got an
+ * answer (network error, timeout) or a gateway answered for an API it could not
+ * hear back from (5xx). A 4xx is the API itself refusing, so nothing was
+ * written. The UI must say «may have gone through», never «not saved», for
+ * these — and the retry must resend the same Idempotency-Key.
+ */
+export function outcomeUnknown(err: unknown): boolean {
+  return err instanceof ApiError && (err.status === 0 || err.status === 408 || err.status >= 500);
+}
+
+/**
+ * A fresh Idempotency-Key. `crypto.randomUUID` exists only in a secure context,
+ * and a phone on the shop's Wi-Fi opening a dev build by LAN address is not
+ * one — so fall back to a v4 UUID built from `getRandomValues`, which is
+ * available everywhere.
+ */
+export function newIdempotencyKey(): string {
+  if (typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  const bytes = crypto.getRandomValues(new Uint8Array(16));
+  bytes[6] = (bytes[6]! & 0x0f) | 0x40; // version 4
+  bytes[8] = (bytes[8]! & 0x3f) | 0x80; // RFC 4122 variant
+  const hex = [...bytes].map((b) => b.toString(16).padStart(2, '0')).join('');
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+/**
  * API origin. Normally empty, so requests stay relative to `/api`: in dev the
  * Vite proxy handles them, in production the app's own Caddy container proxies
  * them to the API. Same-origin is deliberate — the refresh cookie used to be
@@ -48,6 +81,11 @@ const REQUEST_TIMEOUT_MS = 15_000;
 interface RequestOptions {
   /** Per-call override for slow endpoints (e.g. vision recognition). */
   timeoutMs?: number;
+  /**
+   * Names the attempt on endpoints that move stock or money (spec §5.2). Pass
+   * the same key on every retry of one attempt, a new one for the next attempt.
+   */
+  idempotencyKey?: string;
 }
 
 async function request<T>(
@@ -70,6 +108,9 @@ async function request<T>(
   // cookie-authenticated auth routes, where it is both the CSRF guard and the
   // choice of which client's refresh cookie to issue.
   headers.set(CLIENT_HEADER, requireClientId());
+  if (options.idempotencyKey) {
+    headers.set(IDEMPOTENCY_HEADER, options.idempotencyKey);
+  }
 
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), options.timeoutMs ?? REQUEST_TIMEOUT_MS);
@@ -169,8 +210,8 @@ export async function logout(): Promise<void> {
 
 export const api = {
   get: <T>(path: string) => request<T>(path),
-  post: <T>(path: string, body: unknown) =>
-    request<T>(path, { method: 'POST', body: JSON.stringify(body) }),
+  post: <T>(path: string, body: unknown, options?: RequestOptions) =>
+    request<T>(path, { method: 'POST', body: JSON.stringify(body) }, true, options),
   postForm: <T>(path: string, body: FormData, options?: RequestOptions) =>
     request<T>(path, { method: 'POST', body }, true, options),
   patch: <T>(path: string, body: unknown) =>

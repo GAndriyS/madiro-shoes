@@ -3,6 +3,8 @@ import { ChevronRightIcon, cn, money } from '@madiro/web-core';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { OutcomeUnknown } from '../scan/OutcomeUnknown';
+
 export type CheckoutPayload =
   | { kind: 'sale'; salePrice: number; paymentMethod: PaymentMethod }
   | { kind: 'writeoff'; comment?: string };
@@ -11,6 +13,8 @@ interface SaleDetailsProps {
   pair: FoundPair;
   salePriceHint: number | null;
   saving: boolean;
+  /** The last confirm got no answer — it may have gone through (spec §5.2). */
+  outcomeUnknown?: boolean;
   onConfirm: (payload: CheckoutPayload) => void;
   onBack: () => void;
 }
@@ -56,7 +60,14 @@ function Segmented<T extends string>({ options, selected, onSelect, testId }: Se
  * type toggle, sale price prefilled with the variant's last sale (rule 3.3 #9),
  * cash/card payment — or a no-price write-off with an optional comment.
  */
-export function SaleDetails({ pair, salePriceHint, saving, onConfirm, onBack }: SaleDetailsProps) {
+export function SaleDetails({
+  pair,
+  salePriceHint,
+  saving,
+  outcomeUnknown = false,
+  onConfirm,
+  onBack,
+}: SaleDetailsProps) {
   const { t, i18n } = useTranslation();
   const [type, setType] = useState<'SALE' | 'WRITEOFF'>('SALE');
   const [price, setPrice] = useState(salePriceHint != null ? String(salePriceHint) : '');
@@ -199,6 +210,12 @@ export function SaleDetails({ pair, salePriceHint, saving, onConfirm, onBack }: 
       )}
 
       <div className="mt-auto flex flex-col gap-2.5 pt-2">
+        {outcomeUnknown && (
+          <OutcomeUnknown
+            title={t('sale.outcomeUnknownTitle')}
+            body={t('sale.outcomeUnknownBody')}
+          />
+        )}
         <button
           data-testid="checkout-confirm"
           type="button"
