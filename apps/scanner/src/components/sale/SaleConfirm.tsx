@@ -123,16 +123,16 @@ export function SaleConfirm({
           onChange={(v) => onFieldChange('size', v)}
         />
         <FieldCard
-          testId="field-color"
-          label={t('intake.fieldColor')}
-          value={color}
-          onChange={(v) => onFieldChange('color', v)}
-        />
-        <FieldCard
           testId="field-style"
           label={t('intake.fieldStyle')}
           value={style}
           onChange={(v) => onFieldChange('style', v)}
+        />
+        <FieldCard
+          testId="field-color"
+          label={t('intake.fieldColor')}
+          value={color}
+          onChange={(v) => onFieldChange('color', v)}
         />
       </div>
 
