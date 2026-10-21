@@ -149,22 +149,18 @@ describe('ConfirmForm', () => {
     expect(screen.queryByText(/звірте цифри з біркою/)).not.toBeInTheDocument();
   });
 
-  it('пілюлі: утеплення одиничний вибір, матеріал знімається повторним тапом', async () => {
+  it('пілюлі: утеплення одиничний вибір, матеріалу не питаємо — його несе код кольору', async () => {
     asSeller();
     renderForm();
     const baika = screen.getByRole('button', { name: 'Байка' });
-    const leather = screen.getByRole('button', { name: 'Шкіра' });
 
     expect(screen.getByRole('button', { name: 'Без' })).toHaveAttribute('aria-pressed', 'true');
     await userEvent.click(baika);
     expect(baika).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByRole('button', { name: 'Без' })).toHaveAttribute('aria-pressed', 'false');
 
-    expect(leather).toHaveAttribute('aria-pressed', 'false');
-    await userEvent.click(leather);
-    expect(leather).toHaveAttribute('aria-pressed', 'true');
-    await userEvent.click(leather);
-    expect(leather).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.queryByRole('button', { name: 'Шкіра' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Замша' })).not.toBeInTheDocument();
   });
 
   it('продавець: інфо-панель чернетки, без секції ціни, чернетковий payload', async () => {

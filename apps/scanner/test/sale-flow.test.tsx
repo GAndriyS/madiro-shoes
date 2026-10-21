@@ -164,9 +164,10 @@ describe('SaleConfirm', () => {
     expect(screen.getByRole('button', { name: 'Далі — деталі виходу' })).toBeEnabled();
   });
 
-  // A bare «Без» read as nothing in particular: every value names its field,
-  // and a pair stocked without a material says so instead of dropping it.
-  it('пігулки комбінацій підписують матеріал і утеплення, зокрема невказаний матеріал', () => {
+  // A bare «Без» read as nothing in particular, so every value names its field.
+  // A missing material is left out: intake stopped asking for it (the colour
+  // code carries it), and «не вказано» on every new pair was noise.
+  it('пігулки комбінацій підписують матеріал і утеплення, без матеріалу — лише утеплення', () => {
     renderConfirm({
       ...lookupFound,
       combos: [
@@ -175,9 +176,7 @@ describe('SaleConfirm', () => {
       ],
       pair: null,
     });
-    expect(
-      screen.getByRole('button', { name: 'Матеріал: не вказано · Утеплення: без' }),
-    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Утеплення: без' })).toBeInTheDocument();
     expect(
       screen.getByRole('button', { name: 'Матеріал: замша · Утеплення: без' }),
     ).toBeInTheDocument();
