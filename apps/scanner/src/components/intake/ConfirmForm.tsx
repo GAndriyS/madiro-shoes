@@ -1,11 +1,4 @@
-import {
-  MATERIALS,
-  SEASONS,
-  type IntakeInput,
-  type Material,
-  type Season,
-  type TagRecognition,
-} from '@madiro/shared';
+import { SEASONS, type IntakeInput, type Season, type TagRecognition } from '@madiro/shared';
 import {
   AlertIcon,
   ChevronRightIcon,
@@ -79,14 +72,16 @@ export function ConfirmForm({
   const [color, setColor] = useState(recognition?.color ?? '');
   const [style, setStyle] = useState(recognition?.style ?? '');
   const [season, setSeason] = useState<Season>('NONE');
-  const [material, setMaterial] = useState<Material | null>(null);
   const [priceMode, setPriceMode] = useState<'set' | 'none'>('set');
   const [price, setPrice] = useState('');
   // Once the admin types, the hint stops writing into the field — a suggestion
   // must never overwrite what a person has just entered.
   const [priceTouched, setPriceTouched] = useState(false);
 
-  const hint = usePriceHint(isAdmin ? { style, color, material, season } : null);
+  // No material picker: the shop's colour codes already say leather or suede
+  // (36 — black leather, 66 — black suede), so asking again only invited a
+  // second, contradicting answer.
+  const hint = usePriceHint(isAdmin ? { style, color, material: null, season } : null);
   // Purchase prices are entered in dollars and stored in hryvnia; show the admin
   // the hryvnia that will actually be written, at the same rate the API uses.
   const { data: exchange, isError: rateFailed } = useExchangeRate({ enabled: isAdmin });
@@ -112,11 +107,6 @@ export function ConfirmForm({
     BAIKA: t('intake.seasonBaika'),
     SHEEPSKIN: t('intake.seasonSheepskin'),
   };
-  const materialLabels: Record<Material, string> = {
-    LEATHER: t('intake.materialLeather'),
-    SUEDE: t('intake.materialSuede'),
-  };
-
   // Manual entry saves and moves to the next model without ever reaching the
   // camera, so the batch button must not promise a scan.
   const saveAndNextLabel = () => {
@@ -150,7 +140,6 @@ export function ConfirmForm({
         sizes: collectSizes(quantities),
         color,
         style,
-        ...(material ? { material } : {}),
         season,
         ...(purchasePriceUsd !== undefined ? { purchasePriceUsd } : {}),
       },
@@ -188,16 +177,16 @@ export function ConfirmForm({
 
       <div className="grid grid-cols-2 gap-2.5">
         <FieldCard
-          testId="field-color"
-          label={t('intake.fieldColor')}
-          value={color}
-          onChange={setColor}
-        />
-        <FieldCard
           testId="field-style"
           label={t('intake.fieldStyle')}
           value={style}
           onChange={setStyle}
+        />
+        <FieldCard
+          testId="field-color"
+          label={t('intake.fieldColor')}
+          value={color}
+          onChange={setColor}
         />
       </div>
 
@@ -218,14 +207,6 @@ export function ConfirmForm({
         selected={season}
         optionLabel={(option) => seasonLabels[option]}
         onSelect={setSeason}
-      />
-      <PillGroup
-        testId="material"
-        label={t('intake.materialLabel')}
-        options={MATERIALS}
-        selected={material}
-        optionLabel={(option) => materialLabels[option]}
-        onSelect={(option) => setMaterial((current) => (current === option ? null : option))}
       />
 
       {isAdmin ? (

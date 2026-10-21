@@ -45,21 +45,16 @@ export function SizeGrid({ label, sizes, quantities, onChange, summary }: SizeGr
                 filled ? 'border-ink' : 'border-border-input',
               )}
             >
-              <span
-                className={cn(
-                  'text-[10px] font-bold tracking-[1.2px]',
-                  filled ? 'text-ink' : 'text-text-muted',
-                )}
-              >
-                {size}
-              </span>
+              <span className="text-[15px] font-bold text-ink">{size}</span>
+              {/* Manrope, not the display serif: Cormorant's old-style «0» reads as
+                  the letter «O» at a glance. */}
               <input
                 data-testid={`size-qty-${size}`}
                 inputMode="numeric"
                 value={value}
                 placeholder="0"
                 onChange={(e) => onChange({ ...quantities, [size]: clampQty(e.target.value) })}
-                className="w-full bg-transparent text-center font-display text-[22px] font-semibold text-ink outline-none placeholder:text-text-faint"
+                className="w-full bg-transparent text-center text-[24px] font-bold text-ink tabular-nums outline-none placeholder:text-text-muted"
               />
             </label>
           );

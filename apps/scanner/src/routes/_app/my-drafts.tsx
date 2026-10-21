@@ -1,5 +1,4 @@
 import {
-  MATERIALS,
   SEASONS,
   myDraftSchema,
   myDraftsResponseSchema,
@@ -265,12 +264,7 @@ function DraftEditForm({
   const [color, setColor] = useState(draft.color);
   const [style, setStyle] = useState(draft.style);
   const [season, setSeason] = useState<Season>(draft.season ?? 'NONE');
-  const [material, setMaterial] = useState<Material | null>(draft.material);
 
-  const materialLabels: Record<Material, string> = {
-    LEATHER: t('intake.materialLeather'),
-    SUEDE: t('intake.materialSuede'),
-  };
   const seasonLabels: Record<Season, string> = {
     NONE: t('intake.seasonNone'),
     BAIKA: t('intake.seasonBaika'),
@@ -298,16 +292,16 @@ function DraftEditForm({
           onChange={setSize}
         />
         <FieldCard
-          testId="field-color"
-          label={t('intake.fieldColor')}
-          value={color}
-          onChange={setColor}
-        />
-        <FieldCard
           testId="field-style"
           label={t('intake.fieldStyle')}
           value={style}
           onChange={setStyle}
+        />
+        <FieldCard
+          testId="field-color"
+          label={t('intake.fieldColor')}
+          value={color}
+          onChange={setColor}
         />
       </div>
       <PillGroup
@@ -318,14 +312,6 @@ function DraftEditForm({
         optionLabel={(o) => seasonLabels[o]}
         onSelect={setSeason}
       />
-      <PillGroup
-        testId="material"
-        label={t('intake.materialLabel')}
-        options={MATERIALS}
-        selected={material}
-        optionLabel={(o) => materialLabels[o]}
-        onSelect={(o) => setMaterial((current) => (current === o ? null : o))}
-      />
       <button
         type="button"
         disabled={!valid || saving}
@@ -335,7 +321,10 @@ function DraftEditForm({
             color,
             style,
             season,
-            ...(material ? { material } : {}),
+            // The colour code carries leather/suede now, so there is no picker —
+            // but a draft saved before that keeps its material: an omitted field
+            // is written as null, which would silently move it to another variant.
+            ...(draft.material ? { material: draft.material } : {}),
           })
         }
         className="rounded-[14px] bg-ink p-[15px] text-base font-bold text-page disabled:opacity-50"

@@ -118,9 +118,14 @@ export function ComboPill({ material, season, active, onClick, testId }: ComboPi
           : 'border-border-input text-text-secondary',
       )}
     >
-      {name('sale.comboMaterial')}{' '}
-      {material ? materialLabels[material].toLowerCase() : t('sale.comboMaterialUnknown')}
-      {' · '}
+      {/* Intake no longer asks for a material — the colour code carries it — so
+          on new stock it is always empty and «не вказано» would be noise. */}
+      {material && (
+        <>
+          {name('sale.comboMaterial')} {materialLabels[material].toLowerCase()}
+          {' · '}
+        </>
+      )}
       {name('sale.comboSeason')} {seasonLabels[season].toLowerCase()}
     </button>
   );
