@@ -188,16 +188,16 @@ export function ConfirmForm({
 
       <div className="grid grid-cols-2 gap-2.5">
         <FieldCard
-          testId="field-color"
-          label={t('intake.fieldColor')}
-          value={color}
-          onChange={setColor}
-        />
-        <FieldCard
           testId="field-style"
           label={t('intake.fieldStyle')}
           value={style}
           onChange={setStyle}
+        />
+        <FieldCard
+          testId="field-color"
+          label={t('intake.fieldColor')}
+          value={color}
+          onChange={setColor}
         />
       </div>
 

@@ -298,16 +298,16 @@ function DraftEditForm({
           onChange={setSize}
         />
         <FieldCard
-          testId="field-color"
-          label={t('intake.fieldColor')}
-          value={color}
-          onChange={setColor}
-        />
-        <FieldCard
           testId="field-style"
           label={t('intake.fieldStyle')}
           value={style}
           onChange={setStyle}
+        />
+        <FieldCard
+          testId="field-color"
+          label={t('intake.fieldColor')}
+          value={color}
+          onChange={setColor}
         />
       </div>
       <PillGroup
