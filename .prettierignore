@@ -8,3 +8,12 @@ docs/
 apps/dashboard/src/routeTree.gen.ts
 apps/dashboard/public/mockServiceWorker.js
 apps/scanner/src/routeTree.gen.ts
+
+# sdd-harness: framework files are refreshed by its installer, which would read a
+# reformat as a local edit; specs, plans and run state are agent prose, like docs/.
+.claude/agents/
+.claude/skills/*
+!.claude/skills/project-conventions/
+harness/
+scripts/verify.mjs
+scripts/check-specs.mjs

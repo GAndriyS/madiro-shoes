@@ -13,6 +13,10 @@ export default tseslint.config(
       'apps/scanner/src/routeTree.gen.ts',
       'apps/scanner/dev-dist/',
       'apps/dashboard/public/mockServiceWorker.js',
+      // sdd-harness framework files: refreshed by its installer, which reports a
+      // local edit as a conflict — they are linted where they are written.
+      'scripts/verify.mjs',
+      'scripts/check-specs.mjs',
     ],
   },
   js.configs.recommended,
@@ -26,10 +30,18 @@ export default tseslint.config(
     },
   },
   {
-    // Node scripts (icon generation etc.)
+    // Node scripts (icon generation, the browser-QA session broker etc.)
     files: ['**/scripts/**/*.mjs'],
     languageOptions: {
-      globals: { Buffer: 'readonly', console: 'readonly', process: 'readonly' },
+      globals: {
+        Buffer: 'readonly',
+        console: 'readonly',
+        process: 'readonly',
+        fetch: 'readonly',
+        setTimeout: 'readonly',
+        URL: 'readonly',
+        WebSocket: 'readonly',
+      },
     },
   },
   {

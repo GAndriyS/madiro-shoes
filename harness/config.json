@@ -1,0 +1,31 @@
+{
+  "$comment": "Machine-readable half of the Harness profile (AGENTS.md → Harness profile). issueKey: regex for a ticket id, used in SPEC-<ISSUE> ids and by scripts/check-specs.mjs. slices: the verify vocabulary — each gate runs from the repo root via scripts/verify.mjs; mark test gates with \"test\": true so --tests-only keeps them. Mirror the CI file named in ci-config. `specs` is a built-in slice. Filled by /harness-setup.",
+  "issueKey": "GH-\\d+",
+  "slices": {
+    "repo": {
+      "path": ".",
+      "gates": [
+        { "name": "prisma-generate", "cmd": "pnpm --filter @madiro/api prisma:generate" },
+        { "name": "audit", "cmd": "pnpm audit --prod --audit-level=critical" },
+        { "name": "agents-sync", "cmd": "diff -q CLAUDE.md AGENTS.md" },
+        { "name": "lint", "cmd": "pnpm lint" },
+        { "name": "format", "cmd": "pnpm format:check" },
+        { "name": "typecheck", "cmd": "pnpm typecheck" },
+        { "name": "tests", "cmd": "pnpm test", "test": true },
+        { "name": "build", "cmd": "pnpm build" }
+      ]
+    },
+    "api-e2e": {
+      "path": "apps/api",
+      "gates": [
+        { "name": "migrate", "cmd": "node scripts/e2e-db.mjs pnpm --filter @madiro/api db:deploy" },
+        { "name": "drift", "cmd": "node scripts/e2e-db.mjs pnpm --filter @madiro/api db:drift" },
+        { "name": "e2e", "cmd": "node scripts/e2e-db.mjs pnpm --filter @madiro/api test:e2e", "test": true }
+      ]
+    },
+    "browser-e2e": {
+      "path": "e2e",
+      "gates": [{ "name": "playwright", "cmd": "pnpm e2e:pw", "test": true }]
+    }
+  }
+}
