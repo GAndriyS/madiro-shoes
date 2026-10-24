@@ -6,7 +6,14 @@ coverage/
 .env
 .env.local
 .DS_Store
-.claude/
+
+# Claude Code: the sdd-harness agents and skills and the shared settings are
+# committed; everything else in .claude/ is per machine (settings.local.json,
+# launch.json, session worktrees).
+.claude/*
+!.claude/agents/
+!.claude/skills/
+!.claude/settings.json
 
 # Playwright artifacts
 e2e/test-results/
@@ -15,3 +22,7 @@ e2e/playwright-report/
 # TanStack Router codegen scratch — the generated routeTree.gen.ts IS tracked,
 # this is only the plugin's temp dir, written whenever the dev server runs.
 apps/*/.tanstack/
+
+# sdd-harness: a framework file's new version left by `install.mjs --update`
+# when the local copy was edited too — merge it, then delete it.
+*.sdd-new

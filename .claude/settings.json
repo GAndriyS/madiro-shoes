@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "permissions": {
+    "allow": [
+      "Bash(node scripts/verify.mjs *)",
+      "Bash(node scripts/verify.mjs)",
+      "Bash(node scripts/check-specs.mjs)",
+      "Bash(node scripts/dev-session.mjs *)",
+      "Bash(node scripts/e2e-db.mjs *)",
+      "Bash(pnpm lint)",
+      "Bash(pnpm format:check)",
+      "Bash(pnpm typecheck)",
+      "Bash(pnpm test)",
+      "Bash(pnpm build)",
+      "Bash(pnpm exec eslint *)",
+      "Bash(pnpm exec prettier --check *)",
+      "Bash(pnpm --filter @madiro/shared build)",
+      "Bash(pnpm --filter @madiro/scanner exec vitest run *)",
+      "Bash(pnpm --filter @madiro/dashboard exec vitest run *)",
+      "Bash(pnpm --filter @madiro/web-core exec vitest run *)",
+      "Bash(pnpm --filter @madiro/shared exec vitest run *)",
+      "Bash(pnpm --filter @madiro/api exec jest *)"
+    ],
+    "deny": [
+      "Read(./.env)",
+      "Read(./apps/api/.env)",
+      "Edit(./apps/api/prisma/migrations/**)",
+      "Edit(./apps/*/src/routeTree.gen.ts)",
+      "Write(./apps/*/src/routeTree.gen.ts)",
+      "Edit(./apps/dashboard/public/mockServiceWorker.js)",
+      "Write(./apps/dashboard/public/mockServiceWorker.js)",
+      "Edit(./pnpm-lock.yaml)",
+      "Write(./pnpm-lock.yaml)"
+    ]
+  }
+}
